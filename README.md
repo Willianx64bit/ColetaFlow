@@ -29,7 +29,7 @@ O ColetaFlow é um aplicativo independente para importar um modelo de planilha v
 
 ## Objetivo
 
-Permitir que uma pessoa ou equipe importe uma planilha de produtos, faça a contagem por leitura de código de barras e exporte o resultado preenchido no formato esperado pela empresa.
+Permitir que uma pessoa ou equipe importe um modelo de planilha vazio, leia códigos de barras, informe as quantidades encontradas e exporte uma cópia preenchida no formato esperado pela empresa.
 
 Fluxo principal:
 
@@ -40,7 +40,7 @@ Fluxo principal:
 ### 1. Importação de arquivos
 - Primeira versão: arquivos Excel `.xlsx` e CSV.
 - Identificar abas, cabeçalhos e linhas de produtos.
-- Reconhecer possíveis colunas de código de barras, SKU/código interno, descrição e quantidade.
+- Reconhecer as colunas de código de barras/código e quantidade.
 - Mostrar uma prévia antes de iniciar.
 - Não alterar o arquivo original durante a importação.
 
@@ -56,20 +56,20 @@ Fluxo principal:
 - Suporte a leitores físicos Bluetooth/USB que funcionem como teclado (HID), quando disponíveis no dispositivo.
 - Operação contínua, com foco pronto para a próxima leitura.
 - Quantidade grande e legível na tela, feedback visual e sonoro configurável.
-- Cada leitura válida soma uma unidade por padrão; leitura repetida é permitida e representa outra unidade.
+- Após a leitura, o operador informa a quantidade encontrada; quando o mesmo código aparece novamente, a quantidade é somada ao total já registrado.
 - Controles para adicionar/remover quantidade manualmente e corrigir erros.
 - Suporte inicial a simbologias comuns: EAN-13, EAN-8, UPC-A/UPC-E, Code 128 e QR Code, conforme capacidade da biblioteca/dispositivo.
 - Preservar códigos como texto para não perder zeros à esquerda.
 
 ### 4. Associação e tratamento de códigos
-- Associar a leitura à linha correta usando o identificador configurado.
+- Registrar qualquer código como identificador livre, sem procurar correspondência em cadastro.
 - Não exigir cadastro nem identificação prévia: cada código é aceito como identificador livre. O operador informa a quantidade encontrada e códigos repetidos acumulam.
-- Separar códigos não encontrados em uma lista de pendências, sem descartá-los.
-- Tratar códigos duplicados na planilha com uma regra explícita: sinalizar e permitir escolher a linha ou consolidar somente após confirmação.
+- Agrupar códigos iguais e somar as quantidades informadas.
+- Não exigir cadastro prévio, descrição ou saldo de estoque.
 - Não confundir SKU/código interno com código de barras.
 
 ### 5. Sessões e confiabilidade
-- Criar, pausar, retomar, finalizar e consultar sessões de coleta.
+- Guardar localmente a contagem em andamento e permitir recuperar a sessão ao reimportar o mesmo modelo.
 - Salvar cada leitura e alteração de quantidade imediatamente no armazenamento local.
 - Funcionar sem internet durante a coleta; sincronização/backup em nuvem pode ser etapa posterior e opcional.
 - Recuperar a sessão após fechamento inesperado do aplicativo.
@@ -78,13 +78,13 @@ Fluxo principal:
 
 ### 6. Conferência antes da exportação
 - Resumo de produtos encontrados, coletados, não coletados e códigos desconhecidos.
-- Comparação entre quantidade original e quantidade coletada, quando houver quantidade-base.
-- Permitir exportar quantidade coletada, substituir quantidade existente ou somar à quantidade existente, conforme regra escolhida pelo usuário.
+- Conferência do conjunto de códigos e quantidades informadas.
+- Exportar uma linha por código lido, preenchendo as colunas escolhidas de código e quantidade.
 - Mostrar claramente a regra de preenchimento antes de gerar o arquivo.
 
 ### 7. Exportação no modelo da empresa
-- Gerar XLSX ou CSV com as colunas e cabeçalhos esperados pelo modelo importado.
-- Preservar, sempre que tecnicamente possível, abas, ordem das colunas, identificadores, descrições e demais campos que não precisam ser alterados.
+- Gerar XLSX com as colunas e cabeçalhos do modelo importado.
+- Preservar, sempre que tecnicamente possível, abas, ordem das colunas, cabeçalhos e demais campos que não precisam ser alterados.
 - Escrever somente nos campos mapeados pelo usuário.
 - Manter códigos como texto e quantidades como números.
 - Não prometer preservação de macros, conexões externas ou todos os recursos avançados de qualquer arquivo Excel. Detectar limitações e avisar antes da exportação.
@@ -95,8 +95,8 @@ Fluxo principal:
 1. **Independente do MobFlow:** não exige conta, banco de dados ou contratação do MobFlow.
 2. **Modelo pertence à empresa:** não forçar um layout único de importação.
 3. **Nenhuma leitura pode sumir silenciosamente:** persistir localmente e mostrar falhas.
-4. **Sem deduplicação indevida:** duas bipagens intencionais do mesmo produto devem contar duas unidades.
-5. **Sem associação insegura:** códigos desconhecidos ou ambíguos ficam pendentes.
+4. **Agrupamento por código:** códigos repetidos acumulam as quantidades informadas.
+5. **Sem cadastro prévio:** qualquer código lido é aceito e armazenado.
 6. **Exportação controlada:** nunca sobrescrever o arquivo original; gerar uma cópia de saída.
 7. **Transparência:** mostrar o que foi reconhecido, o que será alterado e quais limitações existem.
 
