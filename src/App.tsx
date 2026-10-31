@@ -29,6 +29,7 @@ export default function App() {
   const [notice, setNotice] = useState('Importe o modelo vazio da empresa para começar.');
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraUsed, setCameraUsed] = useState(false);
+  const [autoReopenCamera, setAutoReopenCamera] = useState(false);
   const [cameraStatus, setCameraStatus] = useState('Aguardando câmera');
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<IScannerControls | null>(null);
@@ -189,7 +190,12 @@ export default function App() {
     setPendingCode('');
     setQuantityValue('1');
     setScanValue('');
-    requestAnimationFrame(() => inputRef.current?.focus());
+    if (autoReopenCamera && cameraUsed) {
+      setCameraStatus('Preparando próxima leitura…');
+      setCameraOpen(true);
+    } else {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
   };
 
   const startCamera = () => {
@@ -310,6 +316,9 @@ export default function App() {
             <button className="secondary-button camera-launch" onClick={startCamera} disabled={!workbook || cameraOpen || !!pendingCode}>
               {cameraUsed ? <RefreshCw size={17} /> : <Camera size={17} />}
               {cameraUsed ? 'Reabrir câmera' : 'Ler pela câmera'}
+            </button>
+            <button type="button" className={autoReopenCamera ? 'secondary-button auto-reopen active' : 'secondary-button auto-reopen'} onClick={() => setAutoReopenCamera(value => !value)} aria-pressed={autoReopenCamera} disabled={!workbook || !cameraUsed || !!pendingCode} title="Ao confirmar a quantidade, inicia a câmera para a próxima leitura.">
+              <RefreshCw size={16} /> {autoReopenCamera ? 'Reabertura automática: ligada' : 'Reabertura automática: desligada'}
             </button>
             <span>Leitor USB/Bluetooth funciona como teclado (HID).</span>
           </div>
