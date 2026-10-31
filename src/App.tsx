@@ -202,9 +202,24 @@ export default function App() {
       outputSheet[cellAddress] = { t: 'n', v: value };
       updated++;
     });
-    const outputName = fileName.replace(/\.(xlsx|xls|csv)$/i, '') + '-coletado.xlsx';
+    // Códigos ausentes no cadastro também retornam no arquivo, em novas linhas.
+    let appended = 0;
+    let nextRow = range.e.r + 1;
+    Object.entries(unknown).forEach(([code, qty]) => {
+      if (productIndex.has(code)) { ambiguous++; return; }
+      outputSheet[XLSX.utils.encode_cell({ r: nextRow, c: range.s.c + columns.code })] = { t: 's', v: code };
+      outputSheet[XLSX.utils.encode_cell({ r: nextRow, c: range.s.c + columns.description })] = { t: 's', v: 'NÃO CADASTRADO NA PLANILHA' };
+      outputSheet[XLSX.utils.encode_cell({ r: nextRow, c: range.s.c + columns.quantity })] = { t: 'n', v: qty };
+      nextRow++;
+      appended++;
+    });
+    outputSheet['!ref'] = XLSX.utils.encode_range({
+      s: range.s,
+      e: { r: Math.max(range.e.r, nextRow - 1), c: Math.max(range.e.c, range.s.c + columns.code, range.s.c + columns.description, range.s.c + columns.quantity) }
+    });
+    const outputName = fileName.replace(/\\.(xlsx|xls|csv)$/i, '') + '-coletado.xlsx';
     XLSX.writeFile(output, outputName);
-    setNotice(`Arquivo gerado: ${updated} linha(s) atualizada(s). ${ambiguous ? ambiguous + ' código(s) duplicado(s) ficaram sem alteração.' : ''}`);
+    setNotice(`Arquivo gerado: ${updated} linha(s) atualizada(s) e ${appended} código(s) novo(s) acrescentado(s). ${ambiguous ? ambiguous + ' código(s) duplicado(s) ficaram sem alteração.' : ''}`);
   };
 
   const resetSession = () => {
