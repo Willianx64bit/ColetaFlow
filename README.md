@@ -2,6 +2,26 @@
 
 **Coletor inteligente universal de produtos.**
 
+
+## Estado do desenvolvimento
+
+**Fundação criada — MVP inicial em construção.**
+
+Já existe uma primeira interface React + TypeScript com:
+- Importação de arquivos XLSX, XLS e CSV.
+- Sugestão automática e mapeamento manual das colunas de código, descrição e quantidade.
+- Entrada por leitor físico em modo teclado (HID).
+- Leitura pela câmera usando ZXing.
+- Contagem por código, lista de códigos não encontrados e alerta para códigos duplicados na planilha.
+- Ajuste manual das quantidades e exportação para XLSX.
+- Códigos desconhecidos acrescentados ao final da planilha exportada; códigos ambíguos ficam pendentes.
+- Contagem guardada localmente no navegador e recuperável ao reimportar o mesmo arquivo.
+- Workflow do GitHub Actions para verificar instalação e build.
+
+**Limitação atual:** ainda é uma primeira base de desenvolvimento, não uma versão validada para operação comercial. A leitura da câmera exige HTTPS e permissão do dispositivo. A sessão guarda as contagens localmente, mas o arquivo de origem precisa ser reimportado após recarregar a página. Preservação avançada de macros, fórmulas, estilos especiais e layouts complexos ainda precisa de testes.
+
+Próximos passos: validar o build, testar com planilhas reais variadas, reforçar a persistência offline e implementar instalação PWA/Android.
+
 O ColetaFlow é um aplicativo independente para coletar códigos de barras e quantidades de produtos e devolver os resultados no modelo de planilha fornecido por cada empresa.
 
 > **Princípio do produto:** a empresa mantém seu próprio modelo; o ColetaFlow adapta a coleta e a exportação a esse modelo, sem exigir uma planilha padrão única.
