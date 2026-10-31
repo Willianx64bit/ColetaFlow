@@ -171,7 +171,12 @@ export default function App() {
     const output = XLSX.read(XLSX.write(workbook, { bookType: 'xlsx', type: 'array' }), { type: 'array', cellStyles: true });
     const outputSheet = output.Sheets[sheetName];
     const hasHeader = Array.from({ length: range.e.c - range.s.c + 1 }, (_, i) => cellText(sheet[XLSX.utils.encode_cell({ r: headerRow, c: range.s.c + i })])).some(Boolean);
-    let row = hasHeader ? Math.max(headerRow, range.e.r) + 1 : range.s.r;
+    let lastUsedRow = hasHeader ? headerRow : range.s.r - 1;
+    for (let r = hasHeader ? headerRow + 1 : range.s.r; r <= range.e.r; r++) {
+      const rowHasValue = Array.from({ length: range.e.c - range.s.c + 1 }, (_, i) => cellText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + i })])).some(Boolean);
+      if (rowHasValue) lastUsedRow = r;
+    }
+    let row = lastUsedRow + 1;
     const startColumn = range.s.c;
     for (const [code, qty] of Object.entries(counts)) {
       const codeCell = XLSX.utils.encode_cell({ r: row, c: startColumn + columns.code });
