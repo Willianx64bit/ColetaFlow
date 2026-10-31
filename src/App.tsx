@@ -32,7 +32,6 @@ export default function App() {
   const [notice, setNotice] = useState('Importe uma planilha para começar.');
   const [cameraOpen, setCameraOpen] = useState(false);
   const [quantityMode, setQuantityMode] = useState<'replace' | 'add'>('replace');
-  const [activeTab, setActiveTab] = useState<'all' | 'collected' | 'pending'>('all');
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<IScannerControls | null>(null);
   const lastCameraScan = useRef<{ code: string; at: number } | null>(null);
@@ -74,12 +73,8 @@ export default function App() {
   const collectedUnits = Object.values(counts).reduce((sum, qty) => sum + qty, 0);
   const uniqueCollected = Object.keys(counts).length;
   const unknownUnits = Object.values(unknown).reduce((sum, qty) => sum + qty, 0);
-  const visibleProducts = products.filter(product => {
-    const qty = counts[product.code] ?? 0;
-    const match = !search || normalize(product.code + ' ' + product.description).includes(normalize(search));
-    const tabMatch = activeTab === 'all' || (activeTab === 'collected' ? qty > 0 : qty === 0);
-    return match && tabMatch;
-  });
+  // A tela de coleta é cega: só exibe códigos já bipados e suas quantidades.
+  const visibleProducts = products.filter(product => (counts[product.code] ?? 0) > 0 && (!search || normalize(product.code).includes(normalize(search))));
 
   useEffect(() => {
     try {
@@ -144,7 +139,6 @@ export default function App() {
       } catch { /* start a clean session */ }
       if (!restored) { setCounts({}); setUnknown({}); }
       setNotice(restored ? `“${file.name}” importada. Contagem anterior recuperada.` : `“${file.name}” importada. Confira as colunas antes de bipar.`);
-      setActiveTab('all');
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Não foi possível abrir o arquivo.');
     }
@@ -161,10 +155,10 @@ export default function App() {
     const matches = productIndex.get(code) ?? [];
     if (matches.length === 1) {
       setCounts(previous => ({ ...previous, [code]: (previous[code] ?? 0) + 1 }));
-      setNotice(`✓ Leitura registrada: ${matches[0].description || code}`);
+      setNotice(`Leitura registrada · Código ${code} · Quantidade ${((counts[code] ?? 0) + 1)}`);
     } else {
       setUnknown(previous => ({ ...previous, [code]: (previous[code] ?? 0) + 1 }));
-      setNotice(matches.length > 1 ? `Código duplicado na planilha: ${code}. Precisa de conferência.` : `Código não encontrado: ${code}. Guardado nas pendências.`);
+      setNotice(matches.length > 1 ? `Código ${code} duplicado na planilha · enviado para conferência.` : `Código ${code} não encontrado · registrado nas pendências.`);
     }
     setScanValue('');
     requestAnimationFrame(() => inputRef.current?.focus());
@@ -271,7 +265,7 @@ export default function App() {
       </section>
 
       <section className="workspace">
-        <div className="section-heading"><div><span className="step-label">ETAPA 01</span><h2>Planilha de origem</h2><p>Comece com o arquivo que sua empresa já utiliza.</p></div>
+        <div className="section-heading"><div><span className="step-label">ETAPA 01</span><h2>Planilha de origem</h2><p>Importe o modelo da empresa. O catálogo ficará oculto durante a contagem.</p></div>
           <label className="primary-button upload-button"><FolderUp size={18} /> Importar planilha<input type="file" accept=".xlsx,.xls,.csv" onChange={event => { const file = event.target.files?.[0]; if (file) void loadWorkbook(file); event.currentTarget.value = ''; }} /></label>
         </div>
 
@@ -290,7 +284,7 @@ export default function App() {
             <div className="mapping-grid">
               <label>Aba da planilha<select value={sheetName} onChange={event => changeSheet(event.target.value)}>{workbook.SheetNames.map(name => <option key={name}>{name}</option>)}</select></label>
               <label>Código de barras<select value={columns.code} onChange={event => setColumns(v => ({ ...v, code: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h || `Coluna ${i+1}`}</option>)}</select></label>
-              <label>Descrição do produto<select value={columns.description} onChange={event => setColumns(v => ({ ...v, description: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h || `Coluna ${i+1}`}</option>)}</select></label>
+              
               <label>Quantidade de destino<select value={columns.quantity} onChange={event => setColumns(v => ({ ...v, quantity: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h || `Coluna ${i+1}`}</option>)}</select></label>
             </div>
             <div className="mapping-note"><AlertCircle size={15} /> A identificação é uma sugestão automática. Confira as colunas antes de iniciar a coleta.</div>
@@ -299,14 +293,14 @@ export default function App() {
       </section>
 
       <section className="workspace collector-section">
-        <div className="section-heading"><div><span className="step-label">ETAPA 02</span><h2>Coletor de produtos</h2><p>Use um leitor físico ou a câmera do dispositivo.</p></div><span className={workbook ? 'ready-chip' : 'waiting-chip'}>{workbook ? 'PLANILHA PRONTA' : 'AGUARDANDO PLANILHA'}</span></div>
+        <div className="section-heading"><div><span className="step-label">ETAPA 02</span><h2>Coletor de produtos</h2><p>Bipagem cega: sem identificação do produto e sem consulta ao estoque esperado.</p></div><span className={workbook ? 'ready-chip' : 'waiting-chip'}>{workbook ? 'PLANILHA PRONTA' : 'AGUARDANDO PLANILHA'}</span></div>
         <div className="stats-grid">
-          <div className="stat-card"><span>Unidades coletadas</span><strong>{collectedUnits}</strong><small>Total de bipagens válidas</small></div>
-          <div className="stat-card"><span>Produtos coletados</span><strong>{uniqueCollected}</strong><small>Itens diferentes</small></div>
+          <div className="stat-card"><span>Unidades contadas</span><strong>{collectedUnits}</strong><small>Soma das leituras registradas</small></div>
+          <div className="stat-card"><span>Códigos coletados</span><strong>{uniqueCollected}</strong><small>Códigos distintos bipados</small></div>
           <div className="stat-card warning-stat"><span>Códigos pendentes</span><strong>{unknownUnits}</strong><small>Não encontrados ou ambíguos</small></div>
         </div>
         <div className="scanner-panel">
-          <div className="scanner-heading"><div className="scanner-icon"><Barcode size={22} /></div><div><strong>Leitura contínua</strong><span>Pronto para receber o próximo código</span></div><span className="live-indicator"><i /> AO VIVO</span></div>
+          <div className="scanner-heading"><div className="scanner-icon"><Barcode size={22} /></div><div><strong>Leitura contínua · modo cego</strong><span>Cada bipagem soma 1 unidade. Sem descrição do produto.</span></div><span className="live-indicator"><i /> AO VIVO</span></div>
           <form className="scan-form" onSubmit={event => { event.preventDefault(); registerScan(scanValue); }}>
             <div className="scan-input-wrap"><Keyboard size={20} /><input ref={inputRef} value={scanValue} onChange={event => setScanValue(event.target.value)} placeholder={workbook ? 'Bipe ou digite o código de barras...' : 'Importe uma planilha primeiro'} disabled={!workbook} autoComplete="off" autoFocus /><button type="submit" disabled={!workbook || !scanValue.trim()}><ScanLine size={19} /><span>Registrar</span></button></div>
           </form>
@@ -317,16 +311,16 @@ export default function App() {
       </section>
 
       <section className="workspace results-section">
-        <div className="section-heading"><div><span className="step-label">ETAPA 03</span><h2>Conferência da coleta</h2><p>Revise os produtos e corrija quantidades quando necessário.</p></div><button className="text-button" onClick={resetSession} disabled={!workbook}><RotateCcw size={16} /> Reiniciar contagem</button></div>
+        <div className="section-heading"><div><span className="step-label">ETAPA 03</span><h2>Conferência da coleta</h2><p>Conferência cega: somente códigos bipados e quantidades, sem descrição ou saldo esperado.</p></div><button className="text-button" onClick={resetSession} disabled={!workbook}><RotateCcw size={16} /> Reiniciar contagem</button></div>
         <div className="results-toolbar">
-          <div className="tabs"><button className={activeTab === 'all' ? 'active' : ''} onClick={() => setActiveTab('all')}>Todos ({products.length})</button><button className={activeTab === 'collected' ? 'active' : ''} onClick={() => setActiveTab('collected')}>Coletados ({uniqueCollected})</button><button className={activeTab === 'pending' ? 'active' : ''} onClick={() => setActiveTab('pending')}>Não coletados ({products.length - uniqueCollected})</button></div>
-          <label className="search-box"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar produto ou código" /></label>
+          <div className="blind-mode-note"><ShieldCheck size={17} /> MODO CEGO · catálogo e descrições ocultos</div>
+          <label className="search-box"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar código bipado" /></label>
         </div>
         <div className="product-list">
-          {!workbook ? <div className="empty-state"><Package size={28} /><strong>Sua lista aparecerá aqui</strong><span>Importe uma planilha para visualizar os produtos.</span></div> :
-            visibleProducts.slice(0,100).map((product, index) => <div className="product-row" key={product.row}><div className="product-number">{index + 1}</div><div className="product-details"><strong>{product.description || 'Produto sem descrição'}</strong><span>{product.code}{(productIndex.get(product.code)?.length ?? 0) > 1 && <em className="duplicate-tag">Código duplicado</em>}</span></div><div className="quantity-control"><button onClick={() => updateCount(product.code, -1)} disabled={!counts[product.code]}>−</button><strong>{counts[product.code] ?? 0}</strong><button onClick={() => updateCount(product.code, 1)}>+</button></div></div>)}
-          {workbook && visibleProducts.length === 0 && <div className="empty-state"><Search size={24} /><strong>Nenhum produto encontrado</strong><span>Altere a busca ou o filtro.</span></div>}
-          {visibleProducts.length > 100 && <div className="list-footnote">Mostrando os primeiros 100 resultados. Use a busca para localizar outros produtos.</div>}
+          {!workbook ? <div className="empty-state"><Package size={28} /><strong>Aguardando planilha</strong><span>Importe o arquivo e comece a bipar. Nenhum produto será exibido antes da leitura.</span></div> :
+            visibleProducts.slice(0,100).map((product, index) => <div className="product-row" key={product.row}><div className="product-number">{index + 1}</div><div className="product-details"><strong>{product.code}</strong><span>CÓDIGO BIPADO</span></div><div className="quantity-control"><button onClick={() => updateCount(product.code, -1)} disabled={!counts[product.code]}>−</button><strong>{counts[product.code] ?? 0}</strong><button onClick={() => updateCount(product.code, 1)}>+</button></div></div>)}
+          {workbook && visibleProducts.length === 0 && <div className="empty-state"><Search size={24} /><strong>Nenhuma bipagem registrada</strong><span>Os códigos aparecerão aqui somente depois de serem lidos.</span></div>}
+          {visibleProducts.length > 100 && <div className="list-footnote">Mostrando os primeiros 100 códigos coletados. Use a busca para localizar outro código.</div>}
         </div>
         {Object.keys(unknown).length > 0 && <div className="unknown-panel"><div><AlertCircle size={18} /><strong>Pendências de leitura</strong></div>{Object.entries(unknown).map(([code,qty]) => <span key={code}><code>{code}</code><b>{qty}x</b></span>)}</div>}
       </section>
