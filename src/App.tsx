@@ -9,7 +9,6 @@ import {
 
 type ColumnMap = { code: number; description: number; quantity: number };
 type ProductRow = { code: string; description: string; row: number; currentQty: number };
-type UnknownCode = { code: string; quantity: number };
 
 const STORAGE_KEY = 'coletaflow.session.v1';
 const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
