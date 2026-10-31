@@ -317,7 +317,7 @@ export default function App() {
               {cameraUsed ? <RefreshCw size={17} /> : <Camera size={17} />}
               {cameraUsed ? 'Reabrir câmera' : 'Ler pela câmera'}
             </button>
-            <button type="button" className={autoReopenCamera ? 'secondary-button auto-reopen active' : 'secondary-button auto-reopen'} onClick={() => setAutoReopenCamera(value => !value)} aria-pressed={autoReopenCamera} disabled={!workbook || !cameraUsed || !!pendingCode} title="Ao confirmar a quantidade, inicia a câmera para a próxima leitura.">
+            <button type="button" className={autoReopenCamera ? 'secondary-button auto-reopen active' : 'secondary-button auto-reopen'} onClick={() => setAutoReopenCamera(value => !value)} aria-pressed={autoReopenCamera} disabled={!workbook || !!pendingCode} title="Ao confirmar a quantidade, inicia a câmera para a próxima leitura.">
               <RefreshCw size={16} /> {autoReopenCamera ? 'Reabertura automática: ligada' : 'Reabertura automática: desligada'}
             </button>
             <span>Leitor USB/Bluetooth funciona como teclado (HID).</span>
