@@ -170,7 +170,8 @@ export default function App() {
     if (!workbook || !sheet || !range) return;
     const output = XLSX.read(XLSX.write(workbook, { bookType: 'xlsx', type: 'array' }), { type: 'array', cellStyles: true });
     const outputSheet = output.Sheets[sheetName];
-    let row = Math.max(headerRow, range.e.r) + 1;
+    const hasHeader = Array.from({ length: range.e.c - range.s.c + 1 }, (_, i) => cellText(sheet[XLSX.utils.encode_cell({ r: headerRow, c: range.s.c + i })])).some(Boolean);
+    let row = hasHeader ? Math.max(headerRow, range.e.r) + 1 : range.s.r;
     const startColumn = range.s.c;
     for (const [code, qty] of Object.entries(counts)) {
       const codeCell = XLSX.utils.encode_cell({ r: row, c: startColumn + columns.code });
@@ -183,7 +184,7 @@ export default function App() {
       s: range.s,
       e: { r: Math.max(range.e.r, row - 1), c: Math.max(range.e.c, startColumn + columns.code, startColumn + columns.quantity) }
     });
-    const outputName = fileName.replace(/\\.(xlsx|xls|csv)$/i, '') + '-coletado.xlsx';
+    const outputName = fileName.replace(/\.(xlsx|xls|csv)$/i, '') + '-coletado.xlsx';
     XLSX.writeFile(output, outputName);
     setNotice(`Planilha preenchida: ${totalCodes} códigos e ${totalUnits} unidades. O arquivo modelo original foi preservado.`);
   };
@@ -240,7 +241,7 @@ export default function App() {
           <div className="mapping-panel">
             <div className="mapping-title"><div><ShieldCheck size={18} /><strong>Defina onde gravar os dados</strong></div><span>MAPEAMENTO DO MODELO</span></div>
             <div className="mapping-grid">
-              <label>Aba<select value={sheetName} onChange={event => { setSheetName(event.target.value); setCounts({}); setPendingCode(''); }}><option value={sheetName}>{sheetName}</option></select></label>
+              <label>Aba<select value={sheetName} onChange={event => { setSheetName(event.target.value); setCounts({}); setPendingCode(''); }}>{workbook.SheetNames.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
               <label>Coluna do código<select value={columns.code} onChange={event => setColumns(v => ({ ...v, code: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
               <label>Coluna da quantidade<select value={columns.quantity} onChange={event => setColumns(v => ({ ...v, quantity: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
             </div>
