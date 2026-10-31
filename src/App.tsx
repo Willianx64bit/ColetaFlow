@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import * as XLSX from 'xlsx';
 import {
-  AlertCircle, ArrowDownToLine, Barcode, Camera, Check, ChevronDown,
-  FileSpreadsheet, FolderUp, Keyboard, Package, Play, RotateCcw,
-  ScanLine, Search, ShieldCheck, Smartphone, Trash2, X
+  AlertCircle, ArrowDownToLine, Barcode, Camera, Check,
+  FileSpreadsheet, FolderUp, Keyboard, Package, RotateCcw,
+  ScanLine, Search, ShieldCheck, Smartphone, X
 } from 'lucide-react';
 
 type ColumnMap = { code: number; description: number; quantity: number };
@@ -36,6 +36,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'all' | 'collected' | 'pending'>('all');
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<IScannerControls | null>(null);
+  const lastCameraScan = useRef<{ code: string; at: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const sheet = workbook && sheetName ? workbook.Sheets[sheetName] : null;
@@ -143,13 +144,18 @@ export default function App() {
     }
   };
 
-  const registerScan = (raw: string) => {
+  const registerScan = (raw: string, fromCamera = false) => {
     const code = raw.trim();
     if (!code) return;
+    if (fromCamera) {
+      const last = lastCameraScan.current;
+      if (last?.code === code && Date.now() - last.at < 1400) return;
+      lastCameraScan.current = { code, at: Date.now() };
+    }
     const matches = productIndex.get(code) ?? [];
     if (matches.length === 1) {
       setCounts(previous => ({ ...previous, [code]: (previous[code] ?? 0) + 1 }));
-      setNotice(`✓ ${matches[0].description || code} — ${(counts[code] ?? 0) + 1} unidade(s)`);
+      setNotice(`✓ Leitura registrada: ${matches[0].description || code}`);
     } else {
       setUnknown(previous => ({ ...previous, [code]: (previous[code] ?? 0) + 1 }));
       setNotice(matches.length > 1 ? `Código duplicado na planilha: ${code}. Precisa de conferência.` : `Código não encontrado: ${code}. Guardado nas pendências.`);
@@ -165,7 +171,7 @@ export default function App() {
       scannerRef.current = await reader.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
         if (result) {
           const code = result.getText();
-          registerScan(code);
+          registerScan(code, true);
         }
       });
       setCameraOpen(true);
@@ -188,7 +194,7 @@ export default function App() {
     let ambiguous = 0;
     products.forEach(product => {
       const qty = counts[product.code] ?? 0;
-      if (!qty) return;
+      if (quantityMode === 'add' && !qty) return;
       if ((productIndex.get(product.code) ?? []).length !== 1) { ambiguous++; return; }
       const cellAddress = XLSX.utils.encode_cell({ r: product.row, c: range.s.c + columns.quantity });
       const existing = Number(outputSheet[cellAddress]?.v ?? 0) || 0;
@@ -231,7 +237,7 @@ export default function App() {
           <span className="brand-mark"><ScanLine size={25} /></span>
           <span><strong>ColetaFlow</strong><small>COLETOR INTELIGENTE</small></span>
         </a>
-        <div className="topbar-right"><span className="offline-pill"><span /> OFFLINE READY</span><span className="version">MVP 0.1</span></div>
+        <div className="topbar-right"><span className="offline-pill"><span /> CONTAGEM LOCAL</span><span className="version">MVP 0.1</span></div>
       </header>
 
       <section className="hero">
