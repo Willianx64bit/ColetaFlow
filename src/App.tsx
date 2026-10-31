@@ -2,98 +2,69 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import * as XLSX from 'xlsx';
 import {
-  AlertCircle, ArrowDownToLine, Barcode, Camera, Check,
-  FileSpreadsheet, FolderUp, Keyboard, Package, RotateCcw,
-  ScanLine, Search, ShieldCheck, Smartphone, X
+  ArrowDownToLine, Barcode, Camera, Check, FileSpreadsheet, FolderUp,
+  Keyboard, Package, RotateCcw, ScanLine, Search, ShieldCheck, Smartphone, X
 } from 'lucide-react';
 
-type ColumnMap = { code: number; description: number; quantity: number };
-type ProductRow = { code: string; description: string; row: number; currentQty: number };
-
-const STORAGE_KEY = 'coletaflow.session.v1';
-const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-const codeText = (cell: XLSX.CellObject | undefined) => {
+type ColumnMap = { code: number; quantity: number };
+const STORAGE_KEY = 'coletaflow.blind-session.v2';
+const normalize = (value: string) => value.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
+const cellText = (cell: XLSX.CellObject | undefined) => {
   if (!cell || cell.v === undefined || cell.v === null) return '';
-  if (cell.w !== undefined) return String(cell.w).trim();
-  return String(cell.v).trim();
+  return cell.w !== undefined ? String(cell.w).trim() : String(cell.v).trim();
 };
-const headerScore = (value: string, terms: string[]) => terms.some(term => normalize(value).includes(term));
+const hasTerm = (value: string, terms: string[]) => terms.some(term => normalize(value).includes(term));
 
 export default function App() {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [fileName, setFileName] = useState('');
   const [sheetName, setSheetName] = useState('');
   const [headerRow, setHeaderRow] = useState(0);
-  const [columns, setColumns] = useState<ColumnMap>({ code: 0, description: 1, quantity: 2 });
+  const [columns, setColumns] = useState<ColumnMap>({ code: 0, quantity: 1 });
   const [counts, setCounts] = useState<Record<string, number>>({});
-  const [unknown, setUnknown] = useState<Record<string, number>>({});
   const [scanValue, setScanValue] = useState('');
+  const [quantityValue, setQuantityValue] = useState('1');
+  const [pendingCode, setPendingCode] = useState('');
   const [search, setSearch] = useState('');
-  const [notice, setNotice] = useState('Importe uma planilha para começar.');
+  const [notice, setNotice] = useState('Importe o modelo vazio da empresa para começar.');
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [quantityMode, setQuantityMode] = useState<'replace' | 'add'>('replace');
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<IScannerControls | null>(null);
   const lastCameraScan = useRef<{ code: string; at: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const quantityRef = useRef<HTMLInputElement>(null);
 
   const sheet = workbook && sheetName ? workbook.Sheets[sheetName] : null;
-  const range = sheet?.['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : null;
+  const range = sheet ? (sheet['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }) : null;
   const headers = useMemo(() => {
     if (!sheet || !range) return [];
     const result: string[] = [];
-    for (let c = range.s.c; c <= range.e.c; c++) {
-      result.push(codeText(sheet[XLSX.utils.encode_cell({ r: headerRow, c })]) || `Coluna ${XLSX.utils.encode_col(c)}`);
+    for (let c = range.s.c; c <= Math.max(range.e.c, range.s.c + 1); c++) {
+      result.push(cellText(sheet[XLSX.utils.encode_cell({ r: headerRow, c })]) || `Coluna ${XLSX.utils.encode_col(c)}`);
     }
     return result;
   }, [sheet, range, headerRow]);
 
-  const products = useMemo<ProductRow[]>(() => {
-    if (!sheet || !range || !headers.length) return [];
-    const list: ProductRow[] = [];
-    for (let r = Math.max(headerRow + 1, range.s.r); r <= range.e.r; r++) {
-      const code = codeText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + columns.code })]);
-      const description = codeText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + columns.description })]);
-      const quantityCell = sheet[XLSX.utils.encode_cell({ r, c: range.s.c + columns.quantity })] as XLSX.CellObject | undefined;
-      const currentQty = Number(quantityCell?.v ?? 0) || 0;
-      if (code) list.push({ code, description, row: r, currentQty });
-    }
-    return list;
-  }, [sheet, range, headers, headerRow, columns]);
-
-  const productIndex = useMemo(() => {
-    const index = new Map<string, ProductRow[]>();
-    products.forEach(product => {
-      const key = product.code.trim();
-      index.set(key, [...(index.get(key) ?? []), product]);
-    });
-    return index;
-  }, [products]);
-
-  const collectedUnits = Object.values(counts).reduce((sum, qty) => sum + qty, 0);
-  const uniqueCollected = Object.keys(counts).length;
-  const unknownUnits = Object.values(unknown).reduce((sum, qty) => sum + qty, 0);
-  // A tela de coleta é cega: só exibe códigos já bipados e suas quantidades.
-  const visibleProducts = products.filter(product => (counts[product.code] ?? 0) > 0 && (!search || normalize(product.code).includes(normalize(search))));
+  const entries = Object.entries(counts).filter(([code]) => !search || normalize(code).includes(normalize(search)));
+  const totalUnits = Object.values(counts).reduce((sum, qty) => sum + qty, 0);
+  const totalCodes = Object.keys(counts).length;
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const session = JSON.parse(saved) as { counts?: Record<string, number>; unknown?: Record<string, number>; fileName?: string };
-        setCounts(session.counts ?? {});
-        setUnknown(session.unknown ?? {});
-        if (session.fileName) {
-          setFileName(session.fileName);
-          setNotice(`Sessão recuperada. Reimporte “${session.fileName}” para continuar e exportar.`);
-        }
+      if (!saved) return;
+      const session = JSON.parse(saved) as { counts?: Record<string, number>; fileName?: string };
+      if (session.counts) setCounts(session.counts);
+      if (session.fileName) {
+        setFileName(session.fileName);
+        setNotice(`Contagem local recuperada. Reimporte “${session.fileName}” para exportar.`);
       }
     } catch { /* ignore invalid local session */ }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ counts, unknown, fileName }));
-  }, [counts, unknown, fileName]);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ counts, fileName })); } catch { /* storage may be full */ }
+  }, [counts, fileName]);
 
   useEffect(() => () => scannerRef.current?.stop(), []);
 
@@ -102,64 +73,71 @@ export default function App() {
       const data = await file.arrayBuffer();
       const parsed = XLSX.read(data, { type: 'array', cellText: true, cellNF: true });
       const firstSheet = parsed.SheetNames[0];
-      if (!firstSheet) throw new Error('A planilha não possui abas legíveis.');
+      if (!firstSheet) throw new Error('O arquivo não possui uma aba legível.');
       const ws = parsed.Sheets[firstSheet];
-      const wsRange = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : null;
-      if (!wsRange) throw new Error('Não encontrei dados nessa planilha.');
+      const wsRange = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } };
       let detectedHeader = wsRange.s.r;
       let bestScore = -1;
       for (let r = wsRange.s.r; r <= Math.min(wsRange.s.r + 12, wsRange.e.r); r++) {
         let score = 0;
-        for (let c = wsRange.s.c; c <= wsRange.e.c; c++) {
-          const text = codeText(ws[XLSX.utils.encode_cell({ r, c })]);
-          if (headerScore(text, ['codigo', 'ean', 'gtin', 'barras', 'barcode', 'produto', 'descricao', 'quantidade', 'qtd', 'estoque'])) score++;
+        for (let c = wsRange.s.c; c <= Math.max(wsRange.e.c, wsRange.s.c + 1); c++) {
+          const value = cellText(ws[XLSX.utils.encode_cell({ r, c })]);
+          if (hasTerm(value, ['codigo', 'ean', 'gtin', 'barras', 'barcode', 'quantidade', 'qtd'])) score++;
         }
         if (score > bestScore) { bestScore = score; detectedHeader = r; }
       }
       const rowHeaders: string[] = [];
-      for (let c = wsRange.s.c; c <= wsRange.e.c; c++) rowHeaders.push(codeText(ws[XLSX.utils.encode_cell({ r: detectedHeader, c })]));
+      for (let c = wsRange.s.c; c <= Math.max(wsRange.e.c, wsRange.s.c + 1); c++) {
+        rowHeaders.push(cellText(ws[XLSX.utils.encode_cell({ r: detectedHeader, c })]));
+      }
       const findColumn = (terms: string[], fallback: number) => {
-        const found = rowHeaders.findIndex(value => headerScore(value, terms));
+        const found = rowHeaders.findIndex(value => hasTerm(value, terms));
         return found >= 0 ? found : Math.min(fallback, Math.max(0, rowHeaders.length - 1));
       };
+      const previous = (() => {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { fileName?: string; counts?: Record<string, number> }; }
+        catch { return {}; }
+      })();
+      const sameTemplate = previous.fileName === file.name;
       setWorkbook(parsed);
       setFileName(file.name);
       setSheetName(firstSheet);
       setHeaderRow(detectedHeader);
       setColumns({
         code: findColumn(['ean', 'gtin', 'codigo de barras', 'cod barras', 'barcode', 'codigo', 'cod.'], 0),
-        description: findColumn(['descricao', 'produto', 'nome'], Math.min(1, rowHeaders.length - 1)),
-        quantity: findColumn(['quantidade', 'qtd', 'contagem', 'estoque'], Math.min(2, rowHeaders.length - 1))
+        quantity: findColumn(['quantidade', 'qtd', 'contagem', 'unidades'], 1)
       });
-      let restored = false;
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        const previous = saved ? JSON.parse(saved) as { fileName?: string } : null;
-        restored = previous?.fileName === file.name;
-      } catch { /* start a clean session */ }
-      if (!restored) { setCounts({}); setUnknown({}); }
-      setNotice(restored ? `“${file.name}” importada. Contagem anterior recuperada.` : `“${file.name}” importada. Confira as colunas antes de bipar.`);
+      if (!sameTemplate) setCounts({});
+      setPendingCode('');
+      setNotice(sameTemplate ? 'Modelo importado. A contagem anterior deste arquivo foi recuperada.' : 'Modelo vazio importado. Agora é só bipar o código e informar a quantidade.');
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Não foi possível abrir o arquivo.');
+      setNotice(error instanceof Error ? error.message : 'Não foi possível abrir o modelo.');
     }
   };
 
-  const registerScan = (raw: string, fromCamera = false) => {
+  const receiveCode = (raw: string, fromCamera = false) => {
     const code = raw.trim();
     if (!code) return;
     if (fromCamera) {
       const last = lastCameraScan.current;
-      if (last?.code === code && Date.now() - last.at < 1400) return;
+      if (last?.code === code && Date.now() - last.at < 1600) return;
       lastCameraScan.current = { code, at: Date.now() };
     }
-    const matches = productIndex.get(code) ?? [];
-    if (matches.length === 1) {
-      setCounts(previous => ({ ...previous, [code]: (previous[code] ?? 0) + 1 }));
-      setNotice(`Leitura registrada · Código ${code} · Quantidade ${((counts[code] ?? 0) + 1)}`);
-    } else {
-      setUnknown(previous => ({ ...previous, [code]: (previous[code] ?? 0) + 1 }));
-      setNotice(matches.length > 1 ? `Código ${code} duplicado na planilha · enviado para conferência.` : `Código ${code} não encontrado · registrado nas pendências.`);
-    }
+    setPendingCode(code);
+    setScanValue('');
+    setNotice(`Código lido: ${code}. Informe a quantidade para registrar.`);
+    requestAnimationFrame(() => quantityRef.current?.focus());
+  };
+
+  const confirmCount = () => {
+    const code = pendingCode.trim();
+    const qty = Number(quantityValue);
+    if (!code) { setNotice('Bipe ou digite um código primeiro.'); inputRef.current?.focus(); return; }
+    if (!Number.isFinite(qty) || qty <= 0 || !Number.isInteger(qty)) { setNotice('Informe uma quantidade inteira maior que zero.'); quantityRef.current?.focus(); return; }
+    setCounts(previous => ({ ...previous, [code]: (previous[code] ?? 0) + qty }));
+    setNotice(`Registrado: código ${code} · quantidade adicionada: ${qty}.`);
+    setPendingCode('');
+    setQuantityValue('1');
     setScanValue('');
     requestAnimationFrame(() => inputRef.current?.focus());
   };
@@ -168,15 +146,17 @@ export default function App() {
     if (!videoRef.current) return;
     try {
       const reader = new BrowserMultiFormatReader();
-      scannerRef.current = await reader.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
+      scannerRef.current = await reader.decodeFromVideoDevice(undefined, videoRef.current, result => {
         if (result) {
-          const code = result.getText();
-          registerScan(code, true);
+          receiveCode(result.getText(), true);
+          scannerRef.current?.stop();
+          scannerRef.current = null;
+          setCameraOpen(false);
         }
       });
       setCameraOpen(true);
     } catch {
-      setNotice('Não foi possível abrir a câmera. Verifique a permissão e use HTTPS.');
+      setNotice('Não foi possível abrir a câmera. Verifique a permissão do dispositivo.');
     }
   };
 
@@ -190,43 +170,29 @@ export default function App() {
     if (!workbook || !sheet || !range) return;
     const output = XLSX.read(XLSX.write(workbook, { bookType: 'xlsx', type: 'array' }), { type: 'array', cellStyles: true });
     const outputSheet = output.Sheets[sheetName];
-    let updated = 0;
-    let ambiguous = 0;
-    products.forEach(product => {
-      const qty = counts[product.code] ?? 0;
-      if (quantityMode === 'add' && !qty) return;
-      if ((productIndex.get(product.code) ?? []).length !== 1) { ambiguous++; return; }
-      const cellAddress = XLSX.utils.encode_cell({ r: product.row, c: range.s.c + columns.quantity });
-      const existing = Number(outputSheet[cellAddress]?.v ?? 0) || 0;
-      const value = quantityMode === 'add' ? existing + qty : qty;
-      outputSheet[cellAddress] = { t: 'n', v: value };
-      updated++;
-    });
-    // Códigos ausentes no cadastro também retornam no arquivo, em novas linhas.
-    let appended = 0;
-    let nextRow = range.e.r + 1;
-    Object.entries(unknown).forEach(([code, qty]) => {
-      if (productIndex.has(code)) { ambiguous++; return; }
-      outputSheet[XLSX.utils.encode_cell({ r: nextRow, c: range.s.c + columns.code })] = { t: 's', v: code };
-      // Mantém a linha extra cega: somente código e quantidade, sem inventar descrição.
-      outputSheet[XLSX.utils.encode_cell({ r: nextRow, c: range.s.c + columns.quantity })] = { t: 'n', v: qty };
-      nextRow++;
-      appended++;
-    });
+    let row = Math.max(headerRow, range.e.r) + 1;
+    const startColumn = range.s.c;
+    for (const [code, qty] of Object.entries(counts)) {
+      const codeCell = XLSX.utils.encode_cell({ r: row, c: startColumn + columns.code });
+      const qtyCell = XLSX.utils.encode_cell({ r: row, c: startColumn + columns.quantity });
+      outputSheet[codeCell] = { t: 's', v: code, z: '@' };
+      outputSheet[qtyCell] = { t: 'n', v: qty };
+      row++;
+    }
     outputSheet['!ref'] = XLSX.utils.encode_range({
       s: range.s,
-      e: { r: Math.max(range.e.r, nextRow - 1), c: Math.max(range.e.c, range.s.c + columns.code, range.s.c + columns.description, range.s.c + columns.quantity) }
+      e: { r: Math.max(range.e.r, row - 1), c: Math.max(range.e.c, startColumn + columns.code, startColumn + columns.quantity) }
     });
     const outputName = fileName.replace(/\\.(xlsx|xls|csv)$/i, '') + '-coletado.xlsx';
     XLSX.writeFile(output, outputName);
-    setNotice(`Arquivo gerado: ${updated} linha(s) atualizada(s) e ${appended} código(s) novo(s) acrescentado(s). ${ambiguous ? ambiguous + ' código(s) duplicado(s) ficaram sem alteração.' : ''}`);
+    setNotice(`Planilha preenchida: ${totalCodes} códigos e ${totalUnits} unidades. O arquivo modelo original foi preservado.`);
   };
 
   const resetSession = () => {
-    if (!window.confirm('Limpar todas as quantidades desta sessão?')) return;
+    if (!window.confirm('Limpar toda a contagem desta sessão?')) return;
     setCounts({});
-    setUnknown({});
-    setNotice('Contagem reiniciada. A planilha continua carregada.');
+    setPendingCode('');
+    setNotice('Contagem reiniciada. O modelo continua carregado.');
   };
 
   const updateCount = (code: string, delta: number) => {
@@ -238,98 +204,89 @@ export default function App() {
     });
   };
 
-  const changeSheet = (name: string) => {
-    setSheetName(name);
-    setCounts({});
-    setUnknown({});
-    setNotice(`Aba “${name}” selecionada. Confira o mapeamento das colunas.`);
-  };
-
   return (
     <main className="app-shell">
       <header className="topbar">
         <a className="brand" href="#" aria-label="ColetaFlow início">
           <span className="brand-mark"><ScanLine size={25} /></span>
-          <span><strong>ColetaFlow</strong><small>COLETOR INTELIGENTE</small></span>
+          <span><strong>ColetaFlow</strong><small>COLETOR DE CÓDIGOS E QUANTIDADES</small></span>
         </a>
-        <div className="topbar-right"><span className="offline-pill"><span /> CONTAGEM LOCAL</span><span className="version">MVP 0.1</span></div>
+        <div className="topbar-right"><span className="offline-pill"><span /> CONTAGEM LOCAL</span><span className="version">MVP 0.2</span></div>
       </header>
 
       <section className="hero">
         <div className="hero-copy">
-          <span className="eyebrow">COLETA UNIVERSAL DE PRODUTOS</span>
-          <h1>Bipe rápido.<br /><em>Confira com precisão.</em></h1>
-          <p>Importe a planilha da empresa, faça a coleta e exporte os dados no modelo original.</p>
+          <span className="eyebrow">COLETA SEM CADASTRO PRÉVIO</span>
+          <h1>Bipe o código.<br /><em>Informe a quantidade.</em></h1>
+          <p>Use o modelo vazio da empresa. O ColetaFlow registra somente o código de barras e a quantidade contada.</p>
         </div>
         <div className="hero-art"><div className="scan-orbit orbit-one" /><div className="scan-orbit orbit-two" /><Barcode size={76} strokeWidth={1.25} /></div>
       </section>
 
       <section className="workspace">
-        <div className="section-heading"><div><span className="step-label">ETAPA 01</span><h2>Planilha de origem</h2><p>Importe o modelo da empresa. O catálogo ficará oculto durante a contagem.</p></div>
-          <label className="primary-button upload-button"><FolderUp size={18} /> Importar planilha<input type="file" accept=".xlsx,.xls,.csv" onChange={event => { const file = event.target.files?.[0]; if (file) void loadWorkbook(file); event.currentTarget.value = ''; }} /></label>
+        <div className="section-heading"><div><span className="step-label">ETAPA 01</span><h2>Modelo da empresa</h2><p>Importe a planilha vazia que deverá receber os códigos e quantidades.</p></div>
+          <label className="primary-button upload-button"><FolderUp size={18} /> Importar modelo<input type="file" accept=".xlsx,.xls,.csv" onChange={event => { const file = event.target.files?.[0]; if (file) void loadWorkbook(file); event.currentTarget.value = ''; }} /></label>
         </div>
-
         {workbook && sheet ? (
           <div className="file-card">
             <div className="file-icon"><FileSpreadsheet size={24} /></div>
-            <div className="file-info"><strong>{fileName}</strong><span>{products.length} produtos identificados · {workbook.SheetNames.length} aba(s)</span></div>
-            <span className="file-status"><Check size={14} /> Importada</span>
-            <button className="icon-button" title="Remover planilha" onClick={() => { setWorkbook(null); setFileName(''); setSheetName(''); setCounts({}); setUnknown({}); }}><X size={18} /></button>
+            <div className="file-info"><strong>{fileName}</strong><span>Modelo carregado · {workbook.SheetNames.length} aba(s) · sem necessidade de cadastro de produtos</span></div>
+            <span className="file-status"><Check size={14} /> Pronto</span>
+            <button className="icon-button" title="Remover modelo" onClick={() => { setWorkbook(null); setFileName(''); setSheetName(''); setCounts({}); setPendingCode(''); }}><X size={18} /></button>
           </div>
-        ) : <label className="dropzone"><input type="file" accept=".xlsx,.xls,.csv" onChange={event => { const file = event.target.files?.[0]; if (file) void loadWorkbook(file); event.currentTarget.value = ''; }} /><span className="drop-icon"><FolderUp size={25} /></span><strong>Selecione ou arraste sua planilha</strong><span>Excel (.xlsx, .xls) ou CSV</span></label>}
+        ) : <label className="dropzone"><input type="file" accept=".xlsx,.xls,.csv" onChange={event => { const file = event.target.files?.[0]; if (file) void loadWorkbook(file); event.currentTarget.value = ''; }} /><span className="drop-icon"><FolderUp size={25} /></span><strong>Selecione o modelo vazio da empresa</strong><span>Excel (.xlsx, .xls) ou CSV</span></label>}
 
         {workbook && sheet && (
           <div className="mapping-panel">
-            <div className="mapping-title"><div><ShieldCheck size={18} /><strong>Confira o reconhecimento das colunas</strong></div><span>MAPEAMENTO EDITÁVEL</span></div>
+            <div className="mapping-title"><div><ShieldCheck size={18} /><strong>Defina onde gravar os dados</strong></div><span>MAPEAMENTO DO MODELO</span></div>
             <div className="mapping-grid">
-              <label>Aba da planilha<select value={sheetName} onChange={event => changeSheet(event.target.value)}>{workbook.SheetNames.map(name => <option key={name}>{name}</option>)}</select></label>
-              <label>Código de barras<select value={columns.code} onChange={event => setColumns(v => ({ ...v, code: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h || `Coluna ${i+1}`}</option>)}</select></label>
-              
-              <label>Quantidade de destino<select value={columns.quantity} onChange={event => setColumns(v => ({ ...v, quantity: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h || `Coluna ${i+1}`}</option>)}</select></label>
+              <label>Aba<select value={sheetName} onChange={event => { setSheetName(event.target.value); setCounts({}); setPendingCode(''); }}><option value={sheetName}>{sheetName}</option></select></label>
+              <label>Coluna do código<select value={columns.code} onChange={event => setColumns(v => ({ ...v, code: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
+              <label>Coluna da quantidade<select value={columns.quantity} onChange={event => setColumns(v => ({ ...v, quantity: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
             </div>
-            <div className="mapping-note"><AlertCircle size={15} /> A identificação é uma sugestão automática. Confira as colunas antes de iniciar a coleta.</div>
+            <div className="mapping-note">O sistema não procura produtos na planilha. Essas duas colunas serão preenchidas somente na exportação.</div>
           </div>
         )}
       </section>
 
       <section className="workspace collector-section">
-        <div className="section-heading"><div><span className="step-label">ETAPA 02</span><h2>Coletor de produtos</h2><p>Bipagem cega: sem identificação do produto e sem consulta ao estoque esperado.</p></div><span className={workbook ? 'ready-chip' : 'waiting-chip'}>{workbook ? 'PLANILHA PRONTA' : 'AGUARDANDO PLANILHA'}</span></div>
+        <div className="section-heading"><div><span className="step-label">ETAPA 02</span><h2>Coletor</h2><p>Bipe qualquer código e informe quantas unidades encontrou.</p></div><span className={workbook ? 'ready-chip' : 'waiting-chip'}>{workbook ? 'MODELO PRONTO' : 'AGUARDANDO MODELO'}</span></div>
         <div className="stats-grid">
-          <div className="stat-card"><span>Unidades contadas</span><strong>{collectedUnits}</strong><small>Soma das leituras registradas</small></div>
-          <div className="stat-card"><span>Códigos coletados</span><strong>{uniqueCollected}</strong><small>Códigos distintos bipados</small></div>
-          <div className="stat-card warning-stat"><span>Códigos pendentes</span><strong>{unknownUnits}</strong><small>Não encontrados ou ambíguos</small></div>
+          <div className="stat-card"><span>Unidades contadas</span><strong>{totalUnits}</strong><small>Soma das quantidades informadas</small></div>
+          <div className="stat-card"><span>Códigos diferentes</span><strong>{totalCodes}</strong><small>Identificadores registrados</small></div>
+          <div className="stat-card warning-stat"><span>Aguardando quantidade</span><strong>{pendingCode ? '1' : '0'}</strong><small>{pendingCode ? 'Código lido, falta confirmar' : 'Nenhum código pendente'}</small></div>
         </div>
         <div className="scanner-panel">
-          <div className="scanner-heading"><div className="scanner-icon"><Barcode size={22} /></div><div><strong>Leitura contínua · modo cego</strong><span>Cada bipagem soma 1 unidade. Sem descrição do produto.</span></div><span className="live-indicator"><i /> AO VIVO</span></div>
-          <form className="scan-form" onSubmit={event => { event.preventDefault(); registerScan(scanValue); }}>
-            <div className="scan-input-wrap"><Keyboard size={20} /><input ref={inputRef} value={scanValue} onChange={event => setScanValue(event.target.value)} placeholder={workbook ? 'Bipe ou digite o código de barras...' : 'Importe uma planilha primeiro'} disabled={!workbook} autoComplete="off" autoFocus /><button type="submit" disabled={!workbook || !scanValue.trim()}><ScanLine size={19} /><span>Registrar</span></button></div>
+          <div className="scanner-heading"><div className="scanner-icon"><Barcode size={22} /></div><div><strong>Bipagem contínua</strong><span>Sem catálogo, descrição ou saldo de estoque</span></div><span className="live-indicator"><i /> AO VIVO</span></div>
+          <form className="scan-form" onSubmit={event => { event.preventDefault(); receiveCode(scanValue); }}>
+            <div className="scan-input-wrap"><Keyboard size={20} /><input ref={inputRef} value={scanValue} onChange={event => setScanValue(event.target.value)} placeholder={workbook ? 'Bipe ou digite o código...' : 'Importe o modelo primeiro'} disabled={!workbook} autoComplete="off" autoFocus /><button type="submit" disabled={!workbook || !scanValue.trim()}><ScanLine size={19} /><span>Ler código</span></button></div>
           </form>
-          <div className="scanner-actions"><button className="secondary-button" onClick={() => void startCamera()} disabled={!workbook || cameraOpen}><Camera size={17} /> Abrir câmera</button><span>Leitor Bluetooth/USB compatível com modo teclado (HID)</span></div>
+          {pendingCode && <div className="pending-code-card"><div><small>CÓDIGO LIDO</small><strong>{pendingCode}</strong></div><label>Quantidade<input ref={quantityRef} type="number" min="1" step="1" value={quantityValue} onChange={event => setQuantityValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmCount(); } }} /></label><button className="primary-button" onClick={confirmCount}><Check size={17} /> Confirmar</button><button className="icon-button" title="Cancelar código" onClick={() => { setPendingCode(''); setQuantityValue('1'); inputRef.current?.focus(); }}><X size={18} /></button></div>}
+          <div className="scanner-actions"><button className="secondary-button" onClick={() => void startCamera()} disabled={!workbook || cameraOpen || !!pendingCode}><Camera size={17} /> Ler pela câmera</button><span>Leitor USB/Bluetooth funciona como teclado (HID).</span></div>
           {cameraOpen && <div className="camera-box"><video ref={videoRef} muted playsInline /><button className="camera-close" onClick={stopCamera}><X size={18} /> Fechar câmera</button></div>}
           <div className="scan-feedback">{notice}</div>
         </div>
       </section>
 
       <section className="workspace results-section">
-        <div className="section-heading"><div><span className="step-label">ETAPA 03</span><h2>Conferência da coleta</h2><p>Conferência cega: somente códigos bipados e quantidades, sem descrição ou saldo esperado.</p></div><button className="text-button" onClick={resetSession} disabled={!workbook}><RotateCcw size={16} /> Reiniciar contagem</button></div>
+        <div className="section-heading"><div><span className="step-label">ETAPA 03</span><h2>Resumo da coleta</h2><p>Confira somente os códigos e as quantidades registradas.</p></div><button className="text-button" onClick={resetSession} disabled={!workbook}><RotateCcw size={16} /> Reiniciar contagem</button></div>
         <div className="results-toolbar">
-          <div className="blind-mode-note"><ShieldCheck size={17} /> MODO CEGO · catálogo e descrições ocultos</div>
-          <label className="search-box"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar código bipado" /></label>
+          <div className="blind-mode-note"><ShieldCheck size={17} /> SOMENTE CÓDIGO + QUANTIDADE</div>
+          <label className="search-box"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar código registrado" /></label>
         </div>
         <div className="product-list">
-          {!workbook ? <div className="empty-state"><Package size={28} /><strong>Aguardando planilha</strong><span>Importe o arquivo e comece a bipar. Nenhum produto será exibido antes da leitura.</span></div> :
-            visibleProducts.slice(0,100).map((product, index) => <div className="product-row" key={product.row}><div className="product-number">{index + 1}</div><div className="product-details"><strong>{product.code}</strong><span>CÓDIGO BIPADO</span></div><div className="quantity-control"><button onClick={() => updateCount(product.code, -1)} disabled={!counts[product.code]}>−</button><strong>{counts[product.code] ?? 0}</strong><button onClick={() => updateCount(product.code, 1)}>+</button></div></div>)}
-          {workbook && visibleProducts.length === 0 && <div className="empty-state"><Search size={24} /><strong>Nenhuma bipagem registrada</strong><span>Os códigos aparecerão aqui somente depois de serem lidos.</span></div>}
-          {visibleProducts.length > 100 && <div className="list-footnote">Mostrando os primeiros 100 códigos coletados. Use a busca para localizar outro código.</div>}
+          {!workbook ? <div className="empty-state"><Package size={28} /><strong>Aguardando modelo</strong><span>Importe a planilha vazia para iniciar a coleta.</span></div> :
+            entries.slice(0,100).map(([code, qty], index) => <div className="product-row" key={code}><div className="product-number">{index + 1}</div><div className="product-details"><strong>{code}</strong><span>CÓDIGO</span></div><div className="quantity-control"><button onClick={() => updateCount(code, -1)} disabled={qty <= 1}>−</button><strong>{qty}</strong><button onClick={() => updateCount(code, 1)}>+</button></div></div>)}
+          {workbook && entries.length === 0 && <div className="empty-state"><Search size={24} /><strong>Nenhum código registrado</strong><span>Depois da leitura, os códigos e quantidades aparecerão aqui.</span></div>}
+          {entries.length > 100 && <div className="list-footnote">Mostrando os primeiros 100 códigos. Use a busca para localizar outro.</div>}
         </div>
-        {Object.keys(unknown).length > 0 && <div className="unknown-panel"><div><AlertCircle size={18} /><strong>Pendências de leitura</strong></div>{Object.entries(unknown).map(([code,qty]) => <span key={code}><code>{code}</code><b>{qty}x</b></span>)}</div>}
       </section>
 
       <section className="export-bar">
-        <div><span className="step-label">ETAPA 04</span><strong>Planilha pronta para voltar à empresa?</strong><small>O arquivo original não será sobrescrito.</small></div>
-        <div className="export-actions"><label>Regra de quantidade<select value={quantityMode} onChange={event => setQuantityMode(event.target.value as 'replace' | 'add')}><option value="replace">Substituir pela coleta</option><option value="add">Somar à quantidade original</option></select></label><button className="primary-button" onClick={exportWorkbook} disabled={!workbook || collectedUnits === 0}><ArrowDownToLine size={18} /> Exportar XLSX</button></div>
+        <div><span className="step-label">ETAPA 04</span><strong>Exportar modelo preenchido</strong><small>O arquivo original fica intacto; será criada uma cópia com código e quantidade.</small></div>
+        <div className="export-actions"><button className="primary-button" onClick={exportWorkbook} disabled={!workbook || totalCodes === 0 || !!pendingCode}><ArrowDownToLine size={18} /> Exportar XLSX</button></div>
       </section>
-      <footer><span>ColetaFlow <b>•</b> Bipe. Confira. Exporte.</span><span><Smartphone size={14} /> Desenvolvido para coleta rápida</span></footer>
+      <footer><span>ColetaFlow <b>•</b> Bipe. Informe. Exporte.</span><span><Smartphone size={14} /> Coleta sem cadastro prévio</span></footer>
     </main>
   );
 }
