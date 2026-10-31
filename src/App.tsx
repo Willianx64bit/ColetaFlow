@@ -3,7 +3,7 @@ import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import * as XLSX from 'xlsx';
 import {
   ArrowDownToLine, Barcode, Camera, Check, FileSpreadsheet, FolderUp,
-  Keyboard, Package, RotateCcw, ScanLine, Search, ShieldCheck, Smartphone, X
+  Keyboard, Package, RotateCcw, ScanLine, Search, ShieldCheck, Smartphone, X, RefreshCw
 } from 'lucide-react';
 
 type ColumnMap = { code: number; quantity: number };
@@ -28,6 +28,8 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [notice, setNotice] = useState('Importe o modelo vazio da empresa para começar.');
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraUsed, setCameraUsed] = useState(false);
+  const [cameraStatus, setCameraStatus] = useState('Aguardando câmera');
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<IScannerControls | null>(null);
   const lastCameraScan = useRef<{ code: string; at: number } | null>(null);
@@ -66,7 +68,55 @@ export default function App() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ counts, fileName })); } catch { /* storage may be full */ }
   }, [counts, fileName]);
 
-  useEffect(() => () => scannerRef.current?.stop(), []);
+  useEffect(() => {
+    if (!cameraOpen || !videoRef.current || pendingCode) return;
+    let cancelled = false;
+    let controls: IScannerControls | null = null;
+    const video = videoRef.current;
+    setCameraStatus('Solicitando câmera traseira…');
+
+    const reader = new BrowserMultiFormatReader(undefined, 120);
+    reader.decodeFromConstraints({
+      audio: false,
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        frameRate: { ideal: 30 }
+      }
+    }, video, result => {
+      if (!result || cancelled) return;
+      const code = result.getText().trim();
+      if (!code) return;
+      setCameraStatus('Código identificado');
+      receiveCode(code, true);
+      setCameraOpen(false);
+    }).then(activeControls => {
+      controls = activeControls;
+      if (cancelled) activeControls.stop();
+      else {
+        scannerRef.current = activeControls;
+        setCameraUsed(true);
+        setCameraStatus('Câmera ativa · aponte para o código de barras');
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setCameraOpen(false);
+        setCameraStatus('Não foi possível abrir. Confira a permissão da câmera.');
+        setNotice('Não foi possível abrir a câmera. Autorize o acesso e tente novamente.');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      controls?.stop();
+      scannerRef.current?.stop();
+      scannerRef.current = null;
+      const stream = video.srcObject as MediaStream | null;
+      stream?.getTracks().forEach(track => track.stop());
+      video.srcObject = null;
+    };
+  }, [cameraOpen, pendingCode]);
 
   const loadWorkbook = async (file: File) => {
     try {
@@ -142,28 +192,16 @@ export default function App() {
     requestAnimationFrame(() => inputRef.current?.focus());
   };
 
-  const startCamera = async () => {
-    if (!videoRef.current) return;
-    try {
-      const reader = new BrowserMultiFormatReader();
-      scannerRef.current = await reader.decodeFromVideoDevice(undefined, videoRef.current, result => {
-        if (result) {
-          receiveCode(result.getText(), true);
-          scannerRef.current?.stop();
-          scannerRef.current = null;
-          setCameraOpen(false);
-        }
-      });
-      setCameraOpen(true);
-    } catch {
-      setNotice('Não foi possível abrir a câmera. Verifique a permissão do dispositivo.');
-    }
+  const startCamera = () => {
+    if (!workbook || pendingCode) return;
+    setCameraUsed(true);
+    setCameraStatus('Preparando leitor de código de barras…');
+    setCameraOpen(true);
   };
 
   const stopCamera = () => {
-    scannerRef.current?.stop();
-    scannerRef.current = null;
     setCameraOpen(false);
+    setCameraStatus('Câmera pausada');
   };
 
   const exportWorkbook = () => {
@@ -268,8 +306,23 @@ export default function App() {
             <div className="scan-input-wrap"><Keyboard size={20} /><input ref={inputRef} value={scanValue} onChange={event => setScanValue(event.target.value)} placeholder={!workbook ? 'Importe o modelo primeiro' : pendingCode ? 'Informe a quantidade do código lido' : 'Bipe ou digite o código...'} disabled={!workbook || !!pendingCode} autoComplete="off" autoFocus /><button type="submit" disabled={!workbook || !scanValue.trim()}><ScanLine size={19} /><span>Ler código</span></button></div>
           </form>
           {pendingCode && <div className="pending-code-card"><div><small>CÓDIGO LIDO</small><strong>{pendingCode}</strong></div><label>Quantidade<input ref={quantityRef} type="number" min="1" step="1" value={quantityValue} onChange={event => setQuantityValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmCount(); } }} /></label><button className="primary-button" onClick={confirmCount}><Check size={17} /> Confirmar</button><button className="icon-button" title="Cancelar código" onClick={() => { setPendingCode(''); setQuantityValue('1'); inputRef.current?.focus(); }}><X size={18} /></button></div>}
-          <div className="scanner-actions"><button className="secondary-button" onClick={() => void startCamera()} disabled={!workbook || cameraOpen || !!pendingCode}><Camera size={17} /> Ler pela câmera</button><span>Leitor USB/Bluetooth funciona como teclado (HID).</span></div>
-          {cameraOpen && <div className="camera-box"><video ref={videoRef} muted playsInline /><button className="camera-close" onClick={stopCamera}><X size={18} /> Fechar câmera</button></div>}
+          <div className="scanner-actions">
+            <button className="secondary-button camera-launch" onClick={startCamera} disabled={!workbook || cameraOpen || !!pendingCode}>
+              {cameraUsed ? <RefreshCw size={17} /> : <Camera size={17} />}
+              {cameraUsed ? 'Reabrir câmera' : 'Ler pela câmera'}
+            </button>
+            <span>Leitor USB/Bluetooth funciona como teclado (HID).</span>
+          </div>
+          {cameraOpen && (
+            <div className="camera-box">
+              <div className="camera-status"><span className="camera-live-dot" />{cameraStatus}</div>
+              <video ref={videoRef} muted playsInline autoPlay />
+              <div className="camera-guide" aria-hidden="true"><span /><i /></div>
+              <div className="camera-help">Enquadre o código de barras dentro da área central, com boa iluminação e sem inclinar o celular.</div>
+              <button className="camera-close" onClick={stopCamera}><X size={18} /> Fechar câmera</button>
+            </div>
+          )}
+          {!cameraOpen && cameraUsed && <div className="camera-reopen-hint">A câmera está pausada. Toque em <strong>Reabrir câmera</strong> para iniciar outra leitura.</div>}
           <div className="scan-feedback">{notice}</div>
         </div>
       </section>
