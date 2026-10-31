@@ -5,25 +5,25 @@
 
 ## Estado do desenvolvimento
 
-**MVP inicial com fluxo de bipagem cega implementado — aguardando validação com planilhas reais.**
+**MVP com coleta sem cadastro prévio: importa um modelo vazio, recebe códigos e quantidades e exporta uma cópia preenchida.**
 
 Já existe uma primeira interface React + TypeScript com:
-- Importação de arquivos XLSX, XLS e CSV.
-- Sugestão automática e mapeamento manual das colunas de código, descrição e quantidade.
+- Importação de modelos vazios ou com cabeçalho em XLSX, XLS e CSV.
+- Sugestão automática e mapeamento manual somente das colunas de código e quantidade.
 - Entrada por leitor físico em modo teclado (HID).
 - Leitura pela câmera usando ZXing.
-- Bipagem cega: durante a coleta, a interface não exibe nomes, descrições, catálogo completo nem saldo esperado; mostra somente códigos já bipados e quantidades.
-- Contagem por código, lista de códigos não encontrados e alerta para códigos duplicados na planilha.
+- Coleta sem cadastro prévio: não importa catálogo de produtos, não procura correspondências e não exige nomes, descrições ou saldo esperado. O operador lê um código e informa a quantidade.
+- Agrupamento das quantidades por código lido; códigos repetidos somam à quantidade já registrada.
 - Ajuste manual das quantidades e exportação para XLSX.
-- Códigos desconhecidos acrescentados ao final da planilha exportada; códigos ambíguos ficam pendentes.
+- Exportação de uma linha por código lido, preenchendo somente as colunas mapeadas de código e quantidade no modelo.
 - Contagem guardada localmente no navegador e recuperável ao reimportar o mesmo arquivo.
 - Workflow do GitHub Actions para verificar instalação e build.
 
-**Limitação atual:** ainda é uma primeira base de desenvolvimento, não uma versão validada para operação comercial. O modo cego foi aplicado à tela de coleta e à lista de conferência; a etapa de importação/mapeamento ainda precisa ser protegida caso o mesmo dispositivo seja entregue diretamente ao operador. A leitura da câmera exige HTTPS e permissão do dispositivo. A sessão guarda as contagens localmente, mas o arquivo de origem precisa ser reimportado após recarregar a página. Preservação avançada de macros, fórmulas, estilos especiais e layouts complexos ainda precisa de testes.
+**Limitação atual:** ainda é uma primeira base de desenvolvimento, não uma versão validada para operação comercial. É necessário testar modelos reais com diferentes cabeçalhos, posições de coluna, abas, fórmulas e formatações. A leitura da câmera exige HTTPS e permissão do dispositivo. A sessão guarda as contagens localmente, mas o arquivo de origem precisa ser reimportado após recarregar a página. Preservação avançada de macros, fórmulas, estilos especiais e layouts complexos ainda precisa de testes.
 
 Próximos passos: validar o build, testar com planilhas reais variadas, reforçar a persistência offline e implementar instalação PWA/Android.
 
-O ColetaFlow é um aplicativo independente para coletar códigos de barras e quantidades de produtos e devolver os resultados no modelo de planilha fornecido por cada empresa.
+O ColetaFlow é um aplicativo independente para importar um modelo de planilha vazio, coletar códigos de barras e quantidades sem cadastro prévio e devolver uma cópia preenchida no formato esperado pela empresa.
 
 > **Princípio do produto:** a empresa mantém seu próprio modelo; o ColetaFlow adapta a coleta e a exportação a esse modelo, sem exigir uma planilha padrão única.
 
@@ -33,7 +33,7 @@ Permitir que uma pessoa ou equipe importe uma planilha de produtos, faça a cont
 
 Fluxo principal:
 
-**Importar planilha → interpretar colunas → revisar mapeamento → coletar/bipar → conferir → exportar no modelo original.**
+**Importar modelo vazio → mapear coluna de código e coluna de quantidade → bipar código → informar quantidade → conferir códigos e quantidades → exportar uma cópia preenchida.**
 
 ## Funcionalidades planejadas
 
@@ -63,7 +63,7 @@ Fluxo principal:
 
 ### 4. Associação e tratamento de códigos
 - Associar a leitura à linha correta usando o identificador configurado.
-- **Modo cego como padrão:** não exibir descrição, nome, preço, catálogo completo ou saldo esperado durante a coleta. A interface de conferência mostra somente código e quantidade.
+- Não exigir cadastro nem identificação prévia: cada código é aceito como identificador livre. O operador informa a quantidade encontrada e códigos repetidos acumulam.
 - Separar códigos não encontrados em uma lista de pendências, sem descartá-los.
 - Tratar códigos duplicados na planilha com uma regra explícita: sinalizar e permitir escolher a linha ou consolidar somente após confirmação.
 - Não confundir SKU/código interno com código de barras.
@@ -106,7 +106,7 @@ Fluxo principal:
 2. **Importar planilha:** selecionar arquivo e escolher aba.
 3. **Mapear colunas:** confirmar código, descrição e quantidade de destino.
 4. **Prévia técnica (restrita):** confirmar o mapeamento sem revelar o catálogo ao operador da contagem.
-5. **Coletor cego:** leitura contínua, código e quantidade, sem descrição ou saldo esperado.
+5. **Coletor:** leitura contínua de qualquer código, entrada da quantidade encontrada e agrupamento de códigos repetidos.
 6. **Pendências:** códigos desconhecidos, ambíguos ou duplicados na origem.
 7. **Resumo:** totais, divergências e validações.
 8. **Exportar:** regra de preenchimento, prévia e geração do arquivo.
