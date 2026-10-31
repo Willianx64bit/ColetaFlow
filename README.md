@@ -5,20 +5,21 @@
 
 ## Estado do desenvolvimento
 
-**Fundação criada — MVP inicial em construção.**
+**MVP inicial com fluxo de bipagem cega implementado — aguardando validação com planilhas reais.**
 
 Já existe uma primeira interface React + TypeScript com:
 - Importação de arquivos XLSX, XLS e CSV.
 - Sugestão automática e mapeamento manual das colunas de código, descrição e quantidade.
 - Entrada por leitor físico em modo teclado (HID).
 - Leitura pela câmera usando ZXing.
+- Bipagem cega: durante a coleta, a interface não exibe nomes, descrições, catálogo completo nem saldo esperado; mostra somente códigos já bipados e quantidades.
 - Contagem por código, lista de códigos não encontrados e alerta para códigos duplicados na planilha.
 - Ajuste manual das quantidades e exportação para XLSX.
 - Códigos desconhecidos acrescentados ao final da planilha exportada; códigos ambíguos ficam pendentes.
 - Contagem guardada localmente no navegador e recuperável ao reimportar o mesmo arquivo.
 - Workflow do GitHub Actions para verificar instalação e build.
 
-**Limitação atual:** ainda é uma primeira base de desenvolvimento, não uma versão validada para operação comercial. A leitura da câmera exige HTTPS e permissão do dispositivo. A sessão guarda as contagens localmente, mas o arquivo de origem precisa ser reimportado após recarregar a página. Preservação avançada de macros, fórmulas, estilos especiais e layouts complexos ainda precisa de testes.
+**Limitação atual:** ainda é uma primeira base de desenvolvimento, não uma versão validada para operação comercial. O modo cego foi aplicado à tela de coleta e à lista de conferência; a etapa de importação/mapeamento ainda precisa ser protegida caso o mesmo dispositivo seja entregue diretamente ao operador. A leitura da câmera exige HTTPS e permissão do dispositivo. A sessão guarda as contagens localmente, mas o arquivo de origem precisa ser reimportado após recarregar a página. Preservação avançada de macros, fórmulas, estilos especiais e layouts complexos ainda precisa de testes.
 
 Próximos passos: validar o build, testar com planilhas reais variadas, reforçar a persistência offline e implementar instalação PWA/Android.
 
@@ -60,9 +61,9 @@ Fluxo principal:
 - Suporte inicial a simbologias comuns: EAN-13, EAN-8, UPC-A/UPC-E, Code 128 e QR Code, conforme capacidade da biblioteca/dispositivo.
 - Preservar códigos como texto para não perder zeros à esquerda.
 
-### 4. Associação e tratamento de produtos
-- Associar a leitura ao produto correto usando o identificador configurado.
-- Exibir descrição e código para confirmação rápida.
+### 4. Associação e tratamento de códigos
+- Associar a leitura à linha correta usando o identificador configurado.
+- **Modo cego como padrão:** não exibir descrição, nome, preço, catálogo completo ou saldo esperado durante a coleta. A interface de conferência mostra somente código e quantidade.
 - Separar códigos não encontrados em uma lista de pendências, sem descartá-los.
 - Tratar códigos duplicados na planilha com uma regra explícita: sinalizar e permitir escolher a linha ou consolidar somente após confirmação.
 - Não confundir SKU/código interno com código de barras.
@@ -104,8 +105,8 @@ Fluxo principal:
 1. **Início:** nova coleta, continuar coleta e histórico.
 2. **Importar planilha:** selecionar arquivo e escolher aba.
 3. **Mapear colunas:** confirmar código, descrição e quantidade de destino.
-4. **Prévia de produtos:** revisar linhas reconhecidas e alertas.
-5. **Coletor:** leitura contínua, quantidade, busca manual e correções.
+4. **Prévia técnica (restrita):** confirmar o mapeamento sem revelar o catálogo ao operador da contagem.
+5. **Coletor cego:** leitura contínua, código e quantidade, sem descrição ou saldo esperado.
 6. **Pendências:** códigos desconhecidos, ambíguos ou duplicados na origem.
 7. **Resumo:** totais, divergências e validações.
 8. **Exportar:** regra de preenchimento, prévia e geração do arquivo.
