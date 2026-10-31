@@ -29,3 +29,5 @@
 .camera-reopen-hint strong{color:#087fa5}
 .camera-launch{min-height:38px}
 @media(max-width:600px){.camera-box{padding:9px}.camera-box video{min-height:230px;max-height:55vh}.camera-guide{width:78%;height:82px}.camera-help{font-size:9px;padding-right:3px}.camera-close{top:43px;right:14px;padding:7px}}
+
+.auto-reopen{border:1px solid #d8e5ec;background:#fff;color:#587184}.auto-reopen.active{background:#e4f7ef;border-color:#9edcc2;color:#167653;box-shadow:inset 0 0 0 1px #b8ead2}
