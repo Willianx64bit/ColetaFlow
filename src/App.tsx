@@ -90,7 +90,10 @@ export default function App() {
         const session = JSON.parse(saved) as { counts?: Record<string, number>; unknown?: Record<string, number>; fileName?: string };
         setCounts(session.counts ?? {});
         setUnknown(session.unknown ?? {});
-        if (session.fileName) setNotice(`Sessão recuperada. Reimporte “${session.fileName}” para continuar e exportar.`);
+        if (session.fileName) {
+          setFileName(session.fileName);
+          setNotice(`Sessão recuperada. Reimporte “${session.fileName}” para continuar e exportar.`);
+        }
       }
     } catch { /* ignore invalid local session */ }
   }, []);
@@ -135,9 +138,14 @@ export default function App() {
         description: findColumn(['descricao', 'produto', 'nome'], Math.min(1, rowHeaders.length - 1)),
         quantity: findColumn(['quantidade', 'qtd', 'contagem', 'estoque'], Math.min(2, rowHeaders.length - 1))
       });
-      setCounts({});
-      setUnknown({});
-      setNotice(`“${file.name}” importada. Confira as colunas antes de bipar.`);
+      let restored = false;
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const previous = saved ? JSON.parse(saved) as { fileName?: string } : null;
+        restored = previous?.fileName === file.name;
+      } catch { /* start a clean session */ }
+      if (!restored) { setCounts({}); setUnknown({}); }
+      setNotice(restored ? `“${file.name}” importada. Contagem anterior recuperada.` : `“${file.name}” importada. Confira as colunas antes de bipar.`);
       setActiveTab('all');
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Não foi possível abrir o arquivo.');
