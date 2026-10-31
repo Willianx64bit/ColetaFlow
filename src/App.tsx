@@ -75,7 +75,6 @@ export default function App() {
   const collectedUnits = Object.values(counts).reduce((sum, qty) => sum + qty, 0);
   const uniqueCollected = Object.keys(counts).length;
   const unknownUnits = Object.values(unknown).reduce((sum, qty) => sum + qty, 0);
-  const duplicateCodes = products.length - productIndex.size;
   const visibleProducts = products.filter(product => {
     const qty = counts[product.code] ?? 0;
     const match = !search || normalize(product.code + ' ' + product.description).includes(normalize(search));
