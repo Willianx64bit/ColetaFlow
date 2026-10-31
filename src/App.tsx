@@ -208,7 +208,7 @@ export default function App() {
     Object.entries(unknown).forEach(([code, qty]) => {
       if (productIndex.has(code)) { ambiguous++; return; }
       outputSheet[XLSX.utils.encode_cell({ r: nextRow, c: range.s.c + columns.code })] = { t: 's', v: code };
-      outputSheet[XLSX.utils.encode_cell({ r: nextRow, c: range.s.c + columns.description })] = { t: 's', v: 'NÃO CADASTRADO NA PLANILHA' };
+      // Mantém a linha extra cega: somente código e quantidade, sem inventar descrição.
       outputSheet[XLSX.utils.encode_cell({ r: nextRow, c: range.s.c + columns.quantity })] = { t: 'n', v: qty };
       nextRow++;
       appended++;
