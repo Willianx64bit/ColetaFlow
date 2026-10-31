@@ -157,3 +157,8 @@ Esses recursos podem ser avaliados depois que o fluxo universal de importação,
 ---
 
 **ColetaFlow — Bipe. Confira. Exporte.**
+
+
+## Prévia na Vercel
+
+O repositório está conectado ao projeto Vercel `coletaflow`. Commits na branch `main` devem iniciar uma nova implantação automaticamente.
