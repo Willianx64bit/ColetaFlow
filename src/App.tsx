@@ -75,7 +75,7 @@ export default function App() {
     const video = videoRef.current;
     setCameraStatus('Solicitando câmera traseira…');
 
-    const reader = new BrowserMultiFormatReader(undefined, 120);
+    const reader = new BrowserMultiFormatReader();
     reader.decodeFromConstraints({
       audio: false,
       video: {
