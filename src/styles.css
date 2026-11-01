@@ -254,3 +254,19 @@
 .collector-authenticated{position:relative}
 .collector-logout{position:fixed;right:16px;top:15px;z-index:50;border:1px solid #38516d;border-radius:9px;background:#102239eF;color:#e4edf7;padding:8px 13px;font:inherit;font-size:12px;font-weight:700;box-shadow:0 5px 20px #0003}
 @media(max-width:520px){.access-card{padding:28px 22px}}
+
+
+/* Coleta relâmpago: edição compacta e confirmação visual/sonora */
+.quick-collect-control{display:flex;align-items:center;gap:7px;flex-wrap:nowrap}
+.quick-collect-quantity{display:inline-flex;align-items:center;gap:2px;padding:3px 5px 3px 9px;border:1px solid #cfe3e8;border-radius:10px;background:#f2f8fa;color:#52677d;font-size:12px;white-space:nowrap}
+.quick-collect-quantity strong{color:#087f91;font-size:13px}
+.quick-collect-quantity .icon-button{width:30px;height:30px;min-width:30px}
+.quick-collect-editor{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%}
+.scanner-panel{position:relative;isolation:isolate;overflow:hidden}
+.scanner-panel:after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;opacity:0;background:rgba(22,190,145,.14)}
+.scanner-panel.scan-pulse-1:after,.scanner-panel.scan-pulse-0:after{animation:scan-panel-flash .38s ease-out}
+.scan-feedback{position:relative;transition:background .15s,border-color .15s}
+.scan-feedback-active{animation:scan-feedback-focus .48s ease-out}
+@keyframes scan-panel-flash{0%{opacity:0}24%{opacity:1}100%{opacity:0}}
+@keyframes scan-feedback-focus{0%{background:#d8fff0;border-color:#31bd8c;box-shadow:0 0 0 4px #31bd8c2b;transform:scale(1.006)}100%{transform:scale(1);box-shadow:none}}
+@media(max-width:600px){.quick-collect-control{gap:5px}.quick-collect-quantity{padding-left:7px;font-size:11px}.quick-collect-quantity .icon-button{width:28px;height:28px;min-width:28px}}
