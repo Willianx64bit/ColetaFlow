@@ -110,3 +110,13 @@
 
 
 .pending-product-missing{color:#dc2626!important;font-weight:800!important}
+
+
+.camera-settings{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.camera-settings label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;color:#52677d}
+.camera-settings select{width:100%;min-height:40px;padding:8px 10px;border:1px solid #cbd8e5;border-radius:9px;background:#fff;color:#14243b;font:inherit}
+.camera-guide{transition:all .18s ease}
+.camera-guide.focus-small{width:42%;max-width:260px}
+.camera-guide.focus-medium{width:64%;max-width:390px}
+.camera-guide.focus-large{width:84%;max-width:520px}
+@media(max-width:600px){.camera-settings{gap:8px}.camera-settings select{min-height:42px}}
