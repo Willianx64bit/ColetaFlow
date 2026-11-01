@@ -8,6 +8,48 @@ import {
 
 type ColumnMap = { code: number; quantity: number; description: number };
 const STORAGE_KEY = 'coletaflow.blind-session.v2';
+type SavedSession = {
+  workbookBytes?: ArrayBuffer | Uint8Array | number[] | null;
+  fileName?: string;
+  sheetName?: string;
+  headerRow?: number;
+  columns?: ColumnMap;
+  counts?: Record<string, number>;
+  currentStep?: number;
+  pendingCode?: string;
+  quantityValue?: string;
+  autoReopenCamera?: boolean;
+  cameraZoom?: number;
+};
+const SESSION_DB = 'coletaflow-session-db';
+const SESSION_STORE = 'sessions';
+const openSessionDb = () => new Promise<IDBDatabase>((resolve, reject) => {
+  const request = indexedDB.open(SESSION_DB, 1);
+  request.onupgradeneeded = () => {
+    if (!request.result.objectStoreNames.contains(SESSION_STORE)) request.result.createObjectStore(SESSION_STORE);
+  };
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error);
+});
+const readSavedSession = async (): Promise<SavedSession | null> => {
+  const db = await openSessionDb();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(SESSION_STORE, 'readonly').objectStore(SESSION_STORE).get('active');
+    request.onsuccess = () => { db.close(); resolve((request.result as SavedSession) || null); };
+    request.onerror = () => { db.close(); reject(request.error); };
+  });
+};
+const writeSavedSession = async (session: SavedSession) => {
+  const db = await openSessionDb();
+  return new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(SESSION_STORE, 'readwrite');
+    transaction.objectStore(SESSION_STORE).put(session, 'active');
+    transaction.oncomplete = () => { db.close(); resolve(); };
+    transaction.onerror = () => { db.close(); reject(transaction.error); };
+    transaction.onabort = () => { db.close(); reject(transaction.error); };
+  });
+};
+
 const normalize = (value: string) => value.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
 const cellText = (cell: XLSX.CellObject | undefined) => {
   if (!cell || cell.v === undefined || cell.v === null) return '';
@@ -72,22 +114,72 @@ export default function App() {
     try { localStorage.setItem('coletaflow_quantity_shortcuts', JSON.stringify(quantityShortcuts)); } catch { /* storage may be unavailable */ }
   }, [quantityShortcuts]);
 
+  const [sessionRestored, setSessionRestored] = useState(false);
+  const workbookBytesRef = useRef<ArrayBuffer | null>(null);
+
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (!saved) return;
-      const session = JSON.parse(saved) as { counts?: Record<string, number>; fileName?: string };
-      if (session.counts) setCounts(session.counts);
-      if (session.fileName) {
-        setFileName(session.fileName);
-        setNotice(`Contagem local recuperada. Reimporte “${session.fileName}” para exportar.`);
+    let active = true;
+    const restore = async () => {
+      try {
+        const session = await readSavedSession();
+        if (!active) return;
+        if (session?.workbookBytes) {
+          const bytes = session.workbookBytes instanceof ArrayBuffer
+            ? session.workbookBytes
+            : new Uint8Array(session.workbookBytes as unknown as number[]).buffer;
+          workbookBytesRef.current = bytes;
+          const restoredWorkbook = XLSX.read(bytes, { type: 'array', cellText: true, cellNF: true });
+          setWorkbook(restoredWorkbook);
+          setFileName(session.fileName || '');
+          setSheetName(session.sheetName && restoredWorkbook.Sheets[session.sheetName]
+            ? session.sheetName
+            : restoredWorkbook.SheetNames[0] || '');
+          setHeaderRow(Number.isInteger(session.headerRow) ? session.headerRow : 0);
+          setColumns(session.columns || { code: 0, quantity: 1, description: -1 });
+          setCounts(session.counts || {});
+          setCurrentStep(Math.min(4, Math.max(1, session.currentStep || 1)));
+          setPendingCode(session.pendingCode || '');
+          setQuantityValue(session.quantityValue || '');
+          setAutoReopenCamera(!!session.autoReopenCamera);
+          setCameraZoom(session.cameraZoom || 1);
+          setNotice('Sessão recuperada automaticamente. Você pode continuar de onde parou.');
+        } else if (session?.counts) {
+          setCounts(session.counts);
+        }
+      } catch {
+        // Uma sessão incompatível ou corrompida não impede iniciar uma nova coleta.
+      } finally {
+        if (active) setSessionRestored(true);
       }
-    } catch { /* ignore invalid local session */ }
+    };
+    void restore();
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ counts, fileName })); } catch { /* storage may be full */ }
-  }, [counts, fileName]);
+    if (!sessionRestored) return;
+    const timer = window.setTimeout(() => {
+      try {
+        const snapshot = {
+          workbookBytes: workbookBytesRef.current,
+          fileName,
+          sheetName,
+          headerRow,
+          columns,
+          counts,
+          currentStep,
+          pendingCode,
+          quantityValue,
+          autoReopenCamera,
+          cameraZoom
+        };
+        void writeSavedSession(snapshot);
+      } catch {
+        setNotice('Não foi possível salvar a sessão neste dispositivo. Verifique o espaço disponível.');
+      }
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [sessionRestored, fileName, sheetName, headerRow, columns, counts, currentStep, pendingCode, quantityValue, autoReopenCamera, cameraZoom]);
 
   useEffect(() => {
     if (!cameraOpen || !videoRef.current || pendingCode) return;
@@ -168,6 +260,7 @@ export default function App() {
   const loadWorkbook = async (file: File) => {
     try {
       const data = await file.arrayBuffer();
+      workbookBytesRef.current = data.slice(0);
       const parsed = XLSX.read(data, { type: 'array', cellText: true, cellNF: true });
       const firstSheet = parsed.SheetNames[0];
       if (!firstSheet) throw new Error('O arquivo não possui uma aba legível.');
@@ -367,7 +460,7 @@ export default function App() {
             <div className="file-icon"><FileSpreadsheet size={24} /></div>
             <div className="file-info"><strong>{fileName}</strong><span>Modelo carregado · {workbook.SheetNames.length} aba(s) · sem necessidade de cadastro de produtos</span></div>
             <span className="file-status"><Check size={14} /> Pronto</span>
-            <button className="icon-button" title="Remover modelo" onClick={() => { setWorkbook(null); setFileName(''); setSheetName(''); setCounts({}); setPendingCode(''); }}><X size={18} /></button>
+            <button className="icon-button" title="Remover modelo" onClick={() => { setWorkbook(null); workbookBytesRef.current = null; setFileName(''); setSheetName(''); setCounts({}); setPendingCode(''); setCurrentStep(1); }}><X size={18} /></button>
           </div>
         ) : <label className="dropzone"><input type="file" accept=".xlsx,.xls,.csv" onChange={event => { const file = event.target.files?.[0]; if (file) void loadWorkbook(file); event.currentTarget.value = ''; }} /><span className="drop-icon"><FolderUp size={25} /></span><strong>Selecione o modelo vazio da empresa</strong><span>Excel (.xlsx, .xls) ou CSV</span></label>}
 
