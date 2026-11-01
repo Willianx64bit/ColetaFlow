@@ -30,6 +30,7 @@ export default function App() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraUsed, setCameraUsed] = useState(false);
   const [autoReopenCamera, setAutoReopenCamera] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
   const [cameraStatus, setCameraStatus] = useState('Aguardando câmera');
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<IScannerControls | null>(null);
@@ -161,6 +162,7 @@ export default function App() {
       if (!sameTemplate) setCounts({});
       setPendingCode('');
       setNotice(sameTemplate ? 'Modelo importado. A contagem anterior deste arquivo foi recuperada.' : 'Modelo vazio importado. Agora é só bipar o código e informar a quantidade.');
+      setCurrentStep(1);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Não foi possível abrir o modelo.');
     }
@@ -273,8 +275,10 @@ export default function App() {
         <div className="hero-art"><div className="scan-orbit orbit-one" /><div className="scan-orbit orbit-two" /><Barcode size={76} strokeWidth={1.25} /></div>
       </section>
 
-      <section className="workspace">
-        <div className="section-heading"><div><span className="step-label">ETAPA 01</span><h2>Modelo da empresa</h2><p>Importe a planilha vazia que deverá receber os códigos e quantidades.</p></div>
+      <nav className="wizard-progress" aria-label="Etapas da coleta">{[1,2,3,4].map((step) => <div key={step} className={`wizard-step ${currentStep === step ? "current" : currentStep > step ? "completed" : ""}`}><span>{currentStep > step ? "✓" : step}</span><small>{["Modelo","Coleta","Conferência","Finalizar"][step - 1]}</small></div>)}</nav>
+
+      {currentStep === 1 && <section className="workspace wizard-screen">
+        <div className="section-heading"><div><span className="step-label">ETAPA 01 DE 04</span><h2>Modelo da empresa</h2><p>Importe a planilha vazia que deverá receber os códigos e quantidades.</p></div>
           <label className="primary-button upload-button"><FolderUp size={18} /> Importar modelo<input type="file" accept=".xlsx,.xls,.csv" onChange={event => { const file = event.target.files?.[0]; if (file) void loadWorkbook(file); event.currentTarget.value = ''; }} /></label>
         </div>
         {workbook && sheet ? (
@@ -297,10 +301,11 @@ export default function App() {
             <div className="mapping-note">O sistema não procura produtos na planilha. Essas duas colunas serão preenchidas somente na exportação.</div>
           </div>
         )}
-      </section>
+        <div className="wizard-navigation wizard-next"><span>Confira o modelo e ajuste as colunas antes de continuar.</span><button className="primary-button" disabled={!workbook || !sheet} onClick={() => setCurrentStep(2)}>Continuar <ArrowDownToLine size={17} /></button></div>
+      </section>}
 
-      <section className="workspace collector-section">
-        <div className="section-heading"><div><span className="step-label">ETAPA 02</span><h2>Coletor</h2><p>Bipe qualquer código e informe quantas unidades encontrou.</p></div><span className={workbook ? 'ready-chip' : 'waiting-chip'}>{workbook ? 'MODELO PRONTO' : 'AGUARDANDO MODELO'}</span></div>
+      {currentStep === 2 && <section className="workspace collector-section wizard-screen">
+        <div className="section-heading"><div><span className="step-label">ETAPA 02 DE 04</span><h2>Coletor</h2><p>Bipe qualquer código e informe quantas unidades encontrou.</p></div><span className={workbook ? 'ready-chip' : 'waiting-chip'}>{workbook ? 'MODELO PRONTO' : 'AGUARDANDO MODELO'}</span></div>
         <div className="stats-grid">
           <div className="stat-card"><span>Unidades contadas</span><strong>{totalUnits}</strong><small>Soma das quantidades informadas</small></div>
           <div className="stat-card"><span>Códigos diferentes</span><strong>{totalCodes}</strong><small>Identificadores registrados</small></div>
@@ -334,10 +339,11 @@ export default function App() {
           {!cameraOpen && cameraUsed && <div className="camera-reopen-hint">A câmera está pausada. Toque em <strong>Reabrir câmera</strong> para iniciar outra leitura.</div>}
           <div className="scan-feedback">{notice}</div>
         </div>
-      </section>
+        <div className="wizard-navigation"><button className="secondary-button" onClick={() => { stopCamera(); setCurrentStep(1); }}>Voltar</button><button className="primary-button" disabled={!!pendingCode || totalCodes === 0} onClick={() => { stopCamera(); setCurrentStep(3); }}>Continuar para conferência <ArrowDownToLine size={17} /></button></div>
+      </section>}
 
-      <section className="workspace results-section">
-        <div className="section-heading"><div><span className="step-label">ETAPA 03</span><h2>Resumo da coleta</h2><p>Confira somente os códigos e as quantidades registradas.</p></div><button className="text-button" onClick={resetSession} disabled={!workbook}><RotateCcw size={16} /> Reiniciar contagem</button></div>
+      {currentStep === 3 && <section className="workspace results-section wizard-screen">
+        <div className="section-heading"><div><span className="step-label">ETAPA 03 DE 04</span><h2>Resumo da coleta</h2><p>Confira somente os códigos e as quantidades registradas.</p></div><button className="text-button" onClick={resetSession} disabled={!workbook}><RotateCcw size={16} /> Reiniciar contagem</button></div>
         <div className="results-toolbar">
           <div className="blind-mode-note"><ShieldCheck size={17} /> SOMENTE CÓDIGO + QUANTIDADE</div>
           <label className="search-box"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar código registrado" /></label>
@@ -348,12 +354,13 @@ export default function App() {
           {workbook && entries.length === 0 && <div className="empty-state"><Search size={24} /><strong>Nenhum código registrado</strong><span>Depois da leitura, os códigos e quantidades aparecerão aqui.</span></div>}
           {entries.length > 100 && <div className="list-footnote">Mostrando os primeiros 100 códigos. Use a busca para localizar outro.</div>}
         </div>
-      </section>
+        <div className="wizard-navigation"><button className="secondary-button" onClick={() => setCurrentStep(2)}>Voltar à coleta</button><button className="primary-button" disabled={totalCodes === 0} onClick={() => setCurrentStep(4)}>Continuar para finalizar <ArrowDownToLine size={17} /></button></div>
+      </section>}
 
-      <section className="export-bar">
-        <div><span className="step-label">ETAPA 04</span><strong>Exportar modelo preenchido</strong><small>O arquivo original fica intacto; será criada uma cópia com código e quantidade.</small></div>
-        <div className="export-actions"><button className="primary-button" onClick={exportWorkbook} disabled={!workbook || totalCodes === 0 || !!pendingCode}><ArrowDownToLine size={18} /> Exportar XLSX</button></div>
-      </section>
+      {currentStep === 4 && <section className="export-bar wizard-screen">
+        <div><span className="step-label">ETAPA 04 DE 04</span><strong>Exportar modelo preenchido</strong><small>O arquivo original fica intacto; será criada uma cópia com código e quantidade.</small></div>
+        <div className="export-actions"><button className="secondary-button" onClick={() => setCurrentStep(3)}>Voltar</button><button className="primary-button" onClick={exportWorkbook} disabled={!workbook || totalCodes === 0 || !!pendingCode}><ArrowDownToLine size={18} /> Finalizar e exportar XLSX</button></div>
+      </section>}
       <footer><span>ColetaFlow <b>•</b> Bipe. Informe. Exporte.</span><span><Smartphone size={14} /> Coleta sem cadastro prévio</span></footer>
     </main>
   );
