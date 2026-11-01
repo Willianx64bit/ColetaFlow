@@ -77,3 +77,6 @@
   .camera-box{margin-bottom:14px}
   .camera-box video{max-height:230px}
 }
+
+
+.pending-product-name{font-size:13px;line-height:1.35;font-weight:700;color:#1769a5;overflow-wrap:anywhere}
