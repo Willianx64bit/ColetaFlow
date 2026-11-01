@@ -85,6 +85,8 @@ export default function App() {
   const quantityRef = useRef<HTMLInputElement>(null);
   const shortcutHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shortcutLongPressHandled = useRef(false);
+  const removeAllHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const removeAllLongPressHandled = useRef(false);
 
   const sheet = workbook && sheetName ? workbook.Sheets[sheetName] : null;
   const range = sheet ? (sheet['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }) : null;
@@ -530,7 +532,7 @@ export default function App() {
                 </div>
                 <div className="quantity-entry-row">
                   <label className="quantity-modal-label">{removeMode ? 'Quantidade a retirar' : 'Quantidade encontrada'}<input ref={quantityRef} type="number" min="1" step="1" value={quantityValue} onChange={event => setQuantityValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmCount(); } }} /></label>
-                  <button type="button" className={removeMode ? 'remove-mode-button active' : 'remove-mode-button'} aria-pressed={removeMode} onClick={() => { setRemoveMode(value => !value); setQuantityValue(''); requestAnimationFrame(() => quantityRef.current?.focus()); }}>{removeMode ? 'Retirar: ligado' : 'Retirar'}</button>
+                  <button type="button" className={removeMode ? 'remove-mode-button active' : 'remove-mode-button'} aria-pressed={removeMode} title="Toque para retirar uma quantidade; segure para zerar tudo que foi coletado deste produto" onPointerDown={() => { removeAllLongPressHandled.current = false; if (removeAllHoldTimer.current) clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = setTimeout(() => { removeAllLongPressHandled.current = true; const collected = counts[pendingCode] ?? 0; if (collected > 0) { setCounts(previous => { const next = { ...previous }; delete next[pendingCode]; return next; }); setNotice(`Coleta zerada: ${collected} unidade(s) removida(s) do código ${pendingCode}.`); } else { setNotice('Este produto ainda não possui quantidade coletada.'); } setRemoveMode(false); setQuantityValue(''); removeAllHoldTimer.current = null; }, 700); }} onPointerUp={() => { if (removeAllHoldTimer.current) { clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = null; } }} onPointerLeave={() => { if (removeAllHoldTimer.current) { clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = null; } }} onPointerCancel={() => { if (removeAllHoldTimer.current) { clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = null; } }} onClick={() => { if (removeAllLongPressHandled.current) { removeAllLongPressHandled.current = false; return; } setRemoveMode(value => !value); setQuantityValue(''); requestAnimationFrame(() => quantityRef.current?.focus()); }}>{removeMode ? 'Retirar: ligado' : 'Retirar'}</button>
                 </div>
                 <div className="quantity-modal-actions">
                   <button className="secondary-button" onClick={() => { setPendingCode(''); setQuantityValue(''); inputRef.current?.focus(); }}>Cancelar</button>
