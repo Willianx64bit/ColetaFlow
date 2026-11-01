@@ -34,7 +34,6 @@ export default function App() {
   const [autoReopenCamera, setAutoReopenCamera] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [cameraStatus, setCameraStatus] = useState('Aguardando câmera');
-  const [cameraFocusSize, setCameraFocusSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [cameraZoom, setCameraZoom] = useState(1);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<IScannerControls | null>(null);
@@ -58,18 +57,6 @@ export default function App() {
   const entries = Object.entries(counts).filter(([code]) => !search || normalize(code).includes(normalize(search)));
   const totalUnits = Object.values(counts).reduce((sum, qty) => sum + qty, 0);
   const totalCodes = Object.keys(counts).length;
-
-  useEffect(() => {
-    try {
-      const savedCamera = JSON.parse(localStorage.getItem('coletaflow_camera_settings') || '{}');
-      if (['small', 'medium', 'large'].includes(savedCamera.focusSize)) setCameraFocusSize(savedCamera.focusSize);
-      if ([1, 2, 3].includes(savedCamera.zoom)) setCameraZoom(savedCamera.zoom);
-    } catch { /* ignore invalid camera preferences */ }
-  }, []);
-
-  useEffect(() => {
-    try { localStorage.setItem('coletaflow_camera_settings', JSON.stringify({ focusSize: cameraFocusSize, zoom: cameraZoom })); } catch { /* storage may be unavailable */ }
-  }, [cameraFocusSize, cameraZoom]);
 
   useEffect(() => {
     try {
@@ -405,12 +392,10 @@ export default function App() {
             <div className="camera-box">
               <div className="camera-status"><span className="camera-live-dot" />{cameraStatus}</div>
               <video ref={videoRef} muted playsInline autoPlay />
-              <div className={`camera-guide focus-${cameraFocusSize}`} aria-hidden="true"><span /><i /></div>
-              <div className="camera-settings">
-                <label>Foco da leitura<select value={cameraFocusSize} onChange={event => setCameraFocusSize(event.target.value as 'small' | 'medium' | 'large')}><option value="small">Pequeno</option><option value="medium">Médio</option><option value="large">Grande</option></select></label>
-                <label>Zoom<select value={cameraZoom} onChange={event => setCameraZoom(Number(event.target.value))}><option value={1}>1x</option><option value={2}>2x</option><option value={3}>3x</option></select></label>
+              <div className="camera-guide" aria-hidden="true"><span /><i /></div>
+              <div className="camera-zoom-controls" role="group" aria-label="Zoom da câmera">
+                {[1, 2, 3].map(level => <button type="button" key={level} className={cameraZoom === level ? 'active' : ''} onClick={() => setCameraZoom(level)} aria-pressed={cameraZoom === level} aria-label={`Zoom ${level}x`} title={`Zoom ${level}x`}><span /></button>)}
               </div>
-              <div className="camera-help">Ajuste o enquadramento para facilitar a leitura dos códigos.</div>
               <button className="camera-close" onClick={stopCamera}><X size={18} /> Fechar câmera</button>
             </div>
           )}
