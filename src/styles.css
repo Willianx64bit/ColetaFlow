@@ -277,3 +277,14 @@
 .camera-guide{border:2px solid #65e3ff;transition:border-color .12s,box-shadow .12s}
 .camera-guide.scan-guide-pulse-0,.camera-guide.scan-guide-pulse-1{animation:camera-guide-success .48s ease-out}
 @keyframes camera-guide-success{0%{border-color:#22e6a2;box-shadow:0 0 0 4px #22e6a244,0 0 26px #22e6a2cc,0 0 0 999px #03101a38}35%{border-color:#54ffba;box-shadow:0 0 0 7px #22e6a233,0 0 34px #22e6a2dd,0 0 0 999px #03101a38}100%{border-color:#65e3ff;box-shadow:0 0 0 999px #03101a38}}
+
+
+/* Controles de flash e bip lado a lado; zoom com legenda dentro dos botões */
+.camera-zoom-controls button{color:#fff;font-size:10px;font-weight:800;letter-spacing:-.2px}
+.camera-zoom-controls button span{width:auto;height:auto;border-radius:0;background:transparent;display:block;line-height:1}
+.camera-zoom-controls button.active span{background:transparent;color:#fff}
+.camera-bottom-controls{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:8px}
+.camera-round-control{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.55);background:rgba(15,23,42,.72);color:#fff;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+.camera-round-control:active{transform:scale(.94)}
+.camera-round-control.flash-active{border-color:#f59e0b;background:#f59e0b}
+.camera-round-control.sound-active{border-color:#38bdf8;background:#087fa5}
