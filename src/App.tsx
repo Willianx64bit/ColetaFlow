@@ -438,6 +438,13 @@ export default function App() {
     if (matched.length === 0) { setNotice('Nenhum produto da planilha recebeu contagem para exportar.'); return; }
     const output = XLSX.read(XLSX.write(workbook, { bookType: 'xlsx', type: 'array' }), { type: 'array', cellStyles: true });
     const outputSheet = output.Sheets[sheetName];
+    // Zera os valores antigos da coluna de quantidade no arquivo exportado.
+    // Mantém a planilha original em memória intacta e preserva a formatação das células.
+    for (let r = headerRow + 1; r <= range.e.r; r++) {
+      const qtyCell = XLSX.utils.encode_cell({ r, c: range.s.c + columns.quantity });
+      const previousCell = outputSheet[qtyCell] as XLSX.CellObject | undefined;
+      outputSheet[qtyCell] = { t: 's', v: '', ...(previousCell?.s ? { s: previousCell.s } : {}) };
+    }
     for (const [code, qty] of matched) {
       for (let r = headerRow + 1; r <= range.e.r; r++) {
         const rowCodes = columns.code.map(column => cellText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + column })]).trim());
