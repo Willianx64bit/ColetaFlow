@@ -306,16 +306,16 @@ body:has(.camera-box)::before{
   content:"";
   position:fixed;
   inset:0;
-  z-index:999;
+  z-index:9998;
   pointer-events:none;
-  background:rgba(2,8,18,.76);
-  -webkit-backdrop-filter:blur(9px) brightness(.42);
-  backdrop-filter:blur(9px) brightness(.42);
+  background:rgba(2,8,18,.84);
+  -webkit-backdrop-filter:blur(9px) brightness(.34);
+  backdrop-filter:blur(9px) brightness(.34);
   animation:camera-background-dim .2s ease-out both;
 }
 .camera-box{
   position:fixed!important;
-  z-index:1000!important;
+  z-index:9999!important;
   left:50%!important;
   top:50%!important;
   transform:translate(-50%,-50%)!important;
