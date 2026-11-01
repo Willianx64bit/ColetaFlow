@@ -193,16 +193,16 @@ export default function App() {
       lastCameraScan.current = { code, at: Date.now() };
     }
     const productDescription = findProductDescription(code);
-    const hasDescriptionColumn = !!sheet && columns.description >= 0;
-    const codeExists = !!sheet && !!range && Array.from({ length: Math.max(0, range.e.r - headerRow) }, (_, index) => {
+    const catalogCodes = sheet && range ? Array.from({ length: Math.max(0, range.e.r - headerRow) }, (_, index) => {
       const r = headerRow + 1 + index;
-      return cellText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + columns.code })]).trim() === code;
-    }).some(Boolean);
+      return cellText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + columns.code })]).trim();
+    }).filter(Boolean) : [];
+    const codeExists = catalogCodes.includes(code);
     setPendingCode(code);
     setScanValue('');
     setNotice(productDescription
       ? `${productDescription} · informe a quantidade.`
-      : hasDescriptionColumn && !codeExists
+      : catalogCodes.length > 0 && !codeExists
         ? `Código ${code} não encontrado na lista. Você pode continuar a coleta.`
         : `Código ${code} lido. Informe a quantidade.`);
     requestAnimationFrame(() => quantityRef.current?.focus());
@@ -251,11 +251,21 @@ export default function App() {
     let row = lastUsedRow + 1;
     const startColumn = range.s.c;
     for (const [code, qty] of Object.entries(counts)) {
-      const codeCell = XLSX.utils.encode_cell({ r: row, c: startColumn + columns.code });
-      const qtyCell = XLSX.utils.encode_cell({ r: row, c: startColumn + columns.quantity });
-      outputSheet[codeCell] = { t: 's', v: code, z: '@' };
-      outputSheet[qtyCell] = { t: 'n', v: qty };
-      row++;
+      let matchingRow = -1;
+      for (let r = headerRow + 1; r <= lastUsedRow; r++) {
+        const existingCode = cellText(sheet[XLSX.utils.encode_cell({ r, c: startColumn + columns.code })]).trim();
+        if (existingCode === code) { matchingRow = r; break; }
+      }
+      if (matchingRow >= 0) {
+        const qtyCell = XLSX.utils.encode_cell({ r: matchingRow, c: startColumn + columns.quantity });
+        outputSheet[qtyCell] = { t: 'n', v: qty };
+      } else {
+        const codeCell = XLSX.utils.encode_cell({ r: row, c: startColumn + columns.code });
+        const qtyCell = XLSX.utils.encode_cell({ r: row, c: startColumn + columns.quantity });
+        outputSheet[codeCell] = { t: 's', v: code, z: '@' };
+        outputSheet[qtyCell] = { t: 'n', v: qty };
+        row++;
+      }
     }
     outputSheet['!ref'] = XLSX.utils.encode_range({
       s: range.s,
