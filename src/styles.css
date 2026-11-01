@@ -80,3 +80,26 @@
 
 
 .pending-product-name{font-size:13px;line-height:1.35;font-weight:700;color:#1769a5;overflow-wrap:anywhere}
+
+
+/* Quick quantity entry: visible above the scanner on mobile */
+.pending-code-card{margin:0 0 12px;align-items:stretch}
+.quantity-shortcuts{display:flex;flex-direction:column;gap:8px;width:100%;order:2}
+.quantity-shortcut-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+.quantity-shortcut{min-height:42px;padding:8px 4px;border:1px solid #b8dce9;border-radius:10px;background:#fff;color:#087fa5;font-size:15px;font-weight:800}
+.quantity-shortcut:active{background:#087fa5;color:#fff;transform:scale(.97)}
+.edit-shortcuts-button{align-self:flex-start;border:0;background:transparent;color:#087fa5;font-size:12px;font-weight:800;padding:4px 0}
+.edit-shortcuts-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+.edit-shortcuts-grid label{display:flex;flex-direction:column;gap:4px;font-size:10px;font-weight:700;color:#52677d}
+.edit-shortcuts-grid input{width:100%;min-width:0;min-height:38px;padding:6px;border:1px solid #cbd8e5;border-radius:8px;background:#fff;color:#14243b}
+.pending-code-card>label{order:3}
+.pending-code-card>.primary-button{order:4}
+.pending-code-card>.icon-button{order:5}
+@media(max-width:600px){
+ .pending-code-card{gap:10px;padding:12px}
+ .quantity-shortcut-list{gap:5px}
+ .quantity-shortcut{min-height:44px;font-size:14px}
+ .edit-shortcuts-grid{gap:5px}
+ .edit-shortcuts-grid label{font-size:9px}
+ .pending-code-card>div:first-child{flex-basis:100%;min-width:0}
+}
