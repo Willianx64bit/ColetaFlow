@@ -3,7 +3,7 @@ import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import * as XLSX from 'xlsx';
 import {
   ArrowDownToLine, Camera, Check, FileSpreadsheet, FolderUp,
-  Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw
+  Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw, LockKeyhole, Eye, EyeOff
 } from 'lucide-react';
 
 type ColumnMap = { code: number[]; quantity: number; description: number };
