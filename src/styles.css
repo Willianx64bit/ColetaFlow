@@ -270,3 +270,10 @@
 @keyframes scan-panel-flash{0%{opacity:0}24%{opacity:1}100%{opacity:0}}
 @keyframes scan-feedback-focus{0%{background:#d8fff0;border-color:#31bd8c;box-shadow:0 0 0 4px #31bd8c2b;transform:scale(1.006)}100%{transform:scale(1);box-shadow:none}}
 @media(max-width:600px){.quick-collect-control{gap:5px}.quick-collect-quantity{padding-left:7px;font-size:11px}.quick-collect-quantity .icon-button{width:28px;height:28px;min-width:28px}}
+
+
+/* Moldura limpa: sem linhas internas; pisca verde quando um código é aceito */
+.camera-guide:before,.camera-guide:after,.camera-guide i{display:none!important;content:none!important}
+.camera-guide{border:2px solid #65e3ff;transition:border-color .12s,box-shadow .12s}
+.camera-guide.scan-guide-pulse-0,.camera-guide.scan-guide-pulse-1{animation:camera-guide-success .48s ease-out}
+@keyframes camera-guide-success{0%{border-color:#22e6a2;box-shadow:0 0 0 4px #22e6a244,0 0 26px #22e6a2cc,0 0 0 999px #03101a38}35%{border-color:#54ffba;box-shadow:0 0 0 7px #22e6a233,0 0 34px #22e6a2dd,0 0 0 999px #03101a38}100%{border-color:#65e3ff;box-shadow:0 0 0 999px #03101a38}}
