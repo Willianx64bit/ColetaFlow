@@ -3,7 +3,7 @@ import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import * as XLSX from 'xlsx';
 import {
   ArrowDownToLine, Camera, Check, FileSpreadsheet, FolderUp,
-  Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw
+  Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw, Zap
 } from 'lucide-react';
 
 type ColumnMap = { code: number[]; quantity: number; description: number };
@@ -78,6 +78,7 @@ function CollectorApp() {
   const [currentStep, setCurrentStep] = useState(1);
   const [cameraStatus, setCameraStatus] = useState('Aguardando câmera');
   const [cameraZoom, setCameraZoom] = useState(1);
+  const [flashEnabled, setFlashEnabled] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<IScannerControls | null>(null);
   const lastCameraScan = useRef<{ code: string; at: number } | null>(null);
@@ -411,6 +412,29 @@ function CollectorApp() {
     setCameraOpen(true);
   };
 
+  const toggleCameraFlash = async () => {
+    const video = videoRef.current;
+    const stream = video?.srcObject as MediaStream | null;
+    const track = stream?.getVideoTracks()[0];
+    if (!track) {
+      setNotice('A câmera ainda está iniciando. Tente novamente em instantes.');
+      return;
+    }
+    const capabilities = track.getCapabilities() as MediaTrackCapabilities & { torch?: boolean };
+    if (!capabilities.torch) {
+      setNotice('O flash não está disponível nesta câmera ou navegador.');
+      return;
+    }
+    const next = !flashEnabled;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] });
+      setFlashEnabled(next);
+      setCameraStatus(next ? 'Flash ligado · aponte para o código de barras' : 'Flash desligado · aponte para o código de barras');
+    } catch {
+      setNotice('Não foi possível alterar o flash. Verifique se a câmera oferece suporte.');
+    }
+  };
+
   const stopCamera = () => {
     setCameraOpen(false);
     setCameraStatus('Câmera pausada');
@@ -538,6 +562,16 @@ function CollectorApp() {
               <div className="camera-guide" aria-hidden="true"><span /><i /></div>
               <div className="camera-zoom-controls" role="group" aria-label="Zoom da câmera">
                 {[1, 2, 3].map(level => <button type="button" key={level} className={cameraZoom === level ? 'active' : ''} onClick={() => setCameraZoom(level)} aria-pressed={cameraZoom === level} aria-label={`Zoom ${level}x`} title={`Zoom ${level}x`}><span /></button>)}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => void toggleCameraFlash()}
+                  aria-label={flashEnabled ? 'Desligar flash' : 'Ligar flash'}
+                  aria-pressed={flashEnabled}
+                  title={flashEnabled ? 'Desligar flash' : 'Ligar flash'}
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 42, height: 42, borderRadius: 999, border: flashEnabled ? '1px solid #f59e0b' : '1px solid rgba(255,255,255,.55)', background: flashEnabled ? '#f59e0b' : 'rgba(15,23,42,.72)', color: '#fff', cursor: 'pointer' }}
+                ><Zap size={21} fill={flashEnabled ? 'currentColor' : 'none'} /></button>
               </div>
               <button className="camera-close" onClick={stopCamera}><X size={18} /> Fechar câmera</button>
             </div>
