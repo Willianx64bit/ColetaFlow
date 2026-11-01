@@ -140,7 +140,7 @@ export default function App() {
           setPendingCode(session.pendingCode || '');
           setQuantityValue(session.quantityValue || '');
           setAutoReopenCamera(!!session.autoReopenCamera);
-          setCameraZoom(session.cameraZoom || 1);
+          setCameraZoom(Number(session.cameraZoom ?? 1));
           setNotice('Sessão recuperada automaticamente. Você pode continuar de onde parou.');
         } else {
           try {
