@@ -23,7 +23,7 @@ export default function App() {
   const [columns, setColumns] = useState<ColumnMap>({ code: 0, quantity: 1, description: -1 });
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [scanValue, setScanValue] = useState('');
-  const [quantityValue, setQuantityValue] = useState('1');
+  const [quantityValue, setQuantityValue] = useState('');
   const [quantityShortcuts, setQuantityShortcuts] = useState<number[]>([1, 5, 10, 20, 50]);
   const [editingShortcuts, setEditingShortcuts] = useState(false);
   const [pendingCode, setPendingCode] = useState('');
@@ -39,6 +39,8 @@ export default function App() {
   const lastCameraScan = useRef<{ code: string; at: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
+  const shortcutHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shortcutLongPressHandled = useRef(false);
 
   const sheet = workbook && sheetName ? workbook.Sheets[sheetName] : null;
   const range = sheet ? (sheet['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }) : null;
@@ -237,7 +239,7 @@ export default function App() {
     setCounts(previous => ({ ...previous, [code]: (previous[code] ?? 0) + qty }));
     setNotice(`Registrado: código ${code} · quantidade adicionada: ${qty}.`);
     setPendingCode('');
-    setQuantityValue('1');
+    setQuantityValue('');
     setScanValue('');
     if (autoReopenCamera && cameraUsed) {
       setCameraStatus('Preparando próxima leitura…');
@@ -365,13 +367,14 @@ export default function App() {
               <button className="camera-close" onClick={stopCamera}><X size={18} /> Fechar câmera</button>
             </div>
           )}
+          {pendingCode && <div className="pending-code-card"><div><small>CÓDIGO LIDO</small><strong>{pendingCode}</strong>{findProductDescription(pendingCode) ? <span className="pending-product-name">{findProductDescription(pendingCode)}</span> : <span className="pending-product-name">{findProductRow(pendingCode) >= 0 || !sheet || !range || !Array.from({ length: Math.max(0, range.e.r - headerRow) }, (_, index) => cellText(sheet[XLSX.utils.encode_cell({ r: headerRow + 1 + index, c: range.s.c + columns.code })])).some(Boolean) ? 'Sem descrição cadastrada' : 'Produto não encontrado na lista'}</span>}</div><div className="quantity-shortcuts"><div className="quantity-shortcut-list">{quantityShortcuts.map((amount, index) => <button type="button" className="quantity-shortcut" key={index} onPointerDown={() => { shortcutLongPressHandled.current = false; if (shortcutHoldTimer.current) clearTimeout(shortcutHoldTimer.current); shortcutHoldTimer.current = setTimeout(() => { const entered = Number(quantityValue); if (quantityValue.trim() && Number.isInteger(entered) && entered > 0) { setQuantityShortcuts(values => values.map((value, i) => i === index ? entered : value)); setNotice(`Atalho salvo: ${entered} unidades.`); shortcutLongPressHandled.current = true; } else { setNotice('Digite a quantidade desejada e segure o atalho para salvá-la.'); shortcutLongPressHandled.current = true; } }, 650); }} onPointerUp={() => { if (shortcutHoldTimer.current) { clearTimeout(shortcutHoldTimer.current); shortcutHoldTimer.current = null; } }} onPointerLeave={() => { if (shortcutHoldTimer.current) { clearTimeout(shortcutHoldTimer.current); shortcutHoldTimer.current = null; } }} onPointerCancel={() => { if (shortcutHoldTimer.current) { clearTimeout(shortcutHoldTimer.current); shortcutHoldTimer.current = null; } }} onContextMenu={event => event.preventDefault()} onClick={() => { if (shortcutLongPressHandled.current) { shortcutLongPressHandled.current = false; return; } setQuantityValue(String((Number(quantityValue) || 0) + amount)); } }>{amount}</button>)}</div><button type="button" className="edit-shortcuts-button" onClick={() => setEditingShortcuts(value => !value)}>{editingShortcuts ? 'Concluir edição' : 'Editar atalhos'}</button>{editingShortcuts && <div className="edit-shortcuts-grid">{quantityShortcuts.map((amount, index) => <label key={index}>Atalho {index + 1}<input type="number" min="1" step="1" value={amount} onChange={event => setQuantityShortcuts(values => values.map((value, i) => i === index ? Math.max(1, Number(event.target.value) || 1) : value))} /></label>)}</div>}</div><label>Quantidade<input ref={quantityRef} type="number" min="1" step="1" value={quantityValue} onChange={event => setQuantityValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmCount(); } }} /></label><button className="primary-button" onClick={confirmCount}><Check size={17} /> Confirmar</button><button className="icon-button" title="Cancelar código" onClick={() => { setPendingCode(''); setQuantityValue('1'); inputRef.current?.focus(); }}><X size={18} /></button></div>}
         <div className="stats-grid">
           <div className="stat-card"><span>Unidades contadas</span><strong>{totalUnits}</strong><small>Soma das quantidades informadas</small></div>
           <div className="stat-card"><span>Códigos diferentes</span><strong>{totalCodes}</strong><small>Identificadores registrados</small></div>
           <div className="stat-card warning-stat"><span>Aguardando quantidade</span><strong>{pendingCode ? '1' : '0'}</strong><small>{pendingCode ? 'Código lido, falta confirmar' : 'Nenhum código pendente'}</small></div>
         </div>
         <div className="scanner-panel">
-          {pendingCode && <div className="pending-code-card"><div><small>CÓDIGO LIDO</small><strong>{pendingCode}</strong>{findProductDescription(pendingCode) ? <span className="pending-product-name">{findProductDescription(pendingCode)}</span> : <span className="pending-product-name">{findProductRow(pendingCode) >= 0 || !sheet || !range || !Array.from({ length: Math.max(0, range.e.r - headerRow) }, (_, index) => cellText(sheet[XLSX.utils.encode_cell({ r: headerRow + 1 + index, c: range.s.c + columns.code })])).some(Boolean) ? 'Sem descrição cadastrada' : 'Produto não encontrado na lista'}</span>}</div><div className="quantity-shortcuts"><div className="quantity-shortcut-list">{quantityShortcuts.map((amount, index) => <button type="button" className="quantity-shortcut" key={index} onClick={() => setQuantityValue(String((Number(quantityValue) || 0) + amount))}>{amount}</button>)}</div><button type="button" className="edit-shortcuts-button" onClick={() => setEditingShortcuts(value => !value)}>{editingShortcuts ? 'Concluir edição' : 'Editar atalhos'}</button>{editingShortcuts && <div className="edit-shortcuts-grid">{quantityShortcuts.map((amount, index) => <label key={index}>Atalho {index + 1}<input type="number" min="1" step="1" value={amount} onChange={event => setQuantityShortcuts(values => values.map((value, i) => i === index ? Math.max(1, Number(event.target.value) || 1) : value))} /></label>)}</div>}</div><label>Quantidade<input ref={quantityRef} type="number" min="1" step="1" value={quantityValue} onChange={event => setQuantityValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmCount(); } }} /></label><button className="primary-button" onClick={confirmCount}><Check size={17} /> Confirmar</button><button className="icon-button" title="Cancelar código" onClick={() => { setPendingCode(''); setQuantityValue('1'); inputRef.current?.focus(); }}><X size={18} /></button></div>}
+
           <form className="scan-form" onSubmit={event => { event.preventDefault(); receiveCode(scanValue); }}>
             <div className="scan-input-wrap"><Keyboard size={20} /><input ref={inputRef} value={scanValue} onChange={event => setScanValue(event.target.value)} placeholder={!workbook ? 'Importe o modelo primeiro' : pendingCode ? 'Informe a quantidade do código lido' : 'Bipe ou digite o código...'} disabled={!workbook || !!pendingCode} autoComplete="off" autoFocus /><button type="button" className="scan-camera-inline" onClick={startCamera} disabled={!workbook || cameraOpen || !!pendingCode} aria-label="Abrir câmera" title="Ler código com a câmera"><Camera size={21} /></button></div>
           </form>
