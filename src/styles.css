@@ -298,3 +298,23 @@
 .camera-zoom-controls button span{color:#fff!important;font-size:13px;font-weight:900;line-height:1;text-shadow:0 1px 2px #00131f}
 .camera-zoom-controls button.active{background:#087fa5;border:2px solid #fff}
 @media(max-width:600px){.camera-zoom-controls button{width:40px;height:40px;min-width:40px}.camera-zoom-controls button span{font-size:13px}}
+
+
+/* Ao abrir a câmera, escurece e desfoca toda a interface ao fundo,
+   mantendo o visor e seus controles totalmente nítidos. */
+body:has(.camera-box)::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:40;
+  pointer-events:none;
+  background:rgba(4,12,23,.58);
+  -webkit-backdrop-filter:blur(7px) brightness(.62);
+  backdrop-filter:blur(7px) brightness(.62);
+  animation:camera-background-dim .2s ease-out both;
+}
+.camera-box{
+  position:relative;
+  z-index:41;
+}
+@keyframes camera-background-dim{from{opacity:0}to{opacity:1}}
