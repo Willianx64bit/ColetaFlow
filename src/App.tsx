@@ -6,7 +6,7 @@ import {
   Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw
 } from 'lucide-react';
 
-type ColumnMap = { code: number; quantity: number };
+type ColumnMap = { code: number; quantity: number; description: number };
 const STORAGE_KEY = 'coletaflow.blind-session.v2';
 const normalize = (value: string) => value.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
 const cellText = (cell: XLSX.CellObject | undefined) => {
@@ -20,7 +20,7 @@ export default function App() {
   const [fileName, setFileName] = useState('');
   const [sheetName, setSheetName] = useState('');
   const [headerRow, setHeaderRow] = useState(0);
-  const [columns, setColumns] = useState<ColumnMap>({ code: 0, quantity: 1 });
+  const [columns, setColumns] = useState<ColumnMap>({ code: 0, quantity: 1, description: -1 });
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [scanValue, setScanValue] = useState('');
   const [quantityValue, setQuantityValue] = useState('1');
@@ -155,9 +155,12 @@ export default function App() {
       setFileName(file.name);
       setSheetName(firstSheet);
       setHeaderRow(detectedHeader);
+      const detectedCodeColumn = findColumn(['ean', 'gtin', 'codigo de barras', 'cod barras', 'barcode', 'codigo', 'cod.'], 0);
+      const detectedDescriptionColumn = rowHeaders.findIndex(value => hasTerm(value, ['descricao', 'produto', 'nome', 'mercadoria', 'item']));
       setColumns({
-        code: findColumn(['ean', 'gtin', 'codigo de barras', 'cod barras', 'barcode', 'codigo', 'cod.'], 0),
-        quantity: findColumn(['quantidade', 'qtd', 'contagem', 'unidades'], 1)
+        code: detectedCodeColumn,
+        quantity: findColumn(['quantidade', 'qtd', 'contagem', 'unidades'], 1),
+        description: detectedDescriptionColumn >= 0 && detectedDescriptionColumn !== detectedCodeColumn ? detectedDescriptionColumn : -1
       });
       if (!sameTemplate) setCounts({});
       setPendingCode('');
@@ -168,6 +171,19 @@ export default function App() {
     }
   };
 
+  const findProductDescription = (code: string) => {
+    if (!sheet || !range || columns.description < 0) return '';
+    const codeColumn = range.s.c + columns.code;
+    const descriptionColumn = range.s.c + columns.description;
+    for (let r = headerRow + 1; r <= range.e.r; r++) {
+      const rowCode = cellText(sheet[XLSX.utils.encode_cell({ r, c: codeColumn })]);
+      if (rowCode && rowCode.trim() === code.trim()) {
+        return cellText(sheet[XLSX.utils.encode_cell({ r, c: descriptionColumn })]);
+      }
+    }
+    return '';
+  };
+
   const receiveCode = (raw: string, fromCamera = false) => {
     const code = raw.trim();
     if (!code) return;
@@ -176,9 +192,19 @@ export default function App() {
       if (last?.code === code && Date.now() - last.at < 1600) return;
       lastCameraScan.current = { code, at: Date.now() };
     }
+    const productDescription = findProductDescription(code);
+    const hasDescriptionColumn = !!sheet && columns.description >= 0;
+    const codeExists = !!sheet && !!range && Array.from({ length: Math.max(0, range.e.r - headerRow) }, (_, index) => {
+      const r = headerRow + 1 + index;
+      return cellText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + columns.code })]).trim() === code;
+    }).some(Boolean);
     setPendingCode(code);
     setScanValue('');
-    setNotice(`Código lido: ${code}. Informe a quantidade para registrar.`);
+    setNotice(productDescription
+      ? `${productDescription} · informe a quantidade.`
+      : hasDescriptionColumn && !codeExists
+        ? `Código ${code} não encontrado na lista. Você pode continuar a coleta.`
+        : `Código ${code} lido. Informe a quantidade.`);
     requestAnimationFrame(() => quantityRef.current?.focus());
   };
 
@@ -289,8 +315,9 @@ export default function App() {
               <label>Aba<select value={sheetName} onChange={event => { setSheetName(event.target.value); setCounts({}); setPendingCode(''); }}>{workbook.SheetNames.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
               <label>Coluna do código<select value={columns.code} onChange={event => setColumns(v => ({ ...v, code: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
               <label>Coluna da quantidade<select value={columns.quantity} onChange={event => setColumns(v => ({ ...v, quantity: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
+              <label>Coluna da descrição<select value={columns.description} onChange={event => setColumns(v => ({ ...v, description: Number(event.target.value) }))}><option value={-1}>Não possui descrição</option>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
             </div>
-            <div className="mapping-note">O sistema não procura produtos na planilha. Essas duas colunas serão preenchidas somente na exportação.</div>
+            <div className="mapping-note">Se houver códigos e descrições na planilha, o ColetaFlow identifica o produto ao bipar. Sem descrição ou sem código cadastrado, a coleta continua normalmente.</div>
           </div>
         )}
         <div className="wizard-navigation wizard-next"><span>Confira o modelo e ajuste as colunas antes de continuar.</span><button className="primary-button" disabled={!workbook || !sheet} onClick={() => setCurrentStep(2)}>Continuar <ArrowDownToLine size={17} /></button></div>
@@ -317,7 +344,7 @@ export default function App() {
             <div className="scan-input-wrap"><Keyboard size={20} /><input ref={inputRef} value={scanValue} onChange={event => setScanValue(event.target.value)} placeholder={!workbook ? 'Importe o modelo primeiro' : pendingCode ? 'Informe a quantidade do código lido' : 'Bipe ou digite o código...'} disabled={!workbook || !!pendingCode} autoComplete="off" autoFocus /><button type="button" className="scan-camera-inline" onClick={startCamera} disabled={!workbook || cameraOpen || !!pendingCode} aria-label="Abrir câmera" title="Ler código com a câmera"><Camera size={21} /></button></div>
           </form>
           <div className="scanner-heading scanner-controls"><button type="button" className={autoReopenCamera ? 'secondary-button auto-reopen active' : 'secondary-button auto-reopen'} onClick={() => setAutoReopenCamera(value => !value)} aria-pressed={autoReopenCamera} disabled={!workbook || !!pendingCode} title="Ao confirmar a quantidade, inicia a câmera para a próxima leitura."><RefreshCw size={16} /> {autoReopenCamera ? 'Reabertura automática: ligada' : 'Reabertura automática: desligada'}</button></div>
-          {pendingCode && <div className="pending-code-card"><div><small>CÓDIGO LIDO</small><strong>{pendingCode}</strong></div><label>Quantidade<input ref={quantityRef} type="number" min="1" step="1" value={quantityValue} onChange={event => setQuantityValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmCount(); } }} /></label><button className="primary-button" onClick={confirmCount}><Check size={17} /> Confirmar</button><button className="icon-button" title="Cancelar código" onClick={() => { setPendingCode(''); setQuantityValue('1'); inputRef.current?.focus(); }}><X size={18} /></button></div>}
+          {pendingCode && <div className="pending-code-card"><div><small>CÓDIGO LIDO</small><strong>{pendingCode}</strong>{findProductDescription(pendingCode) ? <span className="pending-product-name">{findProductDescription(pendingCode)}</span> : <span className="pending-product-name">{sheet && columns.description >= 0 ? 'Produto não encontrado na lista' : 'Sem descrição cadastrada'}</span>}</div><label>Quantidade<input ref={quantityRef} type="number" min="1" step="1" value={quantityValue} onChange={event => setQuantityValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmCount(); } }} /></label><button className="primary-button" onClick={confirmCount}><Check size={17} /> Confirmar</button><button className="icon-button" title="Cancelar código" onClick={() => { setPendingCode(''); setQuantityValue('1'); inputRef.current?.focus(); }}><X size={18} /></button></div>}
           <div className="scan-feedback">{notice}</div>
         </div>
         <div className="wizard-navigation"><button className="secondary-button" onClick={() => { stopCamera(); setCurrentStep(1); }}>Voltar</button><button className="primary-button" disabled={!!pendingCode || totalCodes === 0} onClick={() => { stopCamera(); setCurrentStep(3); }}>Continuar para conferência <ArrowDownToLine size={17} /></button></div>
