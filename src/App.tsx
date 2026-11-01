@@ -171,17 +171,22 @@ export default function App() {
     }
   };
 
-  const findProductDescription = (code: string) => {
-    if (!sheet || !range || columns.description < 0) return '';
+  const findProductRow = (code: string) => {
+    if (!sheet || !range) return -1;
     const codeColumn = range.s.c + columns.code;
-    const descriptionColumn = range.s.c + columns.description;
     for (let r = headerRow + 1; r <= range.e.r; r++) {
       const rowCode = cellText(sheet[XLSX.utils.encode_cell({ r, c: codeColumn })]);
-      if (rowCode && rowCode.trim() === code.trim()) {
-        return cellText(sheet[XLSX.utils.encode_cell({ r, c: descriptionColumn })]);
-      }
+      if (rowCode && rowCode.trim() === code.trim()) return r;
     }
-    return '';
+    return -1;
+  };
+
+  const findProductDescription = (code: string) => {
+    if (!sheet || !range || columns.description < 0) return '';
+    const productRow = findProductRow(code);
+    return productRow >= 0
+      ? cellText(sheet[XLSX.utils.encode_cell({ r: productRow, c: range.s.c + columns.description })])
+      : '';
   };
 
   const receiveCode = (raw: string, fromCamera = false) => {
@@ -354,7 +359,7 @@ export default function App() {
             <div className="scan-input-wrap"><Keyboard size={20} /><input ref={inputRef} value={scanValue} onChange={event => setScanValue(event.target.value)} placeholder={!workbook ? 'Importe o modelo primeiro' : pendingCode ? 'Informe a quantidade do código lido' : 'Bipe ou digite o código...'} disabled={!workbook || !!pendingCode} autoComplete="off" autoFocus /><button type="button" className="scan-camera-inline" onClick={startCamera} disabled={!workbook || cameraOpen || !!pendingCode} aria-label="Abrir câmera" title="Ler código com a câmera"><Camera size={21} /></button></div>
           </form>
           <div className="scanner-heading scanner-controls"><button type="button" className={autoReopenCamera ? 'secondary-button auto-reopen active' : 'secondary-button auto-reopen'} onClick={() => setAutoReopenCamera(value => !value)} aria-pressed={autoReopenCamera} disabled={!workbook || !!pendingCode} title="Ao confirmar a quantidade, inicia a câmera para a próxima leitura."><RefreshCw size={16} /> {autoReopenCamera ? 'Reabertura automática: ligada' : 'Reabertura automática: desligada'}</button></div>
-          {pendingCode && <div className="pending-code-card"><div><small>CÓDIGO LIDO</small><strong>{pendingCode}</strong>{findProductDescription(pendingCode) ? <span className="pending-product-name">{findProductDescription(pendingCode)}</span> : <span className="pending-product-name">{sheet && columns.description >= 0 ? 'Produto não encontrado na lista' : 'Sem descrição cadastrada'}</span>}</div><label>Quantidade<input ref={quantityRef} type="number" min="1" step="1" value={quantityValue} onChange={event => setQuantityValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmCount(); } }} /></label><button className="primary-button" onClick={confirmCount}><Check size={17} /> Confirmar</button><button className="icon-button" title="Cancelar código" onClick={() => { setPendingCode(''); setQuantityValue('1'); inputRef.current?.focus(); }}><X size={18} /></button></div>}
+          {pendingCode && <div className="pending-code-card"><div><small>CÓDIGO LIDO</small><strong>{pendingCode}</strong>{findProductDescription(pendingCode) ? <span className="pending-product-name">{findProductDescription(pendingCode)}</span> : <span className="pending-product-name">{findProductRow(pendingCode) >= 0 || !sheet || !range || !Array.from({ length: Math.max(0, range.e.r - headerRow) }, (_, index) => cellText(sheet[XLSX.utils.encode_cell({ r: headerRow + 1 + index, c: range.s.c + columns.code })])).some(Boolean) ? 'Sem descrição cadastrada' : 'Produto não encontrado na lista'}</span>}</div><label>Quantidade<input ref={quantityRef} type="number" min="1" step="1" value={quantityValue} onChange={event => setQuantityValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmCount(); } }} /></label><button className="primary-button" onClick={confirmCount}><Check size={17} /> Confirmar</button><button className="icon-button" title="Cancelar código" onClick={() => { setPendingCode(''); setQuantityValue('1'); inputRef.current?.focus(); }}><X size={18} /></button></div>}
           <div className="scan-feedback">{notice}</div>
         </div>
         <div className="wizard-navigation"><button className="secondary-button" onClick={() => { stopCamera(); setCurrentStep(1); }}>Voltar</button><button className="primary-button" disabled={!!pendingCode || totalCodes === 0} onClick={() => { stopCamera(); setCurrentStep(3); }}>Continuar para conferência <ArrowDownToLine size={17} /></button></div>
