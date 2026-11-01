@@ -165,6 +165,19 @@ export default function App() {
     };
   }, [cameraOpen, pendingCode]);
 
+  useEffect(() => {
+    if (!cameraOpen || !videoRef.current) return;
+    const stream = videoRef.current.srcObject as MediaStream | null;
+    const track = stream?.getVideoTracks()[0];
+    if (!track) return;
+    const capabilities = track.getCapabilities() as MediaTrackCapabilities & { zoom?: { min: number; max: number } };
+    if (!capabilities.zoom) return;
+    const targetZoom = Math.min(capabilities.zoom.max, Math.max(capabilities.zoom.min, cameraZoom));
+    track.applyConstraints({ advanced: [{ zoom: targetZoom } as MediaTrackConstraintSet] }).catch(() => {
+      setCameraStatus('Zoom não disponível nesta câmera');
+    });
+  }, [cameraZoom, cameraOpen]);
+
   const loadWorkbook = async (file: File) => {
     try {
       const data = await file.arrayBuffer();
