@@ -102,6 +102,14 @@ export default function App() {
   const entries = Object.entries(counts).filter(([code]) => !search || normalize(code).includes(normalize(search)));
   const totalUnits = Object.values(counts).reduce((sum, qty) => sum + qty, 0);
   const totalCodes = Object.keys(counts).length;
+  const catalogCodeSet = new Set<string>();
+  if (sheet && range) {
+    for (let row = headerRow + 1; row <= range.e.r; row++) {
+      const catalogCode = cellText(sheet[XLSX.utils.encode_cell({ r: row, c: range.s.c + columns.code })]).trim();
+      if (catalogCode) catalogCodeSet.add(catalogCode);
+    }
+  }
+  const notFoundProducts = Object.keys(counts).filter(code => !catalogCodeSet.has(code)).length;
 
   useEffect(() => {
     try {
@@ -543,8 +551,8 @@ export default function App() {
           </div>}
         <div className="stats-grid">
           <div className="stat-card"><span>Unidades contadas</span><strong>{totalUnits}</strong><small>Soma das quantidades informadas</small></div>
-          <div className="stat-card"><span>Códigos diferentes</span><strong>{totalCodes}</strong><small>Identificadores registrados</small></div>
-          <div className="stat-card warning-stat"><span>Aguardando quantidade</span><strong>{pendingCode ? '1' : '0'}</strong><small>{pendingCode ? 'Código lido, falta confirmar' : 'Nenhum código pendente'}</small></div>
+          <div className="stat-card"><span>Produtos coletados</span><strong>{totalCodes}</strong><small>Produtos com quantidade registrada</small></div>
+          <div className="stat-card warning-stat"><span>Produtos não encontrados</span><strong>{notFoundProducts}</strong><small>{notFoundProducts ? 'Códigos fora da planilha' : 'Nenhum produto fora da planilha'}</small></div>
         </div>
         <div className="scanner-panel">
 
