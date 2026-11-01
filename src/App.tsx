@@ -3,7 +3,7 @@ import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import * as XLSX from 'xlsx';
 import {
   ArrowDownToLine, Camera, Check, FileSpreadsheet, FolderUp,
-  Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw, LockKeyhole, Eye, EyeOff
+  Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw
 } from 'lucide-react';
 
 type ColumnMap = { code: number[]; quantity: number; description: number };
@@ -615,65 +615,6 @@ function CollectorApp() {
 }
 
 
-const ACCESS_API = 'https://coletaflow-admin-willianx64bit.vercel.app/api';
-const ACCESS_SESSION = 'coletaflow_access_session';
-function AccessLogin({ onLogin }: { onLogin: (token: string, username: string) => void }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  async function submit(event: React.FormEvent) {
-    event.preventDefault(); setBusy(true); setError('');
-    try {
-      const response = await fetch(ACCESS_API + '/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username.trim(), password })
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || 'Usuário ou senha inválidos.');
-      onLogin(data.token, data.username);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Não foi possível validar o acesso. Verifique sua conexão.');
-    } finally { setBusy(false); }
-  }
-  return <main className="access-gate">
-    <section className="access-card">
-      <div className="access-brand"><span className="access-mark"><FileSpreadsheet size={27}/><RefreshCw size={13}/></span><span><b>ColetaFlow</b><small>COLETOR DE INVENTÁRIO</small></span></div>
-      <div className="access-intro"><span>ÁREA RESTRITA</span><h1>Acesse sua coleta</h1><p>Entre com o usuário e a senha autorizados pelo administrador.</p></div>
-      <form onSubmit={submit}>
-        <label>Usuário</label><div className="access-field"><Keyboard size={18}/><input autoComplete="username" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Seu usuário" required/></div>
-        <label>Senha</label><div className="access-field"><LockKeyhole size={18}/><input type={showPassword?'text':'password'} autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Sua senha" required/><button type="button" onClick={()=>setShowPassword(v=>!v)} aria-label="Mostrar senha">{showPassword?<EyeOff size={18}/>:<Eye size={18}/>}</button></div>
-        {error && <div className="access-error">{error}</div>}
-        <button className="access-submit" disabled={busy}>{busy?'Validando acesso…':'Entrar no ColetaFlow'}</button>
-      </form>
-      <div className="access-foot"><ShieldCheck size={16}/> Acesso privado · Cadastro controlado pelo administrador</div>
-    </section>
-    <footer>ColetaFlow · Bipe. Informe. Exporte.</footer>
-  </main>;
-}
-
 export default function App() {
-  const [auth, setAuth] = useState<'checking' | 'signed-out' | 'signed-in'>('checking');
-  useEffect(() => {
-    let active = true;
-    const token = sessionStorage.getItem(ACCESS_SESSION);
-    if (!token) { setAuth('signed-out'); return; }
-    fetch(ACCESS_API + '/auth/me', { headers: { Authorization: 'Bearer ' + token } })
-      .then(async response => {
-        if (!response.ok) throw new Error('Sessão inválida');
-        return response.json();
-      })
-      .then(() => { if (active) setAuth('signed-in'); })
-      .catch(() => { sessionStorage.removeItem(ACCESS_SESSION); if (active) setAuth('signed-out'); });
-    return () => { active = false; };
-  }, []);
-  const login = (token: string) => {
-    sessionStorage.setItem(ACCESS_SESSION, token);
-    setAuth('signed-in');
-  };
-  if (auth === 'checking') return <main className="access-gate"><section className="access-card"><div className="access-brand"><span className="access-mark"><FileSpreadsheet size={27}/></span><span><b>ColetaFlow</b><small>COLETOR DE INVENTÁRIO</small></span></div><p className="access-loading">Validando sessão…</p></section></main>;
-  if (auth === 'signed-out') return <AccessLogin onLogin={login}/>;
-  return <div className="collector-authenticated"><button className="collector-logout" onClick={() => { sessionStorage.removeItem(ACCESS_SESSION); setAuth('signed-out'); }}>Sair da conta</button><CollectorApp/></div>;
+  return <CollectorApp />;
 }
