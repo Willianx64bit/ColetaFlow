@@ -13,36 +13,7 @@ const cellText = (cell: XLSX.CellObject | undefined) => {
   if (!cell || cell.v === undefined || cell.v === null) return '';
   return cell.w !== undefined ? String(cell.w).trim() : String(cell.v).trim();
 };
-const hasTerm = (value: string, terms: string[]) => terms.some(term => normalize(value).includes(normalize(term)));
-const inferColumns = (ws: XLSX.WorkSheet, wsRange: XLSX.Range, row: number): ColumnMap => {
-  const start = wsRange.s.c;
-  const end = wsRange.e.c;
-  const candidates = Array.from({ length: end - start + 1 }, (_, index) => {
-    const c = start + index;
-    const header = normalize(cellText(ws[XLSX.utils.encode_cell({ r: row, c })]));
-    const samples = Array.from({ length: Math.min(30, Math.max(0, wsRange.e.r - row)) }, (_, i) =>
-      cellText(ws[XLSX.utils.encode_cell({ r: row + 1 + i, c })]).trim()
-    ).filter(Boolean);
-    const codeHeader = ['codigo de barras','cod barras','ean','gtin','barcode','codigo','cod.'].some(t => header.includes(normalize(t)));
-    const qtyHeader = ['quantidade','qtd','contagem','unidades','estoque','saldo'].some(t => header.includes(normalize(t)));
-    const descHeader = ['descricao','produto','nome','mercadoria','item'].some(t => header.includes(normalize(t)));
-    const numericLike = samples.filter(v => /^\\d{6,14}$/.test(v.replace(/[ .-]/g, ''))).length;
-    const numericQty = samples.filter(v => /^\\d+(?:[,.]\\d+)?$/.test(v)).length;
-    return {
-      index,
-      code: (codeHeader ? 100 : 0) + Math.round(numericLike / Math.max(1, samples.length) * 25),
-      quantity: (qtyHeader ? 100 : 0) + Math.round(numericQty / Math.max(1, samples.length) * 15),
-      description: descHeader ? 100 : (samples.some(v => /[a-zA-ZÀ-ÿ]{3,}/.test(v)) ? 8 : 0)
-    };
-  });
-  const best = (key: 'code' | 'quantity' | 'description', fallback: number, excluded: number[] = []) =>
-    [...candidates].filter(c => !excluded.includes(c.index)).sort((a,b) => b[key] - a[key])[0]?.index ?? fallback;
-  const code = best('code', 0);
-  const quantity = best('quantity', Math.min(1, candidates.length - 1), [code]);
-  const descriptionCandidate = best('description', -1, [code, quantity]);
-  return { code, quantity, description: candidates[descriptionCandidate]?.description ? descriptionCandidate : -1 };
-};
-
+const hasTerm = (value: string, terms: string[]) => terms.some(term => normalize(value).includes(term));
 
 export default function App() {
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
@@ -204,19 +175,22 @@ export default function App() {
       const wsRange = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } };
       let detectedHeader = wsRange.s.r;
       let bestScore = -1;
-      for (let r = wsRange.s.r; r <= Math.min(wsRange.s.r + 20, wsRange.e.r); r++) {
-        const rowValues = Array.from({ length: wsRange.e.c - wsRange.s.c + 1 }, (_, i) =>
-          cellText(ws[XLSX.utils.encode_cell({ r, c: wsRange.s.c + i })])
-        );
-        const nonEmpty = rowValues.filter(Boolean).length;
-        const keywordScore = rowValues.reduce((score, value) => score +
-          (hasTerm(value, ['ean','gtin','codigo','cod.','barcode','barras']) ? 4 : 0) +
-          (hasTerm(value, ['quantidade','qtd','contagem','unidades','estoque','saldo']) ? 4 : 0) +
-          (hasTerm(value, ['descricao','produto','nome','mercadoria','item']) ? 2 : 0), 0);
-        const score = keywordScore + Math.min(nonEmpty, 8) * 0.25;
+      for (let r = wsRange.s.r; r <= Math.min(wsRange.s.r + 12, wsRange.e.r); r++) {
+        let score = 0;
+        for (let c = wsRange.s.c; c <= Math.max(wsRange.e.c, wsRange.s.c + 1); c++) {
+          const value = cellText(ws[XLSX.utils.encode_cell({ r, c })]);
+          if (hasTerm(value, ['codigo', 'ean', 'gtin', 'barras', 'barcode', 'quantidade', 'qtd'])) score++;
+        }
         if (score > bestScore) { bestScore = score; detectedHeader = r; }
       }
-      const detectedColumns = inferColumns(ws, wsRange, detectedHeader);
+      const rowHeaders: string[] = [];
+      for (let c = wsRange.s.c; c <= Math.max(wsRange.e.c, wsRange.s.c + 1); c++) {
+        rowHeaders.push(cellText(ws[XLSX.utils.encode_cell({ r: detectedHeader, c })]));
+      }
+      const findColumn = (terms: string[], fallback: number) => {
+        const found = rowHeaders.findIndex(value => hasTerm(value, terms));
+        return found >= 0 ? found : Math.min(fallback, Math.max(0, rowHeaders.length - 1));
+      };
       const previous = (() => {
         try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as { fileName?: string; counts?: Record<string, number> }; }
         catch { return {}; }
@@ -226,7 +200,13 @@ export default function App() {
       setFileName(file.name);
       setSheetName(firstSheet);
       setHeaderRow(detectedHeader);
-      setColumns(detectedColumns);
+      const detectedCodeColumn = findColumn(['ean', 'gtin', 'codigo de barras', 'cod barras', 'barcode', 'codigo', 'cod.'], 0);
+      const detectedDescriptionColumn = rowHeaders.findIndex(value => hasTerm(value, ['descricao', 'produto', 'nome', 'mercadoria', 'item']));
+      setColumns({
+        code: detectedCodeColumn,
+        quantity: findColumn(['quantidade', 'qtd', 'contagem', 'unidades'], 1),
+        description: detectedDescriptionColumn >= 0 && detectedDescriptionColumn !== detectedCodeColumn ? detectedDescriptionColumn : -1
+      });
       if (!sameTemplate) setCounts({});
       setPendingCode('');
       setNotice(sameTemplate ? '' : 'Modelo vazio importado. Agora é só bipar o código e informar a quantidade.');
@@ -391,12 +371,11 @@ export default function App() {
           </div>
         ) : <label className="dropzone"><input type="file" accept=".xlsx,.xls,.csv" onChange={event => { const file = event.target.files?.[0]; if (file) void loadWorkbook(file); event.currentTarget.value = ''; }} /><span className="drop-icon"><FolderUp size={25} /></span><strong>Selecione o modelo vazio da empresa</strong><span>Excel (.xlsx, .xls) ou CSV</span></label>}
 
-        {workbook && sheet && range && (
+        {workbook && sheet && (
           <div className="mapping-panel">
             <div className="mapping-title"><div><ShieldCheck size={18} /><strong>Defina onde gravar os dados</strong></div><span>MAPEAMENTO DO MODELO</span></div>
             <div className="mapping-grid">
               <label>Aba<select value={sheetName} onChange={event => { setSheetName(event.target.value); setCounts({}); setPendingCode(''); }}>{workbook.SheetNames.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
-              <label>Linha dos títulos<input type="number" min="1" max={range.e.r + 1} value={headerRow + 1} onChange={event => { const nextRow = Math.max(1, Math.min(range.e.r + 1, Number(event.target.value) || 1)) - 1; setHeaderRow(nextRow); setColumns(inferColumns(sheet, range, nextRow)); }} /></label>
               <label>Coluna do código<select value={columns.code} onChange={event => setColumns(v => ({ ...v, code: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
               <label>Coluna da quantidade<select value={columns.quantity} onChange={event => setColumns(v => ({ ...v, quantity: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
               <label>Coluna da descrição<select value={columns.description} onChange={event => setColumns(v => ({ ...v, description: Number(event.target.value) }))}><option value={-1}>Não possui descrição</option>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
