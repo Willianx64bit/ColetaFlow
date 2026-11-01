@@ -103,3 +103,7 @@
  .edit-shortcuts-grid label{font-size:9px}
  .pending-code-card>div:first-child{flex-basis:100%;min-width:0}
 }
+
+
+/* Bring the pending quantity card to the top of the collector panel */
+.scanner-panel>.pending-code-card{margin-top:0;margin-bottom:14px}
