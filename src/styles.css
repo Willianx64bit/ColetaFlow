@@ -107,3 +107,6 @@
 
 /* Bring the pending quantity card to the top of the collector panel */
 .scanner-panel>.pending-code-card{margin-top:0;margin-bottom:14px}
+
+
+.pending-product-missing{color:#dc2626!important;font-weight:800!important}
