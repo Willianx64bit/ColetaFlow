@@ -20,6 +20,7 @@ type SavedSession = {
   autoReopenCamera?: boolean;
   cameraZoom?: number;
 };
+const STORAGE_KEY = 'coletaflow.blind-session.v2';
 const SESSION_DB = 'coletaflow-session-db';
 const SESSION_STORE = 'sessions';
 const openSessionDb = () => new Promise<IDBDatabase>((resolve, reject) => {
@@ -136,7 +137,7 @@ export default function App() {
           setHeaderRow(Number.isInteger(session.headerRow) ? session.headerRow : 0);
           setColumns(session.columns || { code: 0, quantity: 1, description: -1 });
           setCounts(session.counts || {});
-          setCurrentStep(Math.min(4, Math.max(1, session.currentStep || 1)));
+          setCurrentStep(Math.min(4, Math.max(1, Number(session.currentStep ?? 1))));
           setPendingCode(session.pendingCode || '');
           setQuantityValue(session.quantityValue || '');
           setAutoReopenCamera(!!session.autoReopenCamera);
