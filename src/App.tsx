@@ -260,20 +260,11 @@ export default function App() {
     <main className="app-shell">
       <header className="topbar">
         <a className="brand" href="#" aria-label="ColetaFlow início">
-          <span className="brand-mark"><ScanLine size={25} /></span>
-          <span><strong>ColetaFlow</strong><small>COLETOR DE CÓDIGOS E QUANTIDADES</small></span>
+          <span className="brand-mark" aria-hidden="true"><FileSpreadsheet size={34} strokeWidth={2.2} /><RefreshCw size={17} strokeWidth={2.8} className="brand-sync" /></span>
         </a>
         <div className="topbar-right"><span className="offline-pill"><span /> CONTAGEM LOCAL</span><span className="version">MVP 0.2</span></div>
       </header>
 
-      <section className="hero">
-        <div className="hero-copy">
-          <span className="eyebrow">COLETA SEM CADASTRO PRÉVIO</span>
-          <h1>Bipe o código.<br /><em>Informe a quantidade.</em></h1>
-          <p>Use o modelo vazio da empresa. O ColetaFlow registra somente o código de barras e a quantidade contada.</p>
-        </div>
-        <div className="hero-art"><div className="scan-orbit orbit-one" /><div className="scan-orbit orbit-two" /><Barcode size={76} strokeWidth={1.25} /></div>
-      </section>
 
       <nav className="wizard-progress" aria-label="Etapas da coleta">{[1,2,3,4].map((step) => <div key={step} className={`wizard-step ${currentStep === step ? "current" : currentStep > step ? "completed" : ""}`}><span>{currentStep > step ? "✓" : step}</span><small>{["Modelo","Coleta","Conferência","Finalizar"][step - 1]}</small></div>)}</nav>
 
