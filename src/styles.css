@@ -131,3 +131,48 @@
 .camera-zoom-controls button.active{border:2px solid #fff;background:#087fa5;box-shadow:0 0 0 3px #ffffff35}
 .camera-zoom-controls button.active span{background:#fff}
 @media(max-width:600px){.camera-guide{width:72%;height:82px}.camera-zoom-controls{right:10px;gap:9px}.camera-zoom-controls button{width:32px;height:32px}}
+
+
+/* Janela de confirmação da quantidade */
+.quantity-modal-backdrop{
+  position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;
+  padding:18px;background:rgba(8,20,34,.42);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+  animation:quantity-backdrop-in .16s ease both;
+}
+.quantity-modal{
+  width:min(100%,520px);max-height:min(88dvh,760px);overflow-y:auto;background:#fff;
+  border:1px solid #dce8ef;border-radius:22px;box-shadow:0 24px 80px #07182745;
+  animation:quantity-modal-in .2s ease both;
+}
+.quantity-modal-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:22px 22px 18px;background:linear-gradient(135deg,#f0fbff,#fff);border-bottom:1px solid #e8f0f4}
+.quantity-product-info{min-width:0;flex:1}
+.quantity-modal-eyebrow{display:block;font-size:10px;font-weight:800;letter-spacing:1.3px;color:#43839a;margin-bottom:8px}
+.quantity-product-info h3{margin:0;color:#102b49;font:800 23px/1.2 Manrope,sans-serif;letter-spacing:-.55px;overflow-wrap:anywhere}
+.quantity-product-code{display:block;margin-top:9px;color:#74879a;font-size:12px}
+.quantity-product-code strong{font-family:ui-monospace,SFMono-Regular,monospace;color:#087fa5;font-size:13px;letter-spacing:.35px}
+.quantity-modal-close{flex:0 0 auto;border-radius:9px;background:#e9f2f6;color:#526b7c}
+.quantity-modal-content{padding:20px 22px 22px;display:flex;flex-direction:column;gap:17px}
+.quantity-modal .quantity-shortcuts{width:100%;order:0}
+.quantity-modal .quantity-shortcut-list{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.quantity-modal .quantity-shortcut{min-height:48px;font-size:16px}
+.quantity-modal .edit-shortcuts-button{font-size:12px}
+.quantity-modal-label{display:flex;flex-direction:column;gap:8px;font-size:12px;font-weight:800;color:#52677d}
+.quantity-modal-label input{width:100%;height:58px;padding:10px 14px;border:1.5px solid #b9d3e0;border-radius:12px;background:#fff;color:#14243b;font-size:24px;font-weight:800;outline:none}
+.quantity-modal-label input:focus{border-color:#0785a8;box-shadow:0 0 0 4px #0785a51a}
+.quantity-modal-actions{display:flex;gap:10px;justify-content:flex-end}
+.quantity-modal-actions .primary-button{min-height:48px;padding:12px 20px;font-size:13px}
+.quantity-modal-actions .secondary-button{min-height:48px;padding:12px 16px;font-size:12px}
+@keyframes quantity-backdrop-in{from{opacity:0}to{opacity:1}}
+@keyframes quantity-modal-in{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:600px){
+ .quantity-modal-backdrop{align-items:center;padding:12px}
+ .quantity-modal{width:100%;max-height:calc(100dvh - 24px);border-radius:19px}
+ .quantity-modal-heading{padding:18px 17px 15px}
+ .quantity-product-info h3{font-size:21px}
+ .quantity-modal-content{padding:16px 17px 18px;gap:14px}
+ .quantity-modal .quantity-shortcut-list{gap:6px}
+ .quantity-modal .quantity-shortcut{min-height:47px;padding:7px 2px;font-size:15px}
+ .quantity-modal-label input{height:56px;font-size:23px}
+ .quantity-modal-actions{flex-direction:column-reverse}
+ .quantity-modal-actions button{width:100%;min-height:49px}
+}
