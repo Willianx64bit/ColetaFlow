@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 
 type ColumnMap = { code: number; quantity: number; description: number };
-const STORAGE_KEY = 'coletaflow.blind-session.v2';
 type SavedSession = {
   workbookBytes?: ArrayBuffer | Uint8Array | number[] | null;
   fileName?: string;
@@ -143,8 +142,12 @@ export default function App() {
           setAutoReopenCamera(!!session.autoReopenCamera);
           setCameraZoom(session.cameraZoom || 1);
           setNotice('Sessão recuperada automaticamente. Você pode continuar de onde parou.');
-        } else if (session?.counts) {
-          setCounts(session.counts);
+        } else {
+          try {
+            const legacy = JSON.parse(localStorage.getItem('coletaflow.blind-session.v2') || '{}') as { counts?: Record<string, number>; fileName?: string };
+            if (legacy.counts) setCounts(legacy.counts);
+            if (legacy.fileName) setFileName(legacy.fileName);
+          } catch { /* ignore legacy session */ }
         }
       } catch {
         // Uma sessão incompatível ou corrompida não impede iniciar uma nova coleta.
@@ -173,7 +176,7 @@ export default function App() {
           autoReopenCamera,
           cameraZoom
         };
-        void writeSavedSession(snapshot);
+        void writeSavedSession(snapshot).catch(() => setNotice('Não foi possível salvar a sessão neste dispositivo. Verifique o espaço disponível.'));
       } catch {
         setNotice('Não foi possível salvar a sessão neste dispositivo. Verifique o espaço disponível.');
       }
