@@ -176,3 +176,32 @@
  .quantity-modal-actions{flex-direction:column-reverse}
  .quantity-modal-actions button{width:100%;min-height:49px}
 }
+
+
+/* Ajuste mobile: edição no topo, atalhos junto ao campo e modal acima do teclado */
+.quantity-modal .quantity-shortcuts{display:flex;flex-direction:column;gap:9px}
+.quantity-modal .edit-shortcuts-button{order:0;align-self:flex-start;margin:0 0 1px;padding:2px 0}
+.quantity-modal .quantity-shortcut-list{order:1}
+.quantity-modal .edit-shortcuts-grid{order:2}
+.quantity-modal-label{margin-top:0}
+@media(max-width:600px){
+ .quantity-modal-backdrop{align-items:flex-start;justify-content:center;overflow-y:auto;padding:8px 10px max(8px,env(safe-area-inset-bottom))}
+ .quantity-modal{max-height:calc(100dvh - 16px);overflow-y:auto;overscroll-behavior:contain}
+ .quantity-modal-heading{padding:13px 15px 11px}
+ .quantity-modal-eyebrow{margin-bottom:5px}
+ .quantity-product-info h3{font-size:20px}
+ .quantity-product-code{margin-top:5px}
+ .quantity-modal-content{padding:11px 15px 14px;gap:9px}
+ .quantity-modal .quantity-shortcuts{gap:5px}
+ .quantity-modal .edit-shortcuts-button{font-size:12px}
+ .quantity-modal .quantity-shortcut-list{gap:5px}
+ .quantity-modal .quantity-shortcut{min-height:42px;padding:5px 2px}
+ .quantity-modal-label{gap:5px}
+ .quantity-modal-label input{height:49px}
+ .quantity-modal-actions{gap:7px}
+ .quantity-modal-actions button{min-height:43px}
+}
+@media(max-height:650px){
+ .quantity-modal-backdrop{align-items:flex-start;padding-top:6px;padding-bottom:6px}
+ .quantity-modal{max-height:calc(100dvh - 12px)}
+}
