@@ -6,7 +6,7 @@ import {
   Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw
 } from 'lucide-react';
 
-type ColumnMap = { code: number; quantity: number; description: number };
+type ColumnMap = { code: number[]; quantity: number; description: number };
 type SavedSession = {
   workbookBytes?: ArrayBuffer | Uint8Array | number[] | null;
   fileName?: string;
@@ -62,7 +62,7 @@ export default function App() {
   const [fileName, setFileName] = useState('');
   const [sheetName, setSheetName] = useState('');
   const [headerRow, setHeaderRow] = useState(0);
-  const [columns, setColumns] = useState<ColumnMap>({ code: 0, quantity: 1, description: -1 });
+  const [columns, setColumns] = useState<ColumnMap>({ code: [0], quantity: 1, description: -1 });
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [scanValue, setScanValue] = useState('');
   const [quantityValue, setQuantityValue] = useState('');
@@ -146,7 +146,7 @@ export default function App() {
             ? session.sheetName
             : restoredWorkbook.SheetNames[0] || '');
           setHeaderRow(Math.max(0, Number(session.headerRow ?? 0) || 0));
-          setColumns(session.columns || { code: 0, quantity: 1, description: -1 });
+          setColumns(session.columns ? { ...session.columns, code: Array.isArray(session.columns.code) ? session.columns.code : [session.columns.code as unknown as number] } : { code: [0], quantity: 1, description: -1 });
           setCounts(session.counts || {});
           setCurrentStep(Math.min(4, Math.max(1, Number(session.currentStep ?? 1))));
           setPendingCode(session.pendingCode || '');
@@ -311,7 +311,7 @@ export default function App() {
       const detectedCodeColumn = findColumn(['ean', 'gtin', 'codigo de barras', 'cod barras', 'barcode', 'codigo', 'cod.'], 0);
       const detectedDescriptionColumn = rowHeaders.findIndex(value => hasTerm(value, ['descricao', 'produto', 'nome', 'mercadoria', 'item']));
       setColumns({
-        code: detectedCodeColumn,
+        code: [detectedCodeColumn],
         quantity: findColumn(['quantidade', 'qtd', 'contagem', 'unidades'], 1),
         description: detectedDescriptionColumn >= 0 && detectedDescriptionColumn !== detectedCodeColumn ? detectedDescriptionColumn : -1
       });
@@ -326,10 +326,10 @@ export default function App() {
 
   const findProductRow = (code: string) => {
     if (!sheet || !range) return -1;
-    const codeColumn = range.s.c + columns.code;
+    const codeColumns = columns.code.map(column => range.s.c + column);
     for (let r = headerRow + 1; r <= range.e.r; r++) {
-      const rowCode = cellText(sheet[XLSX.utils.encode_cell({ r, c: codeColumn })]);
-      if (rowCode && rowCode.trim() === code.trim()) return r;
+      const rowCodes = codeColumns.map(column => cellText(sheet[XLSX.utils.encode_cell({ r, c: column })]).trim());
+      if (rowCodes.includes(code.trim())) return r;
     }
     return -1;
   };
@@ -353,7 +353,7 @@ export default function App() {
     const productDescription = findProductDescription(code);
     const catalogCodes = sheet && range ? Array.from({ length: Math.max(0, range.e.r - headerRow) }, (_, index) => {
       const r = headerRow + 1 + index;
-      return cellText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + columns.code })]).trim();
+      return columns.code.map(column => cellText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + column })]).trim()).find(Boolean) || '';
     }).filter(Boolean) : [];
     const codeExists = catalogCodes.includes(code);
     setPendingCode(code);
@@ -429,14 +429,14 @@ export default function App() {
     for (const [code, qty] of Object.entries(counts)) {
       let matchingRow = -1;
       for (let r = headerRow + 1; r <= lastUsedRow; r++) {
-        const existingCode = cellText(sheet[XLSX.utils.encode_cell({ r, c: startColumn + columns.code })]).trim();
-        if (existingCode === code) { matchingRow = r; break; }
+        const existingCodes = columns.code.map(column => cellText(sheet[XLSX.utils.encode_cell({ r, c: startColumn + column })]).trim());
+        if (existingCodes.includes(code)) { matchingRow = r; break; }
       }
       if (matchingRow >= 0) {
         const qtyCell = XLSX.utils.encode_cell({ r: matchingRow, c: startColumn + columns.quantity });
         outputSheet[qtyCell] = { t: 'n', v: qty };
       } else {
-        const codeCell = XLSX.utils.encode_cell({ r: row, c: startColumn + columns.code });
+        const codeCell = XLSX.utils.encode_cell({ r: row, c: startColumn + columns.code[0] });
         const qtyCell = XLSX.utils.encode_cell({ r: row, c: startColumn + columns.quantity });
         outputSheet[codeCell] = { t: 's', v: code, z: '@' };
         outputSheet[qtyCell] = { t: 'n', v: qty };
@@ -445,7 +445,7 @@ export default function App() {
     }
     outputSheet['!ref'] = XLSX.utils.encode_range({
       s: range.s,
-      e: { r: Math.max(range.e.r, row - 1), c: Math.max(range.e.c, startColumn + columns.code, startColumn + columns.quantity) }
+      e: { r: Math.max(range.e.r, row - 1), c: Math.max(range.e.c, ...columns.code.map(column => startColumn + column), startColumn + columns.quantity) }
     });
     const outputName = fileName.replace(/\.(xlsx|xls|csv)$/i, '') + '-coletado.xlsx';
     XLSX.writeFile(output, outputName);
@@ -499,7 +499,8 @@ export default function App() {
             <div className="mapping-title"><div><ShieldCheck size={18} /><strong>Defina onde gravar os dados</strong></div><span>MAPEAMENTO DO MODELO</span></div>
             <div className="mapping-grid">
               <label>Aba<select value={sheetName} onChange={event => { setSheetName(event.target.value); setCounts({}); setPendingCode(''); }}>{workbook.SheetNames.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
-              <label>Coluna do código<select value={columns.code} onChange={event => setColumns(v => ({ ...v, code: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
+              <label>Código principal<select value={columns.code[0] ?? 0} onChange={event => setColumns(v => ({ ...v, code: [Number(event.target.value), ...(v.code[1] !== undefined && v.code[1] !== Number(event.target.value) ? [v.code[1]] : [])] }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
+              <label>Código alternativo (opcional)<select value={columns.code[1] ?? -1} onChange={event => setColumns(v => ({ ...v, code: event.target.value === '-1' ? [v.code[0] ?? 0] : [v.code[0] ?? 0, Number(event.target.value)] }))}><option value={-1}>Não usar</option>{headers.map((h,i) => <option value={i} key={i} disabled={i === columns.code[0]}>{h}</option>)}</select></label>
               <label>Coluna da quantidade<select value={columns.quantity} onChange={event => setColumns(v => ({ ...v, quantity: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
               <label>Coluna da descrição<select value={columns.description} onChange={event => setColumns(v => ({ ...v, description: Number(event.target.value) }))}><option value={-1}>Não possui descrição</option>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
             </div>
