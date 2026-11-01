@@ -31,3 +31,19 @@
 @media(max-width:600px){.camera-box{padding:9px}.camera-box video{min-height:230px;max-height:55vh}.camera-guide{width:78%;height:82px}.camera-help{font-size:9px;padding-right:3px}.camera-close{top:43px;right:14px;padding:7px}}
 
 .auto-reopen{border:1px solid #d8e5ec;background:#fff;color:#587184}.auto-reopen.active{background:#e4f7ef;border-color:#9edcc2;color:#167653;box-shadow:inset 0 0 0 1px #b8ead2}
+
+
+/* Guided four-screen collection flow */
+.wizard-progress{display:flex;align-items:center;justify-content:center;gap:clamp(8px,3vw,34px);max-width:760px;margin:0 auto 26px;padding:18px 14px;background:rgba(255,255,255,.82);border:1px solid var(--line,#e3eaf0);border-radius:18px}
+.wizard-step{display:flex;align-items:center;gap:9px;color:#8a98a7;min-width:0}
+.wizard-step>span{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;border:1px solid #cbd6df;background:#fff;font-size:13px;font-weight:800;flex:0 0 auto}
+.wizard-step small{font-size:12px;font-weight:700;white-space:nowrap}
+.wizard-step.current{color:#087f83}.wizard-step.current>span{background:#078d91;border-color:#078d91;color:#fff;box-shadow:0 0 0 4px rgba(8,141,145,.12)}
+.wizard-step.completed{color:#16815f}.wizard-step.completed>span{background:#e4f7ef;border-color:#9edcc2;color:#16815f}
+.wizard-screen{animation:wizard-enter .22s ease both}
+@keyframes wizard-enter{from{opacity:.45;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+.wizard-navigation{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:24px;padding-top:20px;border-top:1px solid var(--line,#e3eaf0)}
+.wizard-navigation>span{font-size:13px;color:#778696}
+.wizard-navigation .primary-button,.wizard-navigation .secondary-button{min-height:46px}
+.wizard-next{justify-content:space-between}
+@media(max-width:560px){.wizard-progress{gap:5px;padding:13px 7px}.wizard-step{flex:1;flex-direction:column;gap:5px}.wizard-step small{font-size:10px}.wizard-navigation{align-items:stretch;flex-wrap:wrap}.wizard-navigation>span{width:100%;line-height:1.45}.wizard-navigation button{flex:1;justify-content:center}.wizard-next button{width:100%}}
