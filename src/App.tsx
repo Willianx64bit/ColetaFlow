@@ -3,7 +3,7 @@ import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import * as XLSX from 'xlsx';
 import {
   ArrowDownToLine, Camera, Check, FileSpreadsheet, FolderUp,
-  Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw, Zap, Pencil
+  Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw, Zap, Pencil, Volume2, VolumeX
 } from 'lucide-react';
 
 type ColumnMap = { code: number[]; quantity: number; description: number };
@@ -81,6 +81,7 @@ function CollectorApp() {
   const [cameraStatus, setCameraStatus] = useState('Aguardando câmera');
   const [cameraZoom, setCameraZoom] = useState(1);
   const [flashEnabled, setFlashEnabled] = useState(false);
+  const [scanSoundEnabled, setScanSoundEnabled] = useState(true);
   const [quickCollectEnabled, setQuickCollectEnabled] = useState(false);
   const [quickCollectQuantity, setQuickCollectQuantity] = useState(1);
   const [editingQuickCollectQuantity, setEditingQuickCollectQuantity] = useState(false);
@@ -358,6 +359,7 @@ function CollectorApp() {
 
   const playScanFeedback = () => {
     setScanPulse(value => value + 1);
+    if (!scanSoundEnabled) return;
     try {
       const AudioContextClass = window.AudioContext;
       if (!AudioContextClass) return;
@@ -603,17 +605,11 @@ function CollectorApp() {
               <video ref={videoRef} muted playsInline autoPlay />
               <div key={scanPulse} className={`camera-guide ${scanPulse ? `scan-guide-pulse-${scanPulse % 2}` : ""}`} aria-hidden="true" />
               <div className="camera-zoom-controls" role="group" aria-label="Zoom da câmera">
-                {[1, 2, 3].map(level => <button type="button" key={level} className={cameraZoom === level ? 'active' : ''} onClick={() => setCameraZoom(level)} aria-pressed={cameraZoom === level} aria-label={`Zoom ${level}x`} title={`Zoom ${level}x`}><span /></button>)}
+                {[1, 2, 3].map(level => <button type="button" key={level} className={cameraZoom === level ? 'active' : ''} onClick={() => setCameraZoom(level)} aria-pressed={cameraZoom === level} aria-label={`Zoom ${level}x`} title={`Zoom ${level}x`}><span>{level}x</span></button>)}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => void toggleCameraFlash()}
-                  aria-label={flashEnabled ? 'Desligar flash' : 'Ligar flash'}
-                  aria-pressed={flashEnabled}
-                  title={flashEnabled ? 'Desligar flash' : 'Ligar flash'}
-                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 42, height: 42, borderRadius: 999, border: flashEnabled ? '1px solid #f59e0b' : '1px solid rgba(255,255,255,.55)', background: flashEnabled ? '#f59e0b' : 'rgba(15,23,42,.72)', color: '#fff', cursor: 'pointer' }}
-                ><Zap size={21} fill={flashEnabled ? 'currentColor' : 'none'} /></button>
+              <div className="camera-bottom-controls">
+                <button type="button" className={`camera-round-control ${flashEnabled ? 'flash-active' : ''}`} onClick={() => void toggleCameraFlash()} aria-label={flashEnabled ? 'Desligar flash' : 'Ligar flash'} aria-pressed={flashEnabled} title={flashEnabled ? 'Desligar flash' : 'Ligar flash'}><Zap size={21} fill={flashEnabled ? 'currentColor' : 'none'} /></button>
+                <button type="button" className={`camera-round-control ${scanSoundEnabled ? 'sound-active' : ''}`} onClick={() => setScanSoundEnabled(value => !value)} aria-label={scanSoundEnabled ? 'Desligar som do bip' : 'Ligar som do bip'} aria-pressed={scanSoundEnabled} title={scanSoundEnabled ? 'Desligar som do bip' : 'Ligar som do bip'}>{scanSoundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
               </div>
               <button className="camera-close" onClick={stopCamera}><X size={18} /> Fechar câmera</button>
             </div>
