@@ -105,8 +105,10 @@ export default function App() {
   const catalogCodeSet = new Set<string>();
   if (sheet && range) {
     for (let row = headerRow + 1; row <= range.e.r; row++) {
-      const catalogCode = cellText(sheet[XLSX.utils.encode_cell({ r: row, c: range.s.c + columns.code })]).trim();
-      if (catalogCode) catalogCodeSet.add(catalogCode);
+      for (const column of columns.code) {
+        const catalogCode = cellText(sheet[XLSX.utils.encode_cell({ r: row, c: range.s.c + column })]).trim();
+        if (catalogCode) catalogCodeSet.add(catalogCode);
+      }
     }
   }
   const notFoundProducts = Object.keys(counts).filter(code => !catalogCodeSet.has(code)).length;
@@ -353,8 +355,8 @@ export default function App() {
     const productDescription = findProductDescription(code);
     const catalogCodes = sheet && range ? Array.from({ length: Math.max(0, range.e.r - headerRow) }, (_, index) => {
       const r = headerRow + 1 + index;
-      return columns.code.map(column => cellText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + column })]).trim()).find(Boolean) || '';
-    }).filter(Boolean) : [];
+      return columns.code.map(column => cellText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + column })]).trim()).filter(Boolean);
+    }).flat() : [];
     const codeExists = catalogCodes.includes(code);
     setPendingCode(code);
     setScanValue('');
