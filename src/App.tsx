@@ -3,7 +3,7 @@ import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import * as XLSX from 'xlsx';
 import {
   ArrowDownToLine, Camera, Check, FileSpreadsheet, FolderUp,
-  Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw, Zap
+  Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw, Zap, Pencil
 } from 'lucide-react';
 
 type ColumnMap = { code: number[]; quantity: number; description: number };
@@ -19,6 +19,8 @@ type SavedSession = {
   quantityValue?: string;
   autoReopenCamera?: boolean;
   cameraZoom?: number;
+  quickCollectEnabled?: boolean;
+  quickCollectQuantity?: number;
 };
 const STORAGE_KEY = 'coletaflow.blind-session.v2';
 const SESSION_DB = 'coletaflow-session-db';
@@ -79,6 +81,9 @@ function CollectorApp() {
   const [cameraStatus, setCameraStatus] = useState('Aguardando câmera');
   const [cameraZoom, setCameraZoom] = useState(1);
   const [flashEnabled, setFlashEnabled] = useState(false);
+  const [quickCollectEnabled, setQuickCollectEnabled] = useState(false);
+  const [quickCollectQuantity, setQuickCollectQuantity] = useState(1);
+  const [editingQuickCollectQuantity, setEditingQuickCollectQuantity] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<IScannerControls | null>(null);
   const lastCameraScan = useRef<{ code: string; at: number } | null>(null);
@@ -156,6 +161,8 @@ function CollectorApp() {
           setQuantityValue(session.quantityValue || '');
           setAutoReopenCamera(!!session.autoReopenCamera);
           setCameraZoom(Number(session.cameraZoom ?? 1));
+          setQuickCollectEnabled(!!session.quickCollectEnabled);
+          setQuickCollectQuantity(Math.max(1, Math.floor(Number(session.quickCollectQuantity ?? 1) || 1)));
           setNotice('Sessão recuperada automaticamente. Você pode continuar de onde parou.');
         } else {
           try {
@@ -189,7 +196,9 @@ function CollectorApp() {
           pendingCode,
           quantityValue,
           autoReopenCamera,
-          cameraZoom
+          cameraZoom,
+          quickCollectEnabled,
+          quickCollectQuantity
         };
         void writeSavedSession(snapshot).catch(() => setNotice('Não foi possível salvar a sessão neste dispositivo. Verifique o espaço disponível.'));
       } catch {
@@ -197,7 +206,7 @@ function CollectorApp() {
       }
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [sessionRestored, fileName, sheetName, headerRow, columns, counts, currentStep, pendingCode, quantityValue, autoReopenCamera, cameraZoom]);
+  }, [sessionRestored, fileName, sheetName, headerRow, columns, counts, currentStep, pendingCode, quantityValue, autoReopenCamera, cameraZoom, quickCollectEnabled, quickCollectQuantity]);
 
   useEffect(() => {
     if (!cameraOpen || !videoRef.current || pendingCode) return;
@@ -221,7 +230,7 @@ function CollectorApp() {
       if (!code) return;
       setCameraStatus('Código identificado');
       receiveCode(code, true);
-      setCameraOpen(false);
+      if (!quickCollectEnabled) setCameraOpen(false);
     }).then(activeControls => {
       controls = activeControls;
       if (cancelled) activeControls.stop();
@@ -260,7 +269,7 @@ function CollectorApp() {
       stream?.getTracks().forEach(track => track.stop());
       video.srcObject = null;
     };
-  }, [cameraOpen, pendingCode]);
+  }, [cameraOpen, pendingCode, quickCollectEnabled, quickCollectQuantity]);
 
   useEffect(() => {
     if (!cameraOpen || !videoRef.current) return;
@@ -352,6 +361,13 @@ function CollectorApp() {
       const last = lastCameraScan.current;
       if (last?.code === code && Date.now() - last.at < 1600) return;
       lastCameraScan.current = { code, at: Date.now() };
+    }
+    if (fromCamera && quickCollectEnabled) {
+      setCounts(previous => ({ ...previous, [code]: (previous[code] ?? 0) + quickCollectQuantity }));
+      setScanValue('');
+      setNotice(`Coleta relâmpago: código ${code} · +${quickCollectQuantity} unidade(s). Próxima leitura...`);
+      setCameraStatus('Coleta registrada · aponte para o próximo código');
+      return;
     }
     const productDescription = findProductDescription(code);
     const catalogCodes = sheet && range ? Array.from({ length: Math.max(0, range.e.r - headerRow) }, (_, index) => {
@@ -616,7 +632,18 @@ function CollectorApp() {
           <form className="scan-form" onSubmit={event => { event.preventDefault(); receiveCode(scanValue); }}>
             <div className="scan-input-wrap"><Keyboard size={20} /><input ref={inputRef} value={scanValue} onChange={event => setScanValue(event.target.value)} placeholder={!workbook ? 'Importe o modelo primeiro' : pendingCode ? 'Informe a quantidade do código lido' : 'Bipe ou digite o código...'} disabled={!workbook || !!pendingCode} autoComplete="off" autoFocus /><button type="button" className="scan-camera-inline" onClick={startCamera} disabled={!workbook || cameraOpen || !!pendingCode} aria-label="Abrir câmera" title="Ler código com a câmera"><Camera size={21} /></button></div>
           </form>
-          <div className="scanner-heading scanner-controls"><button type="button" className={autoReopenCamera ? 'secondary-button auto-reopen active' : 'secondary-button auto-reopen'} onClick={() => setAutoReopenCamera(value => !value)} aria-pressed={autoReopenCamera} disabled={!workbook || !!pendingCode} title="Ao confirmar a quantidade, inicia a câmera para a próxima leitura."><RefreshCw size={16} /> {autoReopenCamera ? 'Reabertura automática: ligada' : 'Reabertura automática: desligada'}</button></div>
+          <div className="scanner-heading scanner-controls" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+            <button type="button" className={autoReopenCamera ? 'secondary-button auto-reopen active' : 'secondary-button auto-reopen'} onClick={() => setAutoReopenCamera(value => !value)} aria-pressed={autoReopenCamera} disabled={!workbook || !!pendingCode} title="Ao confirmar a quantidade, inicia a câmera para a próxima leitura."><RefreshCw size={16} /> {autoReopenCamera ? 'Reabertura automática: ligada' : 'Reabertura automática: desligada'}</button>
+            <button type="button" className={quickCollectEnabled ? 'secondary-button auto-reopen active' : 'secondary-button auto-reopen'} onClick={() => { setQuickCollectEnabled(value => !value); setEditingQuickCollectQuantity(false); }} aria-pressed={quickCollectEnabled} disabled={!workbook || !!pendingCode} title="Registra automaticamente a quantidade definida e mantém a câmera pronta para a próxima leitura."><Zap size={16} /> {quickCollectEnabled ? 'Coleta relâmpago: ligada' : 'Coleta relâmpago: desligada'}</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', marginTop: 2 }}>
+              <span style={{ fontSize: 13, color: 'var(--muted, #64748b)' }}>Quantidade por bip: <strong>{quickCollectQuantity}</strong></span>
+              <button type="button" className="icon-button" onClick={() => setEditingQuickCollectQuantity(value => !value)} aria-label="Editar quantidade da coleta relâmpago" title="Editar quantidade"><Pencil size={15} /></button>
+            </div>
+            {editingQuickCollectQuantity && <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+              <label style={{ fontSize: 13 }}>Quantidade automática <input type="number" min="1" step="1" value={quickCollectQuantity} onChange={event => setQuickCollectQuantity(Math.max(1, Math.floor(Number(event.target.value) || 1)))} style={{ width: 88, marginLeft: 6 }} /></label>
+              <button type="button" className="secondary-button" onClick={() => setEditingQuickCollectQuantity(false)}>Concluir</button>
+            </div>}
+          </div>
 
           <div className="scan-feedback">{notice}</div>
         </div>
