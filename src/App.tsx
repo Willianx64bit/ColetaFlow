@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import * as XLSX from 'xlsx';
 import {
-  ArrowDownToLine, Barcode, Camera, Check, FileSpreadsheet, FolderUp,
+  ArrowDownToLine, Camera, Check, FileSpreadsheet, FolderUp,
   Keyboard, Package, RotateCcw, ScanLine, Search, ShieldCheck, Smartphone, X, RefreshCw
 } from 'lucide-react';
 
