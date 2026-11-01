@@ -134,7 +134,7 @@ export default function App() {
           setSheetName(session.sheetName && restoredWorkbook.Sheets[session.sheetName]
             ? session.sheetName
             : restoredWorkbook.SheetNames[0] || '');
-          setHeaderRow(Number.isInteger(session.headerRow) ? session.headerRow : 0);
+          setHeaderRow(Math.max(0, Number(session.headerRow ?? 0) || 0));
           setColumns(session.columns || { code: 0, quantity: 1, description: -1 });
           setCounts(session.counts || {});
           setCurrentStep(Math.min(4, Math.max(1, Number(session.currentStep ?? 1))));
