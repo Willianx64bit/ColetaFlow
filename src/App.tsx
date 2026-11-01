@@ -416,42 +416,52 @@ export default function App() {
     setCameraStatus('Câmera pausada');
   };
 
-  const exportWorkbook = () => {
+  const getExportGroups = () => {
+    if (!workbook || !sheet || !range) return { matched: [] as [string, number][], unmatched: [] as [string, number][] };
+    const matched: [string, number][] = [];
+    const unmatched: [string, number][] = [];
+    for (const entry of Object.entries(counts) as [string, number][]) {
+      const [code, qty] = entry;
+      let exists = false;
+      for (let r = headerRow + 1; r <= range.e.r; r++) {
+        const rowCodes = columns.code.map(column => cellText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + column })]).trim());
+        if (rowCodes.includes(code)) { exists = true; break; }
+      }
+      (exists ? matched : unmatched).push([code, qty]);
+    }
+    return { matched, unmatched };
+  };
+
+  const exportMatchedWorkbook = () => {
     if (!workbook || !sheet || !range) return;
+    const { matched } = getExportGroups();
+    if (matched.length === 0) { setNotice('Nenhum produto da planilha recebeu contagem para exportar.'); return; }
     const output = XLSX.read(XLSX.write(workbook, { bookType: 'xlsx', type: 'array' }), { type: 'array', cellStyles: true });
     const outputSheet = output.Sheets[sheetName];
-    const hasHeader = Array.from({ length: range.e.c - range.s.c + 1 }, (_, i) => cellText(sheet[XLSX.utils.encode_cell({ r: headerRow, c: range.s.c + i })])).some(Boolean);
-    let lastUsedRow = hasHeader ? headerRow : range.s.r - 1;
-    for (let r = hasHeader ? headerRow + 1 : range.s.r; r <= range.e.r; r++) {
-      const rowHasValue = Array.from({ length: range.e.c - range.s.c + 1 }, (_, i) => cellText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + i })])).some(Boolean);
-      if (rowHasValue) lastUsedRow = r;
-    }
-    let row = lastUsedRow + 1;
-    const startColumn = range.s.c;
-    for (const [code, qty] of Object.entries(counts)) {
-      let matchingRow = -1;
-      for (let r = headerRow + 1; r <= lastUsedRow; r++) {
-        const existingCodes = columns.code.map(column => cellText(sheet[XLSX.utils.encode_cell({ r, c: startColumn + column })]).trim());
-        if (existingCodes.includes(code)) { matchingRow = r; break; }
-      }
-      if (matchingRow >= 0) {
-        const qtyCell = XLSX.utils.encode_cell({ r: matchingRow, c: startColumn + columns.quantity });
-        outputSheet[qtyCell] = { t: 'n', v: qty };
-      } else {
-        const codeCell = XLSX.utils.encode_cell({ r: row, c: startColumn + columns.code[0] });
-        const qtyCell = XLSX.utils.encode_cell({ r: row, c: startColumn + columns.quantity });
-        outputSheet[codeCell] = { t: 's', v: code, z: '@' };
-        outputSheet[qtyCell] = { t: 'n', v: qty };
-        row++;
+    for (const [code, qty] of matched) {
+      for (let r = headerRow + 1; r <= range.e.r; r++) {
+        const rowCodes = columns.code.map(column => cellText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + column })]).trim());
+        if (rowCodes.includes(code)) {
+          const qtyCell = XLSX.utils.encode_cell({ r, c: range.s.c + columns.quantity });
+          outputSheet[qtyCell] = { t: 'n', v: qty };
+          break;
+        }
       }
     }
-    outputSheet['!ref'] = XLSX.utils.encode_range({
-      s: range.s,
-      e: { r: Math.max(range.e.r, row - 1), c: Math.max(range.e.c, ...columns.code.map(column => startColumn + column), startColumn + columns.quantity) }
-    });
-    const outputName = fileName.replace(/\.(xlsx|xls|csv)$/i, '') + '-coletado.xlsx';
-    XLSX.writeFile(output, outputName);
-    setNotice(`Planilha preenchida: ${totalCodes} códigos e ${totalUnits} unidades. O arquivo modelo original foi preservado.`);
+    XLSX.writeFile(output, fileName.replace(/\\.(xlsx|xls|csv)$/i, '') + '-coletado.xlsx');
+    setNotice(`Planilha principal exportada: ${matched.length} produtos encontrados e ${matched.reduce((sum, [, qty]) => sum + qty, 0)} unidades. Produtos não encontrados ficaram fora deste arquivo.`);
+  };
+
+  const exportNotFoundReport = () => {
+    const { unmatched } = getExportGroups();
+    if (unmatched.length === 0) { setNotice('Nenhum produto não encontrado para gerar relatório.'); return; }
+    const report = XLSX.utils.book_new();
+    const rows = [['Código lido', 'Quantidade coletada'], ...unmatched.map(([code, qty]) => [code, qty])];
+    const reportSheet = XLSX.utils.aoa_to_sheet(rows);
+    reportSheet['!cols'] = [{ wch: 24 }, { wch: 22 }];
+    XLSX.utils.book_append_sheet(report, reportSheet, 'Não encontrados');
+    XLSX.writeFile(report, fileName.replace(/\\.(xlsx|xls|csv)$/i, '') + '-nao-encontrados.xlsx');
+    setNotice(`Relatório de não encontrados exportado: ${unmatched.length} códigos.`);
   };
 
   const resetSession = () => {
@@ -585,8 +595,12 @@ export default function App() {
       </section>}
 
       {currentStep === 4 && <section className="export-bar wizard-screen">
-        <div><span className="step-label">ETAPA 04 DE 04</span><strong>Exportar modelo preenchido</strong><small>O arquivo original fica intacto; será criada uma cópia com código e quantidade.</small></div>
-        <div className="export-actions"><button className="secondary-button" onClick={() => setCurrentStep(3)}>Voltar</button><button className="primary-button" onClick={exportWorkbook} disabled={!workbook || totalCodes === 0 || !!pendingCode}><ArrowDownToLine size={18} /> Finalizar e exportar XLSX</button></div>
+        <div><span className="step-label">ETAPA 04 DE 04</span><strong>Exportar relatórios da coleta</strong><small>Os produtos encontrados entram na planilha original preenchida. Os códigos não encontrados ficam em um relatório separado.</small></div>
+        <div className="export-actions export-actions-split">
+          <button className="secondary-button" onClick={() => setCurrentStep(3)}>Voltar</button>
+          <button className="primary-button" onClick={exportMatchedWorkbook} disabled={!workbook || getExportGroups().matched.length === 0 || !!pendingCode}><ArrowDownToLine size={18} /> Baixar planilha coletada ({getExportGroups().matched.length})</button>
+          <button className="secondary-button not-found-download" onClick={exportNotFoundReport} disabled={getExportGroups().unmatched.length === 0 || !!pendingCode}><ArrowDownToLine size={18} /> Baixar não encontrados ({getExportGroups().unmatched.length})</button>
+        </div>
       </section>}
       <footer><span>ColetaFlow <b>•</b> Bipe. Informe. Exporte.</span><span><Smartphone size={14} /> Coleta sem cadastro prévio</span></footer>
     </main>
