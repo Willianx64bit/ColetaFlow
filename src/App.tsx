@@ -395,6 +395,7 @@ function CollectorApp() {
     setQuantityValue('');
     setScanValue('');
     if (autoReopenCamera && cameraUsed) {
+      setFlashEnabled(false);
       setCameraStatus('Preparando próxima leitura…');
       setCameraOpen(true);
     } else {
@@ -407,6 +408,7 @@ function CollectorApp() {
 
   const startCamera = () => {
     if (!workbook || pendingCode) return;
+    setFlashEnabled(false);
     setCameraUsed(true);
     setCameraStatus('Preparando leitor de código de barras…');
     setCameraOpen(true);
@@ -436,6 +438,7 @@ function CollectorApp() {
   };
 
   const stopCamera = () => {
+    setFlashEnabled(false);
     setCameraOpen(false);
     setCameraStatus('Câmera pausada');
   };
