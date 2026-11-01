@@ -230,3 +230,27 @@
 /* Indicadores da coleta: produtos fora do catálogo */
 .stats-grid .warning-stat strong{color:#c27a2c}
 .stats-grid .warning-stat:has(strong){transition:background .15s}
+
+.access-gate{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 18px;background:radial-gradient(ellipse at 50% 0%,#1b3552 0%,#0b1422 58%);color:#e8edf6;font-family:inherit}
+.access-card{width:min(100%,430px);padding:34px;background:#111e30;border:1px solid #2a3d56;border-radius:22px;box-shadow:0 24px 80px #0007}
+.access-brand{display:flex;align-items:center;gap:12px;margin-bottom:36px}
+.access-mark{position:relative;width:46px;height:46px;border-radius:13px;background:linear-gradient(145deg,#25c992,#0b9676);display:grid;place-items:center;color:#06291f}
+.access-mark svg:last-child{position:absolute;right:-4px;bottom:-3px;background:#111e30;border-radius:50%;padding:1px}
+.access-brand b{display:block;font-size:21px;letter-spacing:-.6px}.access-brand small{display:block;color:#8fa2ba;font-size:9px;letter-spacing:1.6px;margin-top:3px}
+.access-intro{margin-bottom:25px}.access-intro>span{font-size:10px;letter-spacing:1.8px;font-weight:800;color:#2bd09b}.access-intro h1{font-size:27px;letter-spacing:-1px;margin:9px 0}.access-intro p{font-size:13px;line-height:1.6;color:#91a2b9;margin:0}
+.access-card form label{display:block;font-size:12px;font-weight:700;color:#cbd5e1;margin:16px 0 8px}
+.access-field{height:48px;border:1px solid #30445f;border-radius:10px;background:#0b1727;display:flex;align-items:center;gap:10px;padding:0 13px;color:#8fa2ba}
+.access-field:focus-within{border-color:#23c48f;box-shadow:0 0 0 3px #23c48f20}
+.access-field input{width:100%;min-width:0;background:transparent;border:0;outline:0;color:#f5f7fb;font:inherit;font-size:13px}
+.access-field input::placeholder{color:#647991}
+.access-field button{border:0;background:none;color:#91a2b9;display:grid;place-items:center}
+.access-submit{width:100%;height:49px;margin-top:23px;border:0;border-radius:10px;background:#22c58e;color:#05291f;font-weight:800;font:inherit;font-size:13px;cursor:pointer}
+.access-submit:disabled{opacity:.6}
+.access-error{margin-top:13px;padding:10px 12px;background:#48232d;color:#ffaaaa;border-radius:8px;font-size:12px}
+.access-foot{display:flex;align-items:flex-start;gap:9px;margin-top:23px;padding-top:18px;border-top:1px solid #293b52;color:#8fa2ba;font-size:11px;line-height:1.5}
+.access-foot svg{flex:none;color:#2bd09b}
+.access-gate footer{margin-top:23px;color:#63758e;font-size:10px}
+.access-loading{color:#9eb0c6;text-align:center;font-size:13px;padding:18px}
+.collector-authenticated{position:relative}
+.collector-logout{position:fixed;right:16px;top:15px;z-index:50;border:1px solid #38516d;border-radius:9px;background:#102239eF;color:#e4edf7;padding:8px 13px;font:inherit;font-size:12px;font-weight:700;box-shadow:0 5px 20px #0003}
+@media(max-width:520px){.access-card{padding:28px 22px}}
