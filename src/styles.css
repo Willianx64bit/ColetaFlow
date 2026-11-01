@@ -47,3 +47,20 @@
 .wizard-navigation .primary-button,.wizard-navigation .secondary-button{min-height:46px}
 .wizard-next{justify-content:space-between}
 @media(max-width:560px){.wizard-progress{gap:5px;padding:13px 7px}.wizard-step{flex:1;flex-direction:column;gap:5px}.wizard-step small{font-size:10px}.wizard-navigation{align-items:stretch;flex-wrap:wrap}.wizard-navigation>span{width:100%;line-height:1.45}.wizard-navigation button{flex:1;justify-content:center}.wizard-next button{width:100%}}
+
+
+/* Compact collector controls: scan field first, camera and auto-reopen in header */
+.scanner-panel .scan-form{margin-top:0}
+.scanner-panel .scanner-heading{margin-top:14px}
+.scanner-camera-button{width:40px;height:40px;flex:0 0 40px;border:0;border-radius:11px;background:#e7f5fa;color:#087fa5;display:grid;place-items:center;padding:0}
+.scanner-camera-button:hover:not(:disabled){background:#d8eff7;color:#066b8c}
+.scanner-camera-button:disabled{opacity:.45;cursor:not-allowed}
+.scanner-heading .auto-reopen{flex:0 0 auto;min-height:38px;white-space:nowrap;padding:8px 10px;font-size:10px}
+.scanner-actions{margin-top:9px}
+@media(max-width:600px){
+  .scanner-panel .scanner-heading{gap:9px;align-items:center}
+  .scanner-heading .auto-reopen{max-width:154px;white-space:normal;line-height:1.25;justify-content:center;text-align:center;padding:7px 8px;font-size:9px}
+  .scanner-heading>div:nth-child(2){min-width:0}
+  .scanner-heading strong{font-size:11px}
+  .scanner-heading>div:nth-child(2) span{font-size:9px;line-height:1.3}
+}
