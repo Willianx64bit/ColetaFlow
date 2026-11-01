@@ -225,3 +225,8 @@
  .quantity-entry-row{gap:7px}
  .remove-mode-button{min-height:49px;padding:0 11px;font-size:11px}
 }
+
+
+/* Indicadores da coleta: produtos fora do catálogo */
+.stats-grid .warning-stat strong{color:#c27a2c}
+.stats-grid .warning-stat:has(strong){transition:background .15s}
