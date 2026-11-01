@@ -306,15 +306,26 @@ body:has(.camera-box)::before{
   content:"";
   position:fixed;
   inset:0;
-  z-index:40;
+  z-index:999;
   pointer-events:none;
-  background:rgba(4,12,23,.58);
-  -webkit-backdrop-filter:blur(7px) brightness(.62);
-  backdrop-filter:blur(7px) brightness(.62);
+  background:rgba(2,8,18,.76);
+  -webkit-backdrop-filter:blur(9px) brightness(.42);
+  backdrop-filter:blur(9px) brightness(.42);
   animation:camera-background-dim .2s ease-out both;
 }
 .camera-box{
-  position:relative;
-  z-index:41;
+  position:fixed!important;
+  z-index:1000!important;
+  left:50%!important;
+  top:50%!important;
+  transform:translate(-50%,-50%)!important;
+  width:min(620px,calc(100vw - 28px))!important;
+  max-width:none!important;
+  max-height:calc(100dvh - 40px);
+  overflow:auto;
+  margin:0!important;
+  box-shadow:0 18px 60px rgba(0,0,0,.55);
 }
 @keyframes camera-background-dim{from{opacity:0}to{opacity:1}}
+
+@media(max-width:600px){body:has(.camera-box) .camera-box{width:calc(100vw - 28px)!important;max-height:calc(100dvh - 34px);padding:9px}body:has(.camera-box) .camera-box video{max-height:52dvh;min-height:180px}}
