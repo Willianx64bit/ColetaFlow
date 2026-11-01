@@ -304,19 +304,12 @@ export default function App() {
           <div className="stat-card warning-stat"><span>Aguardando quantidade</span><strong>{pendingCode ? '1' : '0'}</strong><small>{pendingCode ? 'Código lido, falta confirmar' : 'Nenhum código pendente'}</small></div>
         </div>
         <div className="scanner-panel">
-          <div className="scanner-heading"><div className="scanner-icon"><Barcode size={22} /></div><div><strong>Bipagem contínua</strong><span>Sem catálogo, descrição ou saldo de estoque</span></div><span className="live-indicator"><i /> AO VIVO</span></div>
           <form className="scan-form" onSubmit={event => { event.preventDefault(); receiveCode(scanValue); }}>
             <div className="scan-input-wrap"><Keyboard size={20} /><input ref={inputRef} value={scanValue} onChange={event => setScanValue(event.target.value)} placeholder={!workbook ? 'Importe o modelo primeiro' : pendingCode ? 'Informe a quantidade do código lido' : 'Bipe ou digite o código...'} disabled={!workbook || !!pendingCode} autoComplete="off" autoFocus /><button type="submit" disabled={!workbook || !scanValue.trim()}><ScanLine size={19} /><span>Ler código</span></button></div>
           </form>
+          <div className="scanner-heading"><button type="button" className="scanner-camera-button" onClick={startCamera} disabled={!workbook || cameraOpen || !!pendingCode} aria-label="Abrir câmera para bipar código" title="Bipar código pela câmera"><Camera size={22} /></button><div><strong>Bipagem contínua</strong><span>Sem catálogo, descrição ou saldo de estoque</span></div><button type="button" className={autoReopenCamera ? 'secondary-button auto-reopen active' : 'secondary-button auto-reopen'} onClick={() => setAutoReopenCamera(value => !value)} aria-pressed={autoReopenCamera} disabled={!workbook || !!pendingCode} title="Ao confirmar a quantidade, inicia a câmera para a próxima leitura."><RefreshCw size={16} /> {autoReopenCamera ? 'Reabertura automática: ligada' : 'Reabertura automática: desligada'}</button></div>
           {pendingCode && <div className="pending-code-card"><div><small>CÓDIGO LIDO</small><strong>{pendingCode}</strong></div><label>Quantidade<input ref={quantityRef} type="number" min="1" step="1" value={quantityValue} onChange={event => setQuantityValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmCount(); } }} /></label><button className="primary-button" onClick={confirmCount}><Check size={17} /> Confirmar</button><button className="icon-button" title="Cancelar código" onClick={() => { setPendingCode(''); setQuantityValue('1'); inputRef.current?.focus(); }}><X size={18} /></button></div>}
           <div className="scanner-actions">
-            <button className="secondary-button camera-launch" onClick={startCamera} disabled={!workbook || cameraOpen || !!pendingCode}>
-              {cameraUsed ? <RefreshCw size={17} /> : <Camera size={17} />}
-              {cameraUsed ? 'Reabrir câmera' : 'Ler pela câmera'}
-            </button>
-            <button type="button" className={autoReopenCamera ? 'secondary-button auto-reopen active' : 'secondary-button auto-reopen'} onClick={() => setAutoReopenCamera(value => !value)} aria-pressed={autoReopenCamera} disabled={!workbook || !!pendingCode} title="Ao confirmar a quantidade, inicia a câmera para a próxima leitura.">
-              <RefreshCw size={16} /> {autoReopenCamera ? 'Reabertura automática: ligada' : 'Reabertura automática: desligada'}
-            </button>
             <span>Leitor USB/Bluetooth funciona como teclado (HID).</span>
           </div>
           {cameraOpen && (
