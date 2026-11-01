@@ -261,6 +261,7 @@ export default function App() {
       <header className="topbar">
         <a className="brand" href="#" aria-label="ColetaFlow início">
           <span className="brand-mark" aria-hidden="true"><FileSpreadsheet size={34} strokeWidth={2.2} /><RefreshCw size={17} strokeWidth={2.8} className="brand-sync" /></span>
+          <span className="brand-wordmark"><span>Coleta</span><strong>Flow</strong></span>
         </a>
         <div className="topbar-right"><span className="offline-pill"><span /> CONTAGEM LOCAL</span><span className="version">MVP 0.2</span></div>
       </header>
