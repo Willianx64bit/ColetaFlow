@@ -34,6 +34,8 @@ export default function App() {
   const [autoReopenCamera, setAutoReopenCamera] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [cameraStatus, setCameraStatus] = useState('Aguardando câmera');
+  const [cameraFocusSize, setCameraFocusSize] = useState<'small' | 'medium' | 'large'>('medium');
+  const [cameraZoom, setCameraZoom] = useState(1);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<IScannerControls | null>(null);
   const lastCameraScan = useRef<{ code: string; at: number } | null>(null);
@@ -56,6 +58,18 @@ export default function App() {
   const entries = Object.entries(counts).filter(([code]) => !search || normalize(code).includes(normalize(search)));
   const totalUnits = Object.values(counts).reduce((sum, qty) => sum + qty, 0);
   const totalCodes = Object.keys(counts).length;
+
+  useEffect(() => {
+    try {
+      const savedCamera = JSON.parse(localStorage.getItem('coletaflow_camera_settings') || '{}');
+      if (['small', 'medium', 'large'].includes(savedCamera.focusSize)) setCameraFocusSize(savedCamera.focusSize);
+      if ([1, 2, 3].includes(savedCamera.zoom)) setCameraZoom(savedCamera.zoom);
+    } catch { /* ignore invalid camera preferences */ }
+  }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem('coletaflow_camera_settings', JSON.stringify({ focusSize: cameraFocusSize, zoom: cameraZoom })); } catch { /* storage may be unavailable */ }
+  }, [cameraFocusSize, cameraZoom]);
 
   useEffect(() => {
     try {
@@ -100,8 +114,8 @@ export default function App() {
       audio: false,
       video: {
         facingMode: { ideal: 'environment' },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
         frameRate: { ideal: 30 }
       }
     }, video, result => {
@@ -116,6 +130,19 @@ export default function App() {
       if (cancelled) activeControls.stop();
       else {
         scannerRef.current = activeControls;
+        const stream = video.srcObject as MediaStream | null;
+        const track = stream?.getVideoTracks()[0];
+        if (track) {
+          const capabilities = track.getCapabilities() as MediaTrackCapabilities & { zoom?: { min: number; max: number; step?: number } };
+          if (capabilities.zoom) {
+            const targetZoom = Math.min(capabilities.zoom.max, Math.max(capabilities.zoom.min, cameraZoom));
+            track.applyConstraints({ advanced: [{ zoom: targetZoom } as MediaTrackConstraintSet] }).catch(() => {});
+          }
+          const focusCapabilities = capabilities as MediaTrackCapabilities & { focusMode?: string[] };
+          if (focusCapabilities.focusMode?.includes('continuous')) {
+            track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] }).catch(() => {});
+          }
+        }
         setCameraUsed(true);
         setCameraStatus('Câmera ativa · aponte para o código de barras');
       }
@@ -365,8 +392,12 @@ export default function App() {
             <div className="camera-box">
               <div className="camera-status"><span className="camera-live-dot" />{cameraStatus}</div>
               <video ref={videoRef} muted playsInline autoPlay />
-              <div className="camera-guide" aria-hidden="true"><span /><i /></div>
-              <div className="camera-help">Enquadre o código de barras dentro da área central, com boa iluminação e sem inclinar o celular.</div>
+              <div className={`camera-guide focus-${cameraFocusSize}`} aria-hidden="true"><span /><i /></div>
+              <div className="camera-settings">
+                <label>Foco da leitura<select value={cameraFocusSize} onChange={event => setCameraFocusSize(event.target.value as 'small' | 'medium' | 'large')}><option value="small">Pequeno</option><option value="medium">Médio</option><option value="large">Grande</option></select></label>
+                <label>Zoom<select value={cameraZoom} onChange={event => setCameraZoom(Number(event.target.value))}><option value={1}>1x</option><option value={2}>2x</option><option value={3}>3x</option></select></label>
+              </div>
+              <div className="camera-help">Ajuste o enquadramento para facilitar a leitura dos códigos.</div>
               <button className="camera-close" onClick={stopCamera}><X size={18} /> Fechar câmera</button>
             </div>
           )}
