@@ -601,7 +601,7 @@ function CollectorApp() {
             <div className="camera-box">
               <div className="camera-status"><span className="camera-live-dot" />{cameraStatus}</div>
               <video ref={videoRef} muted playsInline autoPlay />
-              <div className="camera-guide" aria-hidden="true"><span /><i /></div>
+              <div key={scanPulse} className={`camera-guide ${scanPulse ? `scan-guide-pulse-${scanPulse % 2}` : ""}`} aria-hidden="true" />
               <div className="camera-zoom-controls" role="group" aria-label="Zoom da câmera">
                 {[1, 2, 3].map(level => <button type="button" key={level} className={cameraZoom === level ? 'active' : ''} onClick={() => setCameraZoom(level)} aria-pressed={cameraZoom === level} aria-label={`Zoom ${level}x`} title={`Zoom ${level}x`}><span /></button>)}
               </div>
