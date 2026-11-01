@@ -205,3 +205,23 @@
  .quantity-modal-backdrop{align-items:flex-start;padding-top:6px;padding-bottom:6px}
  .quantity-modal{max-height:calc(100dvh - 12px)}
 }
+
+
+/* Indicador do total coletado e modo de retirada manual */
+.quantity-modal-topline{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.quantity-modal-topline .quantity-modal-eyebrow{margin:0}
+.quantity-collected{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:999px;background:#e8f7f1;color:#24765b;font-size:11px;font-weight:700;white-space:nowrap}
+.quantity-collected strong{font-size:14px;color:#126448}
+.quantity-entry-row{display:flex;align-items:flex-end;gap:9px}
+.quantity-entry-row .quantity-modal-label{flex:1;min-width:0}
+.remove-mode-button{flex:0 0 auto;min-height:49px;padding:0 15px;border:1px solid #efb5b5;border-radius:11px;background:#fff3f3;color:#c12d35;font-size:12px;font-weight:800;cursor:pointer;transition:background .15s,border-color .15s}
+.remove-mode-button.active{background:#c92e38;border-color:#c92e38;color:#fff;box-shadow:0 0 0 3px #c92e3820}
+.quantity-modal-actions .remove-confirm-button{background:#c92e38;border-color:#c92e38}
+.quantity-modal-actions .remove-confirm-button:hover{background:#ad202a}
+@media(max-width:600px){
+ .quantity-modal-topline{gap:6px}
+ .quantity-collected{padding:5px 8px;font-size:10px}
+ .quantity-collected strong{font-size:13px}
+ .quantity-entry-row{gap:7px}
+ .remove-mode-button{min-height:49px;padding:0 11px;font-size:11px}
+}
