@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import * as XLSX from 'xlsx';
 import {
@@ -599,7 +600,7 @@ function CollectorApp() {
 
       {currentStep === 2 && <section className="workspace collector-section wizard-screen">
         <div className="section-heading"><div><span className="step-label">ETAPA 02 DE 04</span><h2>Coletor</h2><p>Bipe qualquer código e informe quantas unidades encontrou.</p></div><span className={workbook ? 'ready-chip' : 'waiting-chip'}>{workbook ? 'MODELO PRONTO' : 'AGUARDANDO MODELO'}</span></div>
-          {cameraOpen && (
+          {cameraOpen && createPortal(
             <div className="camera-box">
               <div className="camera-status"><span className="camera-live-dot" />{cameraStatus}</div>
               <video ref={videoRef} muted playsInline autoPlay />
@@ -612,7 +613,8 @@ function CollectorApp() {
                 <button type="button" className={`camera-round-control ${scanSoundEnabled ? 'sound-active' : ''}`} onClick={() => setScanSoundEnabled(value => !value)} aria-label={scanSoundEnabled ? 'Desligar som do bip' : 'Ligar som do bip'} aria-pressed={scanSoundEnabled} title={scanSoundEnabled ? 'Desligar som do bip' : 'Ligar som do bip'}>{scanSoundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
               </div>
               <button className="camera-close" onClick={stopCamera}><X size={18} /> Fechar câmera</button>
-            </div>
+            </div>,
+            document.body
           )}
           {pendingCode && <div className="quantity-modal-backdrop" role="presentation">
             <section className="quantity-modal" role="dialog" aria-modal="true" aria-labelledby="quantity-modal-title">
