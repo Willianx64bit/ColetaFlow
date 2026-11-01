@@ -120,3 +120,14 @@
 .camera-guide.focus-medium{width:64%;max-width:390px}
 .camera-guide.focus-large{width:84%;max-width:520px}
 @media(max-width:600px){.camera-settings{gap:8px}.camera-settings select{min-height:42px}}
+
+
+/* Câmera: zoom vertical discreto à direita e guia central padrão */
+.camera-box{position:relative}
+.camera-guide{left:50%;top:50%;width:min(72%,360px);height:92px}
+.camera-zoom-controls{position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:3;display:flex;flex-direction:column;gap:10px}
+.camera-zoom-controls button{width:34px;height:34px;padding:0;border:1px solid #ffffff88;border-radius:50%;background:#071827b8;display:grid;place-items:center;cursor:pointer}
+.camera-zoom-controls button span{width:9px;height:9px;border-radius:50%;background:#fff;display:block}
+.camera-zoom-controls button.active{border:2px solid #fff;background:#087fa5;box-shadow:0 0 0 3px #ffffff35}
+.camera-zoom-controls button.active span{background:#fff}
+@media(max-width:600px){.camera-guide{width:72%;height:82px}.camera-zoom-controls{right:10px;gap:9px}.camera-zoom-controls button{width:32px;height:32px}}
