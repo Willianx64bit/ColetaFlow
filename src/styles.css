@@ -288,3 +288,13 @@
 .camera-round-control:active{transform:scale(.94)}
 .camera-round-control.flash-active{border-color:#f59e0b;background:#f59e0b}
 .camera-round-control.sound-active{border-color:#38bdf8;background:#087fa5}
+
+
+/* Ajuste fino dos controles da câmera no celular */
+.camera-bottom-controls{position:relative;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin:8px auto 0}
+.camera-bottom-controls .camera-round-control{width:44px;height:44px;min-width:44px;padding:0;border-radius:50%;flex:0 0 44px}
+.camera-bottom-controls .camera-round-control svg{width:21px;height:21px}
+.camera-zoom-controls button{width:40px;height:40px;min-width:40px;background:#071827d9;color:#fff;font-size:13px;font-weight:900;letter-spacing:0;text-shadow:0 1px 2px #00131f}
+.camera-zoom-controls button span{color:#fff!important;font-size:13px;font-weight:900;line-height:1;text-shadow:0 1px 2px #00131f}
+.camera-zoom-controls button.active{background:#087fa5;border:2px solid #fff}
+@media(max-width:600px){.camera-zoom-controls button{width:40px;height:40px;min-width:40px}.camera-zoom-controls button span{font-size:13px}}
