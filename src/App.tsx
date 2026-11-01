@@ -66,6 +66,7 @@ export default function App() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [scanValue, setScanValue] = useState('');
   const [quantityValue, setQuantityValue] = useState('');
+  const [removeMode, setRemoveMode] = useState(false);
   const [quantityShortcuts, setQuantityShortcuts] = useState<number[]>([1, 5, 10, 20, 50]);
   const [editingShortcuts, setEditingShortcuts] = useState(false);
   const [pendingCode, setPendingCode] = useState('');
@@ -360,8 +361,23 @@ export default function App() {
     const qty = shortcutQuantity ?? Number(quantityValue);
     if (!code) { setNotice('Bipe ou digite um código primeiro.'); inputRef.current?.focus(); return; }
     if (!Number.isFinite(qty) || qty <= 0 || !Number.isInteger(qty)) { setNotice('Informe uma quantidade inteira maior que zero.'); quantityRef.current?.focus(); return; }
-    setCounts(previous => ({ ...previous, [code]: (previous[code] ?? 0) + qty }));
-    setNotice(`Registrado: código ${code} · quantidade adicionada: ${qty}.`);
+    const alreadyCollected = counts[code] ?? 0;
+    if (removeMode) {
+      if (alreadyCollected <= 0) { setNotice('Ainda não existe quantidade coletada deste produto para retirar.'); quantityRef.current?.focus(); return; }
+      if (qty > alreadyCollected) { setNotice(`Você coletou ${alreadyCollected} unidade(s). Não é possível retirar ${qty}.`); quantityRef.current?.focus(); return; }
+      const remaining = alreadyCollected - qty;
+      setCounts(previous => {
+        const next = { ...previous };
+        if (remaining === 0) delete next[code];
+        else next[code] = remaining;
+        return next;
+      });
+      setNotice(`Retirada registrada: código ${code} · quantidade retirada: ${qty}.`);
+    } else {
+      setCounts(previous => ({ ...previous, [code]: (previous[code] ?? 0) + qty }));
+      setNotice(`Registrado: código ${code} · quantidade adicionada: ${qty}.`);
+    }
+    setRemoveMode(false);
     setPendingCode('');
     setQuantityValue('');
     setScanValue('');
@@ -500,11 +516,11 @@ export default function App() {
             <section className="quantity-modal" role="dialog" aria-modal="true" aria-labelledby="quantity-modal-title">
               <div className="quantity-modal-heading">
                 <div className="quantity-product-info">
-                  <span className="quantity-modal-eyebrow">PRODUTO IDENTIFICADO</span>
+                  <div className="quantity-modal-topline"><span className="quantity-modal-eyebrow">PRODUTO IDENTIFICADO</span><span className="quantity-collected">Coletado: <strong>{counts[pendingCode] ?? 0}</strong></span></div>
                   <h3 id="quantity-modal-title">{findProductDescription(pendingCode) || (findProductRow(pendingCode) >= 0 ? 'Produto sem descrição' : 'Produto não encontrado')}</h3>
                   <span className="quantity-product-code">Código: <strong>{pendingCode}</strong></span>
                 </div>
-                <button className="icon-button quantity-modal-close" title="Cancelar leitura" onClick={() => { setPendingCode(''); setQuantityValue(''); inputRef.current?.focus(); }}><X size={20} /></button>
+                <button className="icon-button quantity-modal-close" title="Cancelar leitura" onClick={() => { setPendingCode(''); setQuantityValue(''); setRemoveMode(false); inputRef.current?.focus(); }}><X size={20} /></button>
               </div>
               <div className="quantity-modal-content">
                 <div className="quantity-shortcuts">
@@ -512,10 +528,13 @@ export default function App() {
                   <div className="quantity-shortcut-list">{quantityShortcuts.map((amount, index) => <button type="button" className="quantity-shortcut" key={index} onPointerDown={event => { event.preventDefault(); shortcutLongPressHandled.current = false; if (shortcutHoldTimer.current) clearTimeout(shortcutHoldTimer.current); shortcutHoldTimer.current = setTimeout(() => { shortcutLongPressHandled.current = true; confirmCount(amount); shortcutHoldTimer.current = null; }, 500); }} onPointerUp={() => { if (shortcutHoldTimer.current) { clearTimeout(shortcutHoldTimer.current); shortcutHoldTimer.current = null; } }} onPointerLeave={() => { if (!shortcutLongPressHandled.current && shortcutHoldTimer.current) { clearTimeout(shortcutHoldTimer.current); shortcutHoldTimer.current = null; } }} onPointerCancel={() => { if (!shortcutLongPressHandled.current && shortcutHoldTimer.current) { clearTimeout(shortcutHoldTimer.current); shortcutHoldTimer.current = null; } }} onContextMenu={event => event.preventDefault()} onClick={event => { event.preventDefault(); if (shortcutLongPressHandled.current) { shortcutLongPressHandled.current = false; return; } setQuantityValue(String((Number(quantityValue) || 0) + amount)); }}>{amount}</button>)}</div>
                   {editingShortcuts && <div className="edit-shortcuts-grid">{quantityShortcuts.map((amount, index) => <label key={index}>Atalho {index + 1}<input type="number" min="1" step="1" value={amount} onChange={event => setQuantityShortcuts(values => values.map((value, i) => i === index ? Math.max(1, Number(event.target.value) || 1) : value))} /></label>)}</div>}
                 </div>
-                <label className="quantity-modal-label">Quantidade encontrada<input ref={quantityRef} type="number" min="1" step="1" value={quantityValue} onChange={event => setQuantityValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmCount(); } }} /></label>
+                <div className="quantity-entry-row">
+                  <label className="quantity-modal-label">{removeMode ? 'Quantidade a retirar' : 'Quantidade encontrada'}<input ref={quantityRef} type="number" min="1" step="1" value={quantityValue} onChange={event => setQuantityValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmCount(); } }} /></label>
+                  <button type="button" className={removeMode ? 'remove-mode-button active' : 'remove-mode-button'} aria-pressed={removeMode} onClick={() => { setRemoveMode(value => !value); setQuantityValue(''); requestAnimationFrame(() => quantityRef.current?.focus()); }}>{removeMode ? 'Retirar: ligado' : 'Retirar'}</button>
+                </div>
                 <div className="quantity-modal-actions">
                   <button className="secondary-button" onClick={() => { setPendingCode(''); setQuantityValue(''); inputRef.current?.focus(); }}>Cancelar</button>
-                  <button className="primary-button" onClick={() => confirmCount()}><Check size={17} /> Confirmar quantidade</button>
+                  <button className={removeMode ? "primary-button remove-confirm-button" : "primary-button"} onClick={() => confirmCount()}>{removeMode ? <><RotateCcw size={17} /> Retirar quantidade</> : <><Check size={17} /> Confirmar quantidade</>}</button>
                 </div>
               </div>
             </section>
