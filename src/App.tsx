@@ -84,6 +84,8 @@ function CollectorApp() {
   const [quickCollectEnabled, setQuickCollectEnabled] = useState(false);
   const [quickCollectQuantity, setQuickCollectQuantity] = useState(1);
   const [editingQuickCollectQuantity, setEditingQuickCollectQuantity] = useState(false);
+  const [scanPulse, setScanPulse] = useState(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<IScannerControls | null>(null);
   const lastCameraScan = useRef<{ code: string; at: number } | null>(null);
@@ -354,6 +356,25 @@ function CollectorApp() {
       : '';
   };
 
+  const playScanFeedback = () => {
+    setScanPulse(value => value + 1);
+    try {
+      const AudioContextClass = window.AudioContext;
+      if (!AudioContextClass) return;
+      const context = audioContextRef.current ?? new AudioContextClass();
+      audioContextRef.current = context;
+      if (context.state === 'suspended') void context.resume();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = 'sine'; oscillator.frequency.setValueAtTime(1450, context.currentTime);
+      gain.gain.setValueAtTime(0.0001, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.16, context.currentTime + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.105);
+      oscillator.connect(gain); gain.connect(context.destination);
+      oscillator.start(); oscillator.stop(context.currentTime + 0.11);
+    } catch { /* áudio pode estar bloqueado pelo navegador */ }
+  };
+
   const receiveCode = (raw: string, fromCamera = false) => {
     const code = raw.trim();
     if (!code) return;
@@ -363,6 +384,7 @@ function CollectorApp() {
       lastCameraScan.current = { code, at: Date.now() };
     }
     if (fromCamera && quickCollectEnabled) {
+      playScanFeedback();
       setCounts(previous => ({ ...previous, [code]: (previous[code] ?? 0) + quickCollectQuantity }));
       setScanValue('');
       setNotice(`Coleta relâmpago: código ${code} · +${quickCollectQuantity} unidade(s). Próxima leitura...`);
@@ -377,6 +399,7 @@ function CollectorApp() {
     const codeExists = catalogCodes.includes(code);
     setPendingCode(code);
     setScanValue('');
+    if (fromCamera) playScanFeedback();
     setNotice(productDescription
       ? `${productDescription} · informe a quantidade.`
       : catalogCodes.length > 0 && !codeExists
@@ -627,25 +650,24 @@ function CollectorApp() {
           <div className="stat-card"><span>Produtos coletados</span><strong>{totalCodes}</strong><small>Produtos com quantidade registrada</small></div>
           <div className="stat-card warning-stat"><span>Produtos não encontrados</span><strong>{notFoundProducts}</strong><small>{notFoundProducts ? 'Códigos fora da planilha' : 'Nenhum produto fora da planilha'}</small></div>
         </div>
-        <div className="scanner-panel">
+        <div className={`scanner-panel scan-pulse-${scanPulse % 2}`}>
 
           <form className="scan-form" onSubmit={event => { event.preventDefault(); receiveCode(scanValue); }}>
             <div className="scan-input-wrap"><Keyboard size={20} /><input ref={inputRef} value={scanValue} onChange={event => setScanValue(event.target.value)} placeholder={!workbook ? 'Importe o modelo primeiro' : pendingCode ? 'Informe a quantidade do código lido' : 'Bipe ou digite o código...'} disabled={!workbook || !!pendingCode} autoComplete="off" autoFocus /><button type="button" className="scan-camera-inline" onClick={startCamera} disabled={!workbook || cameraOpen || !!pendingCode} aria-label="Abrir câmera" title="Ler código com a câmera"><Camera size={21} /></button></div>
           </form>
           <div className="scanner-heading scanner-controls" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
             <button type="button" className={autoReopenCamera ? 'secondary-button auto-reopen active' : 'secondary-button auto-reopen'} onClick={() => setAutoReopenCamera(value => !value)} aria-pressed={autoReopenCamera} disabled={!workbook || !!pendingCode} title="Ao confirmar a quantidade, inicia a câmera para a próxima leitura."><RefreshCw size={16} /> {autoReopenCamera ? 'Reabertura automática: ligada' : 'Reabertura automática: desligada'}</button>
-            <button type="button" className={quickCollectEnabled ? 'secondary-button auto-reopen active' : 'secondary-button auto-reopen'} onClick={() => { setQuickCollectEnabled(value => !value); setEditingQuickCollectQuantity(false); }} aria-pressed={quickCollectEnabled} disabled={!workbook || !!pendingCode} title="Registra automaticamente a quantidade definida e mantém a câmera pronta para a próxima leitura."><Zap size={16} /> {quickCollectEnabled ? 'Coleta relâmpago: ligada' : 'Coleta relâmpago: desligada'}</button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', marginTop: 2 }}>
-              <span style={{ fontSize: 13, color: 'var(--muted, #64748b)' }}>Quantidade por bip: <strong>{quickCollectQuantity}</strong></span>
-              <button type="button" className="icon-button" onClick={() => setEditingQuickCollectQuantity(value => !value)} aria-label="Editar quantidade da coleta relâmpago" title="Editar quantidade"><Pencil size={15} /></button>
+            <div className="quick-collect-control">
+              <button type="button" className={quickCollectEnabled ? 'secondary-button auto-reopen active' : 'secondary-button auto-reopen'} onClick={() => { setQuickCollectEnabled(value => !value); setEditingQuickCollectQuantity(false); }} aria-pressed={quickCollectEnabled} disabled={!workbook || !!pendingCode} title="Registra automaticamente a quantidade definida e mantém a câmera pronta para a próxima leitura."><Zap size={16} /> {quickCollectEnabled ? 'Coleta relâmpago: ligada' : 'Coleta relâmpago: desligada'}</button>
+              <div className="quick-collect-quantity"><span>Qtd. <strong>{quickCollectQuantity}</strong></span><button type="button" className="icon-button" onClick={() => setEditingQuickCollectQuantity(value => !value)} aria-label="Editar quantidade da coleta relâmpago" title="Editar quantidade"><Pencil size={15} /></button></div>
             </div>
-            {editingQuickCollectQuantity && <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+            {editingQuickCollectQuantity && <div className="quick-collect-editor">
               <label style={{ fontSize: 13 }}>Quantidade automática <input type="number" min="1" step="1" value={quickCollectQuantity} onChange={event => setQuickCollectQuantity(Math.max(1, Math.floor(Number(event.target.value) || 1)))} style={{ width: 88, marginLeft: 6 }} /></label>
               <button type="button" className="secondary-button" onClick={() => setEditingQuickCollectQuantity(false)}>Concluir</button>
             </div>}
           </div>
 
-          <div className="scan-feedback">{notice}</div>
+          <div key={scanPulse} className={`scan-feedback ${scanPulse ? 'scan-feedback-active' : ''}`}>{notice}</div>
         </div>
         <div className="wizard-navigation"><button className="secondary-button" onClick={() => { stopCamera(); setCurrentStep(1); }}>Voltar</button><button className="primary-button" disabled={!!pendingCode || totalCodes === 0} onClick={() => { stopCamera(); setCurrentStep(3); }}>Continuar para conferência <ArrowDownToLine size={17} /></button></div>
       </section>}
