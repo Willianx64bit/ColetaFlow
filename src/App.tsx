@@ -57,6 +57,20 @@ export default function App() {
 
   useEffect(() => {
     try {
+      const savedShortcuts = localStorage.getItem('coletaflow_quantity_shortcuts');
+      if (savedShortcuts) {
+        const parsed = JSON.parse(savedShortcuts);
+        if (Array.isArray(parsed) && parsed.length === 5 && parsed.every(value => Number.isInteger(value) && value > 0)) setQuantityShortcuts(parsed);
+      }
+    } catch { /* ignore invalid shortcut preferences */ }
+  }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem('coletaflow_quantity_shortcuts', JSON.stringify(quantityShortcuts)); } catch { /* storage may be unavailable */ }
+  }, [quantityShortcuts]);
+
+  useEffect(() => {
+    try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (!saved) return;
       const session = JSON.parse(saved) as { counts?: Record<string, number>; fileName?: string };
