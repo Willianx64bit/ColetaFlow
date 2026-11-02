@@ -969,6 +969,23 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
     }catch(e){setError(e instanceof Error?e.message:'Falha ao encerrar a coleta.');}
     finally{setCloseBusy(false);}
   };
+  const exportUnmatched=async()=>{
+    if(!active)return;
+    setExportBusy(true);setError('');
+    try{
+      const r=await fetch(`/api/shared/export-unmatched?collectionId=${encodeURIComponent(active.id)}`,{headers:auth,cache:'no-store'});
+      const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível exportar os códigos não encontrados');
+      const binary=atob(d.base64),bytes=new Uint8Array(binary.length);
+      for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+      const blob=new Blob([bytes],{type:d.mimeType||'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const url=URL.createObjectURL(blob),anchor=document.createElement('a');
+      anchor.href=url;anchor.download=d.fileName||'codigos-nao-encontrados.xlsx';document.body.appendChild(anchor);anchor.click();anchor.remove();
+      window.setTimeout(()=>URL.revokeObjectURL(url),1500);
+      setNotice(`Relatório gerado: ${d.unmatchedCodes} códigos não encontrados, ${d.totalUnits} unidades.`);
+    }catch(e){setError(e instanceof Error?e.message:'Falha ao gerar relatório de não encontrados.');}
+    finally{setExportBusy(false);}
+  };
+
   const exportConsolidated=async()=>{
     if(!active)return;
     setExportBusy(true);setError('');
@@ -994,7 +1011,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       <div className="mapping-title"><div><strong>{progress?.collection?.title||active.title}</strong></div><span>{progress?.collection?.status==='open'?'COLETA ABERTA':(progress?.collection?.status||'CONECTANDO').toUpperCase()}</span></div>
       {active.accessCode&&<div className="stat-card" style={{margin:'14px 0'}}><span>Código para convidar participantes</span><strong style={{letterSpacing:3}}>{active.accessCode}</strong><small>Compartilhe este código com quem vai participar.</small><button className="secondary-button" style={{marginTop:10}} onClick={()=>{void navigator.clipboard?.writeText(active.accessCode);setNotice('Código copiado.');}}>Copiar código</button></div>}
       <div className="stats-grid"><div className="stat-card"><span>Participantes</span><strong>{progress?.participants?.length??'—'}</strong><small>Pessoas vinculadas à coleta</small></div><div className="stat-card"><span>Códigos recebidos</span><strong>{progress?.totals?.length??'—'}</strong><small>Produtos com bipagens sincronizadas</small></div><div className="stat-card"><span>Unidades somadas</span><strong>{(progress?.totals||[]).reduce((n:number,x:any)=>n+Number(x.total_quantity||0),0)}</strong><small>Total recebido pelo servidor</small></div></div>
-       {isOwner&&<div className="mapping-panel" style={{marginTop:16}}><div className="mapping-title"><strong>Planilha consolidada</strong><span>{sharedTemplate?.mapping?'MAPEAMENTO CONFIRMADO':'AGUARDANDO MAPEAMENTO'}</span></div><p className="mapping-note">{sharedTemplate?.mapping?'O modelo original e as colunas confirmadas estão prontos para gerar o arquivo final.':'Abra a etapa Modelo no coletor, confira as colunas e aperte Continuar para liberar a entrada dos usuários.'}</p>{progress?.collection?.status==='open'&&<button className="secondary-button" style={{marginBottom:10}} disabled={closeBusy||!progress||(progress?.participants||[]).some((p:any)=>p.role==='user'&&p.status==='active')} onClick={()=>void closeCollection()}>{closeBusy?'Encerrando…':'Encerrar coleta'}</button>}<button className="primary-button" disabled={exportBusy||!sharedTemplate?.mapping} onClick={()=>void exportConsolidated()}>{exportBusy?'Gerando planilha…':'Baixar planilha consolidada'}</button></div>}
+       {isOwner&&<div className="mapping-panel" style={{marginTop:16}}><div className="mapping-title"><strong>Planilha consolidada</strong><span>{sharedTemplate?.mapping?'MAPEAMENTO CONFIRMADO':'AGUARDANDO MAPEAMENTO'}</span></div><p className="mapping-note">{sharedTemplate?.mapping?'O modelo original e as colunas confirmadas estão prontos para gerar o arquivo final.':'Abra a etapa Modelo no coletor, confira as colunas e aperte Continuar para liberar a entrada dos usuários.'}</p>{progress?.collection?.status==='open'&&<button className="secondary-button" style={{marginBottom:10}} disabled={closeBusy||!progress||(progress?.participants||[]).some((p:any)=>p.role==='user'&&p.status==='active')} onClick={()=>void closeCollection()}>{closeBusy?'Encerrando…':'Encerrar coleta'}</button>}<button className="primary-button" disabled={exportBusy||!sharedTemplate?.mapping} onClick={()=>void exportConsolidated()}>{exportBusy?'Gerando planilha…':'Baixar planilha consolidada'}</button><button className="secondary-button" style={{marginTop:10}} disabled={exportBusy||!sharedTemplate?.mapping||!(progress?.totals||[]).length} onClick={()=>void exportUnmatched()}>{exportBusy?'Gerando relatório…':'Baixar códigos não encontrados'}</button><small style={{display:'block',marginTop:7}}>Relatório separado com código, descrição (quando disponível no modelo) e quantidade coletada.</small></div>}
       <h3 style={{marginTop:22}}>Equipe</h3><div className="product-list">{(progress?.participants||[]).map((p:any)=><div className="product-row" key={p.id}><div className="product-details"><strong>{p.display_name}</strong><span>{p.role==='owner'?'DONO':'USUÁRIO'} · {p.status==='active'?'TRABALHANDO':p.status==='finished'?'FINALIZOU':'BLOQUEADO'} · {p.event_count||0} evento(s) · {Number(p.total_units||0)} unidade(s) · {p.distinct_codes||0} código(s)</span><small>{p.last_scan_at?new Date(p.last_scan_at).toLocaleString('pt-BR'):'Ainda sem bipagens'}</small></div></div>)}{!progress&&<p>Carregando dados da coleta…</p>}</div>
       <p className="mapping-note">O painel atualiza os dados recebidos a cada 3 segundos. As bipagens feitas no coletor são salvas localmente e enviadas automaticamente quando há conexão.</p>
       <button className="secondary-button" onClick={leave}>Desconectar desta coleta</button>
