@@ -7,9 +7,21 @@ export default async function handler(req,res){
   const p=await participant(req,collectionId);
   if(!p)return send(res,401,{error:'Acesso inválido ou revogado'});
   const [collection,totals,people]=await Promise.all([
-   db().query('SELECT id,title,access_code,status,created_at FROM cf_collections WHERE id=$1',[collectionId]),
+   db().query('SELECT id,title,access_code,status,created_at,completed_at FROM cf_collections WHERE id=$1',[collectionId]),
    db().query('SELECT barcode,total_quantity,scan_count,last_received_at FROM cf_collection_totals WHERE collection_id=$1 ORDER BY barcode',[collectionId]),
-   db().query("SELECT id,display_name,role,status,joined_at,last_seen_at FROM cf_participants WHERE collection_id=$1 ORDER BY joined_at",[collectionId])
+   db().query(`SELECT p.id,p.display_name,p.role,p.status,p.joined_at,p.last_seen_at,
+      COALESCE(s.event_count,0)::int AS event_count,
+      COALESCE(s.total_units,0)::numeric AS total_units,
+      COALESCE(s.distinct_codes,0)::int AS distinct_codes,
+      s.last_scan_at
+    FROM cf_participants p
+    LEFT JOIN (
+      SELECT participant_id,COUNT(*) AS event_count,SUM(quantity) AS total_units,
+        COUNT(DISTINCT barcode) AS distinct_codes,MAX(scanned_at) AS last_scan_at
+      FROM cf_scan_events WHERE collection_id=$1 GROUP BY participant_id
+    ) s ON s.participant_id=p.id
+    WHERE p.collection_id=$1
+    ORDER BY p.joined_at`,[collectionId])
   ]);
   if(!collection.rows[0])return send(res,404,{error:'Coleta não encontrada'});
   return send(res,200,{collection:collection.rows[0],totals:totals.rows,participants:people.rows});
