@@ -2,7 +2,7 @@ name: Build ColetaFlow
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/shared-collections]
   pull_request:
     branches: [main]
 
