@@ -902,11 +902,11 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
   useEffect(()=>{
     if(!active)return;
     let alive=true;
-    const load=async()=>{try{const r=await fetch(`/api/shared/progress?collectionId=${encodeURIComponent(active.id)}`,{headers:{Authorization:`Bearer ${active.collectionToken}`},cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao atualizar progresso');if(alive)setProgress(d);}
+    const load=async()=>{try{const r=await fetch(`/api/shared/progress?collectionId=${encodeURIComponent(active.id)}`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao atualizar progresso');if(alive)setProgress(d);}
       catch(e){if(alive)setError(e instanceof Error?e.message:'Falha de conexão');}};
     void load();const timer=window.setInterval(load,3000);
     return()=>{alive=false;window.clearInterval(timer);};
-  },[active?.id,active?.collectionToken]);
+  },[active?.id,token]);
   const leave=()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setError('');setNotice('Coleta desconectada deste dispositivo.');};
   const exportConsolidated=async()=>{
     if(!active)return;
