@@ -20,8 +20,8 @@ export default async function handler(req,res){
         COUNT(DISTINCT barcode) AS distinct_codes,MAX(scanned_at) AS last_scan_at
       FROM cf_scan_events WHERE collection_id=$1 GROUP BY participant_id
     ) s ON s.participant_id=p.id
-    WHERE p.collection_id=$1
-    ORDER BY p.joined_at`,[collectionId])
+    WHERE p.collection_id=$1 AND ($2::boolean OR p.id=$3)
+    ORDER BY p.joined_at`,[collectionId,p.role==='owner',p.id])
   ]);
   if(!collection.rows[0])return send(res,404,{error:'Coleta não encontrada'});
   return send(res,200,{collection:collection.rows[0],totals:totals.rows,participants:people.rows});
