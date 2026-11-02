@@ -1,0 +1,1 @@
+Arquivo de gatilho para iniciar uma nova implantação de pré-visualização do ColetaFlow. Não altera o código do aplicativo nem a produção.
