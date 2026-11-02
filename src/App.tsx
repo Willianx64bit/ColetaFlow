@@ -789,7 +789,7 @@ function SharedCollections({token,isOwner}:{token:string;isOwner:boolean}) {
 
 
 function AccountGate() {
-  const [mode]=useState<'login'>('login');
+
   const [email,setEmail]=useState('');
   const [password,setPassword]=useState('');
   const [busy,setBusy]=useState(false);
