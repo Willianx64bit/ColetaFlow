@@ -62,7 +62,7 @@ const cellText = (cell: XLSX.CellObject | undefined) => {
 };
 const hasTerm = (value: string, terms: string[]) => terms.some(term => normalize(value).includes(term));
 
-function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { id: string; token: string }; onFinished?: () => void } = {}) {
+function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { id: string; token: string; isOwner?: boolean }; onFinished?: () => void } = {}) {
   const sessionKey = sharedCollection ? `shared:${sharedCollection.id}` : 'active';
   const [theme, setTheme] = useState<'light' | 'dark'>(() => { try { return localStorage.getItem('coletaflow.theme') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; } });
   useEffect(() => { document.documentElement.dataset.theme = theme; document.body.dataset.theme = theme; try { localStorage.setItem('coletaflow.theme', theme); } catch { /* armazenamento pode estar indisponível */ } }, [theme]);
@@ -119,7 +119,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
     setScanEvents(current => [...current, { eventId: crypto.randomUUID(), barcode, quantity, eventType, scannedAt: new Date().toISOString(), deviceId }]);
   };
   const finishParticipation = async () => {
-    if (!sharedCollection) return;
+    if (!sharedCollection || sharedCollection.isOwner) return;
     if (!navigator.onLine) { setNotice('Conecte-se à internet para finalizar após sincronizar as bipagens.'); return; }
     if (scanEvents.length > 0) { setNotice('Ainda existem bipagens aguardando sincronização. Aguarde o envio antes de finalizar.'); return; }
     setFinishBusy(true);
@@ -793,7 +793,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
         </div>
       </section>}
       {sharedCollection && <div className="mapping-note" style={{marginTop:14}}>{scanEvents.length > 0 ? `${scanEvents.length} evento(s) aguardando sincronização. Mantenha esta tela aberta até o envio concluir.` : navigator.onLine ? 'Todas as bipagens desta coleta estão sincronizadas.' : 'Sem internet. As próximas bipagens ficarão salvas neste dispositivo.'}</div>}
-      {sharedCollection && <div className="wizard-navigation"><button className="primary-button" disabled={finishBusy || scanEvents.length > 0 || !navigator.onLine} onClick={() => void finishParticipation()}>{finishBusy ? 'Finalizando…' : 'Finalizar minha participação'}</button></div>}
+      {sharedCollection && !sharedCollection.isOwner && <div className="wizard-navigation"><button className="primary-button" disabled={finishBusy || scanEvents.length > 0 || !navigator.onLine} onClick={() => void finishParticipation()}>{finishBusy ? 'Finalizando…' : 'Finalizar minha participação'}</button></div>}
       <footer><span>ColetaFlow <b>•</b> Bipe. Informe. Exporte.</span><span><Smartphone size={14} /> Coleta sem cadastro prévio</span></footer>
     </main>
   );
@@ -846,14 +846,14 @@ function SharedCollections({token,isOwner}:{token:string;isOwner:boolean}) {
       <div className="mapping-title"><div><strong>{progress?.collection?.title||active.title}</strong></div><span>{progress?.collection?.status==='open'?'COLETA ABERTA':(progress?.collection?.status||'CONECTANDO').toUpperCase()}</span></div>
       {active.accessCode&&<div className="stat-card" style={{margin:'14px 0'}}><span>Código para convidar participantes</span><strong style={{letterSpacing:3}}>{active.accessCode}</strong><small>Compartilhe este código com quem vai participar.</small><button className="secondary-button" style={{marginTop:10}} onClick={()=>{void navigator.clipboard?.writeText(active.accessCode);setNotice('Código copiado.');}}>Copiar código</button></div>}
       <div className="stats-grid"><div className="stat-card"><span>Participantes</span><strong>{progress?.participants?.length??'—'}</strong><small>Pessoas vinculadas à coleta</small></div><div className="stat-card"><span>Códigos recebidos</span><strong>{progress?.totals?.length??'—'}</strong><small>Produtos com bipagens sincronizadas</small></div><div className="stat-card"><span>Unidades somadas</span><strong>{(progress?.totals||[]).reduce((n:number,x:any)=>n+Number(x.total_quantity||0),0)}</strong><small>Total recebido pelo servidor</small></div></div>
-      <h3 style={{marginTop:22}}>Equipe</h3><div className="product-list">{(progress?.participants||[]).map((p:any)=><div className="product-row" key={p.id}><div className="product-details"><strong>{p.display_name}</strong><span>{p.role==='owner'?'DONO':'USUÁRIO'} · {p.status==='active'?'TRABALHANDO':p.status==='finished'?'FINALIZOU':'BLOQUEADO'} · {p.event_count||0} bipagem(ns) · {Number(p.total_units||0)} unidade(s) · {p.distinct_codes||0} código(s)</span><small>{p.last_scan_at?new Date(p.last_scan_at).toLocaleString('pt-BR'):'Ainda sem bipagens'}</small></div></div>)}{!progress&&<p>Carregando dados da coleta…</p>}</div>
+      <h3 style={{marginTop:22}}>Equipe</h3><div className="product-list">{(progress?.participants||[]).map((p:any)=><div className="product-row" key={p.id}><div className="product-details"><strong>{p.display_name}</strong><span>{p.role==='owner'?'DONO':'USUÁRIO'} · {p.status==='active'?'TRABALHANDO':p.status==='finished'?'FINALIZOU':'BLOQUEADO'} · {p.event_count||0} evento(s) · {Number(p.total_units||0)} unidade(s) · {p.distinct_codes||0} código(s)</span><small>{p.last_scan_at?new Date(p.last_scan_at).toLocaleString('pt-BR'):'Ainda sem bipagens'}</small></div></div>)}{!progress&&<p>Carregando dados da coleta…</p>}</div>
       <p className="mapping-note">O painel atualiza os dados recebidos a cada 3 segundos. As bipagens feitas no coletor são salvas localmente e enviadas automaticamente quando há conexão.</p>
       <button className="secondary-button" onClick={leave}>Desconectar desta coleta</button>
     </div> : <div className="mapping-grid">
       {isOwner&&<div className="mapping-panel"><div className="mapping-title"><strong>Criar nova coleta</strong><span>DONO</span></div><label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label><button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()} onClick={()=>void create()}>Criar coleta compartilhada</button></div>}
       <div className="mapping-panel"><div className="mapping-title"><strong>Entrar em uma coleta</strong><span>PARTICIPANTE</span></div><label>Código de acesso<input value={accessCode} onChange={e=>setAccessCode(e.target.value.toUpperCase().replace(/[^A-F0-9]/g,'').slice(0,8))} placeholder="Ex.: A1B2C3D4" maxLength={8}/></label><button className="secondary-button" style={{marginTop:14}} disabled={busy||accessCode.length!==8} onClick={()=>void join()}>Entrar na coleta</button></div>
     </div>}
-    {active && <CollectorApp sharedCollection={{id:active.id,token:active.collectionToken}} onFinished={()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');}} />}
+    {active && <CollectorApp sharedCollection={{id:active.id,token:active.collectionToken,isOwner}} onFinished={()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');}} />}
     {busy&&<p>Aguarde…</p>}{error&&<div className="account-error">{error}</div>}{notice&&<p className="mapping-note">{notice}</p>}
   </section>;
 }
