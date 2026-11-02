@@ -62,7 +62,7 @@ const cellText = (cell: XLSX.CellObject | undefined) => {
 };
 const hasTerm = (value: string, terms: string[]) => terms.some(term => normalize(value).includes(term));
 
-function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { id: string; token: string; isOwner?: boolean }; onFinished?: () => void } = {}) {
+function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { id: string; token: string; isOwner?: boolean; template?: SharedTemplate }; onFinished?: () => void } = {}) {
   const sessionKey = sharedCollection ? `shared:${sharedCollection.id}` : 'active';
   const [theme, setTheme] = useState<'light' | 'dark'>(() => { try { return localStorage.getItem('coletaflow.theme') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; } });
   useEffect(() => { document.documentElement.dataset.theme = theme; document.body.dataset.theme = theme; try { localStorage.setItem('coletaflow.theme', theme); } catch { /* armazenamento pode estar indisponível */ } }, [theme]);
@@ -416,6 +416,20 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       setNotice(error instanceof Error ? error.message : 'Não foi possível abrir o modelo.');
     }
   };
+
+  useEffect(() => {
+    const template = sharedCollection?.template;
+    if (!sharedCollection || !template?.base64 || !sessionRestored || workbook) return;
+    try {
+      const binary = atob(template.base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+      const file = new File([bytes], template.fileName, { type: template.mimeType || 'application/octet-stream' });
+      void loadWorkbook(file);
+    } catch {
+      setNotice('Não foi possível abrir o modelo compartilhado. Peça ao dono para reenviar a planilha.');
+    }
+  }, [sharedCollection?.id, sharedCollection?.template?.sha256, sessionRestored, workbook]);
 
   const findProductRow = (code: string) => {
     if (!sheet || !range) return -1;
@@ -801,9 +815,12 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
 
 
 type SharedCollectionState = { id:string; title:string; accessCode:string; collectionToken:string; role:string };
+type SharedTemplate = { fileName:string; mimeType:string; sha256:string; base64:string };
 function SharedCollections({token,isOwner}:{token:string;isOwner:boolean}) {
   const [title,setTitle]=useState('Inventário compartilhado');
   const [accessCode,setAccessCode]=useState('');
+  const [templateFile,setTemplateFile]=useState<File|null>(null);
+  const [sharedTemplate,setSharedTemplate]=useState<SharedTemplate|null>(null);
   const [active,setActive]=useState<SharedCollectionState|null>(()=>{try{return JSON.parse(localStorage.getItem('coletaflow.shared.active')||'null');}catch{return null;}});
   const [progress,setProgress]=useState<any>(null);
   const [busy,setBusy]=useState(false);
@@ -819,9 +836,19 @@ function SharedCollections({token,isOwner}:{token:string;isOwner:boolean}) {
     localStorage.setItem('coletaflow.shared.active',JSON.stringify(next));setActive(next);setProgress(null);setError('');setNotice('Você entrou na coleta. O código pode ser compartilhado com os demais participantes.');
   };
   const create=async()=>{
+    if(!templateFile){setError('Selecione a planilha original antes de criar a coleta.');return;}
+    if(templateFile.size>3*1024*1024){setError('A planilha deve ter no máximo 3 MB.');return;}
     setBusy(true);setError('');setNotice('');
-    try{const r=await fetch('/api/shared/create',{method:'POST',headers:auth,body:JSON.stringify({title})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao criar coleta');activate({...d,participant:{role:'owner'}});}
-    catch(e){setError(e instanceof Error?e.message:'Erro de conexão');}finally{setBusy(false);}
+    try{
+      const bytes=new Uint8Array(await templateFile.arrayBuffer());
+      let binary='';
+      for(let offset=0;offset<bytes.length;offset+=8192)binary+=String.fromCharCode(...bytes.subarray(offset,offset+8192));
+      const templateBase64=btoa(binary);
+      const payload={title,templateFileName:templateFile.name,templateMimeType:templateFile.type||'application/octet-stream',templateBase64};
+      const r=await fetch('/api/shared/create',{method:'POST',headers:auth,body:JSON.stringify(payload)});
+      const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao criar coleta');
+      setTemplateFile(null);activate({...d,participant:{role:'owner'}});
+    }catch(e){setError(e instanceof Error?e.message:'Erro de conexão');}finally{setBusy(false);}
   };
   const join=async()=>{
     setBusy(true);setError('');setNotice('');
@@ -830,6 +857,19 @@ function SharedCollections({token,isOwner}:{token:string;isOwner:boolean}) {
   };
   useEffect(()=>{if(!isOwner)return;let alive=true;const loadUsers=async()=>{try{const r=await fetch('/api/shared/users',{headers:auth,cache:'no-store'});const d=await r.json();if(r.ok&&alive)setUsers(d.users||[]);}catch{}};void loadUsers();return()=>{alive=false;};},[token,isOwner]);
   const addUser=async()=>{setUserBusy(true);setUserMessage('');try{const r=await fetch('/api/shared/users',{method:'POST',headers:auth,body:JSON.stringify(newUser)});const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível cadastrar');setUsers(v=>[d.user,...v]);setNewUser({name:'',company:'',email:'',password:''});setUserMessage('Usuário cadastrado.');}catch(e){setUserMessage(e instanceof Error?e.message:'Erro de conexão');}finally{setUserBusy(false);}};
+  useEffect(()=>{
+    if(!active){setSharedTemplate(null);return;}
+    let alive=true;
+    const loadTemplate=async()=>{
+      try{
+        const r=await fetch(`/api/shared/template?collectionId=${encodeURIComponent(active.id)}`,{headers:{Authorization:`Bearer ${active.collectionToken}`},cache:'no-store'});
+        const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível baixar o modelo da coleta');
+        if(alive)setSharedTemplate(d);
+      }catch(e){if(alive)setError(e instanceof Error?e.message:'Falha ao baixar o modelo');}
+    };
+    void loadTemplate();
+    return()=>{alive=false;};
+  },[active?.id,active?.collectionToken]);
   useEffect(()=>{
     if(!active)return;
     let alive=true;
@@ -850,10 +890,10 @@ function SharedCollections({token,isOwner}:{token:string;isOwner:boolean}) {
       <p className="mapping-note">O painel atualiza os dados recebidos a cada 3 segundos. As bipagens feitas no coletor são salvas localmente e enviadas automaticamente quando há conexão.</p>
       <button className="secondary-button" onClick={leave}>Desconectar desta coleta</button>
     </div> : <div className="mapping-grid">
-      {isOwner&&<div className="mapping-panel"><div className="mapping-title"><strong>Criar nova coleta</strong><span>DONO</span></div><label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label><button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()} onClick={()=>void create()}>Criar coleta compartilhada</button></div>}
+      {isOwner&&<div className="mapping-panel"><div className="mapping-title"><strong>Criar nova coleta</strong><span>DONO</span></div><label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label><label>Planilha original da empresa<input type="file" accept=".xlsx,.xls,.csv" onChange={e=>setTemplateFile(e.target.files?.[0]||null)}/></label>{templateFile&&<p className="mapping-note">{templateFile.name} · {(templateFile.size/1024/1024).toFixed(2)} MB</p>}<button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()||!templateFile} onClick={()=>void create()}>Criar coleta e compartilhar modelo</button></div>}
       <div className="mapping-panel"><div className="mapping-title"><strong>Entrar em uma coleta</strong><span>PARTICIPANTE</span></div><label>Código de acesso<input value={accessCode} onChange={e=>setAccessCode(e.target.value.toUpperCase().replace(/[^A-F0-9]/g,'').slice(0,8))} placeholder="Ex.: A1B2C3D4" maxLength={8}/></label><button className="secondary-button" style={{marginTop:14}} disabled={busy||accessCode.length!==8} onClick={()=>void join()}>Entrar na coleta</button></div>
     </div>}
-    {active && <CollectorApp sharedCollection={{id:active.id,token:active.collectionToken,isOwner}} onFinished={()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');}} />}
+    {active && <CollectorApp sharedCollection={{id:active.id,token:active.collectionToken,isOwner,template:sharedTemplate||undefined}} onFinished={()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');}} />}
     {busy&&<p>Aguarde…</p>}{error&&<div className="account-error">{error}</div>}{notice&&<p className="mapping-note">{notice}</p>}
   </section>;
 }
