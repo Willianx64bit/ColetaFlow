@@ -23,6 +23,6 @@ jobs:
       - name: Smoke test XLSX formatting engine
         run: node --input-type=module -e "import ExcelJS from 'exceljs'; const wb=new ExcelJS.Workbook(); const ws=wb.addWorksheet('teste'); ws.getCell('A1').value='ok'; ws.getCell('A1').font={bold:true}; const bytes=await wb.xlsx.writeBuffer(); const check=new ExcelJS.Workbook(); await check.xlsx.load(bytes); if(check.getWorksheet('teste')?.getCell('A1').text!=='ok') process.exit(1);"
       - name: Verify patched SheetJS and CSV parser
-        run: node --input-type=module -e "import * as XLSX from 'xlsx'; if(XLSX.version!=='0.20.3') throw new Error('Unexpected SheetJS version: '+XLSX.version); const wb=XLSX.read('barcode,quantity\\n123,2',{type:'string'}); if(wb.Sheets.Sheet1?.A2?.v!==123) throw new Error('CSV parser smoke test failed');"
+        run: node scripts/smoke-xlsx.mjs
       - name: Build
         run: npm run build
