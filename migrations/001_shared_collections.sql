@@ -62,7 +62,8 @@ CREATE TABLE IF NOT EXISTS cf_scan_events (
   collection_id uuid NOT NULL REFERENCES cf_collections(id) ON DELETE CASCADE,
   participant_id uuid NOT NULL REFERENCES cf_participants(id) ON DELETE RESTRICT,
   barcode text NOT NULL,
-  quantity numeric(14,3) NOT NULL CHECK (quantity > 0),
+  quantity numeric(14,3) NOT NULL CHECK (quantity <> 0),
+  event_type text NOT NULL DEFAULT 'scan' CHECK (event_type IN ('scan','adjustment')),
   device_id text,
   scanned_at timestamptz NOT NULL,
   received_at timestamptz NOT NULL DEFAULT now()
