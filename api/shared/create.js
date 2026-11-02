@@ -4,7 +4,7 @@ export default async function handler(req,res){
  if(req.method!=='POST')return send(res,405,{error:'Método não permitido'});
  try{
   const user=await loggedUser(req);if(!user)return send(res,401,{error:'Entre na sua conta para criar uma coleta'});
-  if(user.role!=='manager')return send(res,403,{error:'Somente o gerente pode criar coletas'});
+  if(!user.is_owner)return send(res,403,{error:'Somente o dono pode criar coletas'});
   const body=await readJson(req),title=String(body.title||'Coleta compartilhada').trim().slice(0,120);
   const code=randomBytes(4).toString('hex').toUpperCase(),token=randomBytes(32).toString('base64url'),hash=createHash('sha256').update(token).digest('hex');
   const client=await db().connect();
