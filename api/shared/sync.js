@@ -36,6 +36,12 @@ export default async function handler(req,res) {
   const client=await db().connect();let inserted=0;
   try {
    await client.query('BEGIN');
+   const collectionState=await client.query('SELECT status FROM cf_collections WHERE id=$1 FOR UPDATE',[collectionId]);
+   if(!collectionState.rowCount||collectionState.rows[0].status!=='open'){const error=new Error('Esta coleta não está recebendo bipagens');error.statusCode=409;throw error;}
+   const activeParticipant=await client.query(`SELECT p.id FROM cf_participants p LEFT JOIN cf_users u ON u.id=p.user_id
+     WHERE p.id=$1 AND p.collection_id=$2 AND p.status='active' AND (p.user_id IS NULL OR u.status='active')
+     FOR UPDATE OF p`,[p.id,collectionId]);
+   if(!activeParticipant.rowCount){const error=new Error('A participação foi bloqueada ou finalizada');error.statusCode=401;throw error;}
    for(const ev of events){
     const result=await client.query(
      'INSERT INTO cf_scan_events(event_id,collection_id,participant_id,barcode,quantity,event_type,device_id,scanned_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(event_id) DO NOTHING',
@@ -70,6 +76,7 @@ export default async function handler(req,res) {
   return send(res,200,{received:events.length,inserted,duplicates:events.length-inserted});
  }catch(error){
   if(error.statusCode===409)return send(res,409,{error:error.message});
+  if(error.statusCode===401)return send(res,401,{error:error.message});
   console.error('shared sync',error);
   return send(res,500,{error:'Falha ao sincronizar bipagens'});
  }
