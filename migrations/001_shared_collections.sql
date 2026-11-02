@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS cf_collections (
   template_mime_type text,
   template_bytes bytea,
   template_sha256 text,
+  template_mapping jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   completed_at timestamptz
