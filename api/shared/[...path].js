@@ -21,20 +21,23 @@ const routes = {
 };
 
 export default async function handler(req, res) {
-  configureRuntime(process.env);
-  const parts = Array.isArray(req.query.path) ? req.query.path : [req.query.path].filter(Boolean);
-  const routeName = parts.join('/').replace(/\\/$/, '');
-  const action = routes[routeName];
-  if (!action) return res.status(404).setHeader('Cache-Control', 'no-store').json({ error: 'Rota não encontrada' });
-
-  req.headers = req.headers || {};
-  req.query = { ...req.query };
-  delete req.query.path;
-  res.setHeader('Cache-Control', 'no-store');
   try {
+    configureRuntime(process.env);
+    const query = req.query || {};
+    const url = new URL(req.url || '/', 'https://coletaflow.invalid');
+    const pathValue = query.path ?? url.pathname.slice('/api/shared/'.length);
+    const parts = Array.isArray(pathValue) ? pathValue : [pathValue].filter(Boolean);
+    const routeName = parts.join('/').replace(/\\/$/, '');
+    const action = routes[routeName];
+    res.setHeader('Cache-Control', 'no-store');
+    if (!action) return res.status(404).json({ error: 'Rota não encontrada', route: routeName });
+
+    req.headers = req.headers || {};
+    req.query = { ...query };
+    delete req.query.path;
     await action(req, res);
   } catch (error) {
-    console.error('ColetaFlow API', routeName, error);
-    if (!res.headersSent) return res.status(500).json({ error: 'Erro interno do servidor' });
+    console.error('ColetaFlow API invocation', error);
+    if (!res.headersSent) return res.status(500).json({ error: 'Falha interna na API ColetaFlow' });
   }
 }
