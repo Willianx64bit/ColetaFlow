@@ -41,12 +41,8 @@ jobs:
           if ! wrangler pages project list | grep -Eq '(^|[[:space:]])coletaflow([[:space:]]|$)'; then
             wrangler pages project create coletaflow --production-branch main
           fi
-      - name: Download current Pages dashboard configuration
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: wrangler pages download config coletaflow --force
-      - name: Deploy feature preview only
+      - name: Deploy feature preview using dashboard bindings
+
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
