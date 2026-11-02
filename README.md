@@ -28,10 +28,11 @@ Depois de configurar as variáveis, abra a tela de login, escolha **Primeiro ace
 - `001_shared_collections.sql`: estrutura base completa para uma instalação nova.
 - `002_owner_user_roles.sql`: normaliza os papéis para `owner` e `user`.
 - `003_independent_scan_events.sql`: habilita eventos de ajuste assinados sem apagar eventos anteriores.
+- `004_template_mapping.sql`: salva o mapeamento confirmado pelo dono para a exportação consolidada.
 
 Aplicações de migração e testes de banco devem usar o branch Neon de teste, nunca o branch principal.
 
-**Ainda em desenvolvimento:** envio do modelo original pelo dono, distribuição automática do modelo aos participantes, exportação consolidada no formato original e testes ponta a ponta em dispositivos reais. Não usar para inventário comercial até esses itens serem validados.
+**Implementado nesta branch, ainda aguardando validação ponta a ponta:** envio e distribuição do modelo original, confirmação do mapeamento pelo dono e exportação consolidada usando os eventos recebidos. A fidelidade de formatação de arquivos Excel complexos e o comportamento offline em vários dispositivos ainda precisam de testes reais. Não usar para inventário comercial até esses testes serem concluídos.
 
 
 ## Estado do desenvolvimento
