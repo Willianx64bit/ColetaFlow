@@ -62,8 +62,8 @@ const cellText = (cell: XLSX.CellObject | undefined) => {
 };
 const hasTerm = (value: string, terms: string[]) => terms.some(term => normalize(value).includes(term));
 
-function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { id: string; token: string; isOwner?: boolean; template?: SharedTemplate }; onFinished?: () => void } = {}) {
-  const sessionKey = sharedCollection ? `shared:${sharedCollection.id}` : 'active';
+function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { id: string; token: string; userId: string; isOwner?: boolean; template?: SharedTemplate }; onFinished?: () => void } = {}) {
+  const sessionKey = sharedCollection ? `shared:${sharedCollection.id}:${sharedCollection.userId}` : 'active';
   const [theme, setTheme] = useState<'light' | 'dark'>(() => { try { return localStorage.getItem('coletaflow.theme') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; } });
   useEffect(() => { document.documentElement.dataset.theme = theme; document.body.dataset.theme = theme; try { localStorage.setItem('coletaflow.theme', theme); } catch { /* armazenamento pode estar indisponível */ } }, [theme]);
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
@@ -816,12 +816,12 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
 
 type SharedCollectionState = { id:string; title:string; accessCode:string; collectionToken:string; role:string };
 type SharedTemplate = { fileName:string; mimeType:string; sha256:string; base64:string };
-function SharedCollections({token,isOwner}:{token:string;isOwner:boolean}) {
+function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;userId:string}) {
   const [title,setTitle]=useState('Inventário compartilhado');
   const [accessCode,setAccessCode]=useState('');
   const [templateFile,setTemplateFile]=useState<File|null>(null);
   const [sharedTemplate,setSharedTemplate]=useState<SharedTemplate|null>(null);
-  const [active,setActive]=useState<SharedCollectionState|null>(()=>{try{return JSON.parse(localStorage.getItem('coletaflow.shared.active')||'null');}catch{return null;}});
+  const [active,setActive]=useState<SharedCollectionState|null>(()=>{try{const saved=JSON.parse(localStorage.getItem('coletaflow.shared.active')||'null');return saved?.userId===userId?saved:null;}catch{return null;}});
   const [progress,setProgress]=useState<any>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
@@ -832,7 +832,7 @@ function SharedCollections({token,isOwner}:{token:string;isOwner:boolean}) {
   const [userMessage,setUserMessage]=useState('');
   const auth={Authorization:`Bearer ${token}`,'Content-Type':'application/json'};
   const activate=(data:any)=>{
-    const next={id:data.collection.id,title:data.collection.title,accessCode:data.collection.access_code||'',collectionToken:data.collectionToken,role:data.participant?.role||'owner'};
+    const next={id:data.collection.id,title:data.collection.title,accessCode:data.collection.access_code||'',collectionToken:data.collectionToken,role:data.participant?.role||'owner',userId};
     localStorage.setItem('coletaflow.shared.active',JSON.stringify(next));setActive(next);setProgress(null);setError('');setNotice('Você entrou na coleta. O código pode ser compartilhado com os demais participantes.');
   };
   const create=async()=>{
@@ -893,7 +893,7 @@ function SharedCollections({token,isOwner}:{token:string;isOwner:boolean}) {
       {isOwner&&<div className="mapping-panel"><div className="mapping-title"><strong>Criar nova coleta</strong><span>DONO</span></div><label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label><label>Planilha original da empresa<input type="file" accept=".xlsx,.xls,.csv" onChange={e=>setTemplateFile(e.target.files?.[0]||null)}/></label>{templateFile&&<p className="mapping-note">{templateFile.name} · {(templateFile.size/1024/1024).toFixed(2)} MB</p>}<button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()||!templateFile} onClick={()=>void create()}>Criar coleta e compartilhar modelo</button></div>}
       <div className="mapping-panel"><div className="mapping-title"><strong>Entrar em uma coleta</strong><span>PARTICIPANTE</span></div><label>Código de acesso<input value={accessCode} onChange={e=>setAccessCode(e.target.value.toUpperCase().replace(/[^A-F0-9]/g,'').slice(0,8))} placeholder="Ex.: A1B2C3D4" maxLength={8}/></label><button className="secondary-button" style={{marginTop:14}} disabled={busy||accessCode.length!==8} onClick={()=>void join()}>Entrar na coleta</button></div>
     </div>}
-    {active && <CollectorApp sharedCollection={{id:active.id,token:active.collectionToken,isOwner,template:sharedTemplate||undefined}} onFinished={()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');}} />}
+    {active && <CollectorApp sharedCollection={{id:active.id,token:active.collectionToken,userId,isOwner,template:sharedTemplate||undefined}} onFinished={()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');}} />}
     {busy&&<p>Aguarde…</p>}{error&&<div className="account-error">{error}</div>}{notice&&<p className="mapping-note">{notice}</p>}
   </section>;
 }
@@ -905,7 +905,7 @@ function AccountGate() {
   const [password,setPassword]=useState('');
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
-  const [user,setUser]=useState<{name:string;email:string;company:string;role:string;isOwner:boolean}|null>(null);
+  const [user,setUser]=useState<{id:string;name:string;email:string;company:string;role:string;isOwner:boolean}|null>(null);
   const [token,setToken]=useState(()=>{try{return localStorage.getItem('coletaflow.auth.token')||'';}catch{return ''; }});
   const [localMode,setLocalMode]=useState(false);
   const [showOwnerSetup,setShowOwnerSetup]=useState(false);
@@ -920,7 +920,7 @@ function AccountGate() {
     let alive=true;
     fetch('/api/shared/me',{headers:{Authorization:`Bearer ${token}`}})
       .then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||'Sessão expirada');return d;})
-      .then(d=>{if(alive)setUser({name:d.user.display_name,email:d.user.email,company:d.user.company_name,role:d.user.role,isOwner:!!d.user.is_owner});})
+      .then(d=>{if(alive)setUser({id:d.user.id,name:d.user.display_name,email:d.user.email,company:d.user.company_name,role:d.user.role,isOwner:!!d.user.is_owner});})
       .catch(()=>{try{localStorage.removeItem('coletaflow.auth.token');}catch{} if(alive){setToken('');setUser(null);}});
     return()=>{alive=false;};
   },[token]);
@@ -933,7 +933,7 @@ function AccountGate() {
       const data=await response.json();
       if(!response.ok)throw new Error(data.error||'Não foi possível continuar');
       localStorage.setItem('coletaflow.auth.token',data.token);
-      setUser({...data.user,isOwner:!!data.user.is_owner});
+      setUser({id:data.user.id,name:data.user.name,email:data.user.email,company:data.user.company,role:data.user.role,isOwner:!!data.user.is_owner});
       setToken(data.token);
     }catch(err){setError(err instanceof Error?err.message:'Erro de conexão');}
     finally{setBusy(false);}
@@ -945,13 +945,13 @@ function AccountGate() {
       const data=await response.json();
       if(!response.ok)throw new Error(data.error||'Não foi possível configurar o dono');
       localStorage.setItem('coletaflow.auth.token',data.token);
-      setUser({name:data.user.display_name,email:data.user.email,company:data.user.company_name,role:'owner',isOwner:true});
+      setUser({id:data.user.id,name:data.user.display_name,email:data.user.email,company:data.user.company_name,role:'owner',isOwner:true});
       setToken(data.token);
     }catch(err){setSetupError(err instanceof Error?err.message:'Falha de conexão');}
     finally{setSetupBusy(false);}
   };
   if(localMode)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow · modo local</strong><span>Funciona sem conta e mantém a coleta neste dispositivo.</span><button onClick={()=>setLocalMode(false)}>Acessar conta</button></header><CollectorApp /></div>;
-  if(user)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow</strong><span>{user.name} · {user.company}</span><button onClick={async()=>{try{await fetch('/api/shared/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}});}catch{} try{localStorage.removeItem('coletaflow.auth.token');}catch{} setToken('');setUser(null);}}>Sair</button></header><SharedCollections token={token} isOwner={!!user.isOwner}/></div>;
+  if(user)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow</strong><span>{user.name} · {user.company}</span><button onClick={async()=>{try{await fetch('/api/shared/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}});}catch{} try{localStorage.removeItem('coletaflow.auth.token');}catch{} setToken('');setUser(null);}}>Sair</button></header><SharedCollections token={token} isOwner={!!user.isOwner} userId={user.id}/></div>;
   return <main className="account-page"><section className="account-card">
     <div className="account-brand"><span className="account-mark">CF</span><div><strong>ColetaFlow</strong><small>Coleta colaborativa de inventário</small></div></div>
     <div className="account-intro"><span>ACESSO SEGURO</span><h1>Entre na sua conta</h1><p>Acesse as coletas liberadas para você.</p></div>
