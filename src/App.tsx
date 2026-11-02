@@ -730,6 +730,57 @@ function CollectorApp() {
 }
 
 
+type SharedCollectionState = { id:string; title:string; accessCode:string; collectionToken:string; role:string };
+function SharedCollections({token}:{token:string}) {
+  const [title,setTitle]=useState('Inventário compartilhado');
+  const [accessCode,setAccessCode]=useState('');
+  const [active,setActive]=useState<SharedCollectionState|null>(()=>{try{return JSON.parse(localStorage.getItem('coletaflow.shared.active')||'null');}catch{return null;}});
+  const [progress,setProgress]=useState<any>(null);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState('');
+  const [notice,setNotice]=useState('');
+  const auth={Authorization:`Bearer ${token}`,'Content-Type':'application/json'};
+  const activate=(data:any)=>{
+    const next={id:data.collection.id,title:data.collection.title,accessCode:data.collection.access_code||'',collectionToken:data.collectionToken,role:data.participant?.role||'manager'};
+    localStorage.setItem('coletaflow.shared.active',JSON.stringify(next));setActive(next);setProgress(null);setError('');setNotice('Você entrou na coleta. O código pode ser compartilhado com os demais participantes.');
+  };
+  const create=async()=>{
+    setBusy(true);setError('');setNotice('');
+    try{const r=await fetch('/api/shared/create',{method:'POST',headers:auth,body:JSON.stringify({title})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao criar coleta');activate({...d,participant:{role:'manager'}});}
+    catch(e){setError(e instanceof Error?e.message:'Erro de conexão');}finally{setBusy(false);}
+  };
+  const join=async()=>{
+    setBusy(true);setError('');setNotice('');
+    try{const r=await fetch('/api/shared/join',{method:'POST',headers:auth,body:JSON.stringify({accessCode})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao entrar na coleta');activate(d);}
+    catch(e){setError(e instanceof Error?e.message:'Erro de conexão');}finally{setBusy(false);}
+  };
+  useEffect(()=>{
+    if(!active)return;
+    let alive=true;
+    const load=async()=>{try{const r=await fetch(`/api/shared/progress?collectionId=${encodeURIComponent(active.id)}`,{headers:{Authorization:`Bearer ${active.collectionToken}`},cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao atualizar progresso');if(alive)setProgress(d);}
+      catch(e){if(alive)setError(e instanceof Error?e.message:'Falha de conexão');}};
+    void load();const timer=window.setInterval(load,3000);
+    return()=>{alive=false;window.clearInterval(timer);};
+  },[active?.id,active?.collectionToken]);
+  const leave=()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setError('');setNotice('Coleta desconectada deste dispositivo.');};
+  return <section className="workspace" style={{maxWidth:980,margin:'28px auto'}}>
+    <div className="section-heading"><div><span className="step-label">ÁREA COLABORATIVA</span><h2>Minhas coletas</h2><p>Crie uma sala de inventário ou entre usando o código recebido.</p></div></div>
+    {active ? <div className="mapping-panel">
+      <div className="mapping-title"><div><strong>{progress?.collection?.title||active.title}</strong></div><span>{progress?.collection?.status==='open'?'COLETA ABERTA':(progress?.collection?.status||'CONECTANDO').toUpperCase()}</span></div>
+      {active.accessCode&&<div className="stat-card" style={{margin:'14px 0'}}><span>Código para convidar participantes</span><strong style={{letterSpacing:3}}>{active.accessCode}</strong><small>Compartilhe este código com quem vai participar.</small><button className="secondary-button" style={{marginTop:10}} onClick={()=>{void navigator.clipboard?.writeText(active.accessCode);setNotice('Código copiado.');}}>Copiar código</button></div>}
+      <div className="stats-grid"><div className="stat-card"><span>Participantes</span><strong>{progress?.participants?.length??'—'}</strong><small>Pessoas vinculadas à coleta</small></div><div className="stat-card"><span>Códigos recebidos</span><strong>{progress?.totals?.length??'—'}</strong><small>Produtos com bipagens sincronizadas</small></div><div className="stat-card"><span>Unidades somadas</span><strong>{(progress?.totals||[]).reduce((n:number,x:any)=>n+Number(x.total_quantity||0),0)}</strong><small>Total recebido pelo servidor</small></div></div>
+      <h3 style={{marginTop:22}}>Equipe</h3><div className="product-list">{(progress?.participants||[]).map((p:any)=><div className="product-row" key={p.id}><div className="product-details"><strong>{p.display_name}</strong><span>{p.role==='manager'?'GERENTE':'COLETOR'} · {p.status==='active'?'ATIVO':p.status.toUpperCase()}</span></div></div>)}{!progress&&<p>Carregando dados da coleta…</p>}</div>
+      <p className="mapping-note">O painel atualiza os dados recebidos a cada 3 segundos. As bipagens feitas no coletor local ainda não são enviadas automaticamente para esta sala; essa integração precisa ser concluída e testada antes de usar em inventário real.</p>
+      <button className="secondary-button" onClick={leave}>Desconectar desta coleta</button>
+    </div> : <div className="mapping-grid">
+      <div className="mapping-panel"><div className="mapping-title"><strong>Criar nova coleta</strong><span>GERENTE</span></div><label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label><button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()} onClick={()=>void create()}>Criar coleta compartilhada</button></div>
+      <div className="mapping-panel"><div className="mapping-title"><strong>Entrar em uma coleta</strong><span>PARTICIPANTE</span></div><label>Código de acesso<input value={accessCode} onChange={e=>setAccessCode(e.target.value.toUpperCase().replace(/[^A-F0-9]/g,'').slice(0,8))} placeholder="Ex.: A1B2C3D4" maxLength={8}/></label><button className="secondary-button" style={{marginTop:14}} disabled={busy||accessCode.length!==8} onClick={()=>void join()}>Entrar na coleta</button></div>
+    </div>}
+    {busy&&<p>Aguarde…</p>}{error&&<div className="account-error">{error}</div>}{notice&&<p className="mapping-note">{notice}</p>}
+  </section>;
+}
+
+
 function AccountGate() {
   const [mode,setMode]=useState<'login'|'register'>('login');
   const [name,setName]=useState('');
@@ -765,7 +816,7 @@ function AccountGate() {
     finally{setBusy(false);}
   };
   if(localMode)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow · modo local</strong><span>Funciona sem conta e mantém a coleta neste dispositivo.</span><button onClick={()=>setLocalMode(false)}>Acessar conta</button></header><CollectorApp /></div>;
-  if(user)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow</strong><span>{user.name} · {user.company}</span><button onClick={async()=>{try{await fetch('/api/shared/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}});}catch{} try{localStorage.removeItem('coletaflow.auth.token');}catch{} setToken('');setUser(null);}}>Sair</button></header><CollectorApp /></div>;
+  if(user)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow</strong><span>{user.name} · {user.company}</span><button onClick={async()=>{try{await fetch('/api/shared/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}});}catch{} try{localStorage.removeItem('coletaflow.auth.token');}catch{} setToken('');setUser(null);}}>Sair</button></header><SharedCollections token={token}/></div>;
   return <main className="account-page"><section className="account-card">
     <div className="account-brand"><span className="account-mark">CF</span><div><strong>ColetaFlow</strong><small>Coleta colaborativa de inventário</small></div></div>
     <div className="account-intro"><span>ACESSO SEGURO</span><h1>{mode==='login'?'Entre na sua conta':'Crie sua conta'}</h1><p>{mode==='login'?'Acesse suas coletas e acompanhe sua equipe.':'Cadastre sua empresa para começar a organizar coletas.'}</p></div>
