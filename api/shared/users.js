@@ -6,14 +6,14 @@ export default async function handler(req,res){
   if(req.method==='GET'){
    const r=await db().query(`SELECT u.id,u.email,u.display_name,u.company_name,u.status,u.created_at,
     EXISTS(SELECT 1 FROM cf_platform_owner o WHERE o.user_id=u.id) AS is_owner
-    FROM cf_users u ORDER BY u.created_at DESC`);
+    FROM cf_users u WHERE NOT EXISTS(SELECT 1 FROM cf_platform_owner o WHERE o.user_id=u.id) ORDER BY u.created_at DESC`);
    return send(res,200,{users:r.rows});
   }
   if(req.method==='POST'){
    const b=await readJson(req),name=String(b.name||'').trim().slice(0,80),company=String(b.company||'').trim().slice(0,120),email=String(b.email||'').trim().toLowerCase(),password=String(b.password||'');
    if(!name||!company||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||password.length<8||password.length>128)return send(res,400,{error:'Informe nome, empresa, e-mail válido e senha com pelo menos 8 caracteres.'});
    const salt=randomBytes(16).toString('hex'),passwordHash=salt+':'+scryptSync(password,salt,64).toString('hex');
-   const r=await db().query("INSERT INTO cf_users(email,password_hash,display_name,company_name,role) VALUES($1,$2,$3,$4,'collector') RETURNING id,email,display_name,company_name,status,created_at",[email,passwordHash,name,company]);
+   const r=await db().query("INSERT INTO cf_users(email,password_hash,display_name,company_name,role) VALUES($1,$2,$3,$4,'user') RETURNING id,email,display_name,company_name,status,created_at",[email,passwordHash,name,company]);
    return send(res,201,{user:r.rows[0]});
   }
   if(req.method==='PATCH'){
