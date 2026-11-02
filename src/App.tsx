@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 
 type ColumnMap = { code: number[]; quantity: number; description: number };
+type ScanEvent = { eventId: string; barcode: string; quantity: number; eventType: 'scan' | 'adjustment'; scannedAt: string; deviceId: string };
 type SavedSession = {
   workbookBytes?: ArrayBuffer | Uint8Array | number[] | null;
   fileName?: string;
@@ -22,6 +23,7 @@ type SavedSession = {
   cameraZoom?: number;
   quickCollectEnabled?: boolean;
   quickCollectQuantity?: number;
+  scanEvents?: ScanEvent[];
 };
 const STORAGE_KEY = 'coletaflow.blind-session.v2';
 const SESSION_DB = 'coletaflow-session-db';
@@ -34,19 +36,19 @@ const openSessionDb = () => new Promise<IDBDatabase>((resolve, reject) => {
   request.onsuccess = () => resolve(request.result);
   request.onerror = () => reject(request.error);
 });
-const readSavedSession = async (): Promise<SavedSession | null> => {
+const readSavedSession = async (sessionKey = 'active'): Promise<SavedSession | null> => {
   const db = await openSessionDb();
   return new Promise((resolve, reject) => {
-    const request = db.transaction(SESSION_STORE, 'readonly').objectStore(SESSION_STORE).get('active');
+    const request = db.transaction(SESSION_STORE, 'readonly').objectStore(SESSION_STORE).get(sessionKey);
     request.onsuccess = () => { db.close(); resolve((request.result as SavedSession) || null); };
     request.onerror = () => { db.close(); reject(request.error); };
   });
 };
-const writeSavedSession = async (session: SavedSession) => {
+const writeSavedSession = async (session: SavedSession, sessionKey = 'active') => {
   const db = await openSessionDb();
   return new Promise<void>((resolve, reject) => {
     const transaction = db.transaction(SESSION_STORE, 'readwrite');
-    transaction.objectStore(SESSION_STORE).put(session, 'active');
+    transaction.objectStore(SESSION_STORE).put(session, sessionKey);
     transaction.oncomplete = () => { db.close(); resolve(); };
     transaction.onerror = () => { db.close(); reject(transaction.error); };
     transaction.onabort = () => { db.close(); reject(transaction.error); };
@@ -60,7 +62,8 @@ const cellText = (cell: XLSX.CellObject | undefined) => {
 };
 const hasTerm = (value: string, terms: string[]) => terms.some(term => normalize(value).includes(term));
 
-function CollectorApp() {
+function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { id: string; token: string }; onFinished?: () => void } = {}) {
+  const sessionKey = sharedCollection ? `shared:${sharedCollection.id}` : 'active';
   const [theme, setTheme] = useState<'light' | 'dark'>(() => { try { return localStorage.getItem('coletaflow.theme') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; } });
   useEffect(() => { document.documentElement.dataset.theme = theme; document.body.dataset.theme = theme; try { localStorage.setItem('coletaflow.theme', theme); } catch { /* armazenamento pode estar indisponível */ } }, [theme]);
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
@@ -69,6 +72,8 @@ function CollectorApp() {
   const [headerRow, setHeaderRow] = useState(0);
   const [columns, setColumns] = useState<ColumnMap>({ code: [0], quantity: 1, description: -1 });
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [scanEvents, setScanEvents] = useState<ScanEvent[]>([]);
+  const [finishBusy, setFinishBusy] = useState(false);
   const [scanValue, setScanValue] = useState('');
   const [quantityValue, setQuantityValue] = useState('');
   const [removeMode, setRemoveMode] = useState(false);
@@ -102,7 +107,30 @@ function CollectorApp() {
   const shortcutLongPressHandled = useRef(false);
   const removeAllHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const removeAllLongPressHandled = useRef(false);
+  const syncInFlightRef = useRef(false);
 
+  const recordEvent = (barcode: string, quantity: number, eventType: 'scan' | 'adjustment' = 'scan') => {
+    if (!sharedCollection || !barcode || !Number.isFinite(quantity) || quantity === 0) return;
+    let deviceId = 'device-unknown';
+    try {
+      deviceId = localStorage.getItem('coletaflow.device-id') || crypto.randomUUID();
+      localStorage.setItem('coletaflow.device-id', deviceId);
+    } catch { /* o identificador do dispositivo é apenas auxiliar */ }
+    setScanEvents(current => [...current, { eventId: crypto.randomUUID(), barcode, quantity, eventType, scannedAt: new Date().toISOString(), deviceId }]);
+  };
+  const finishParticipation = async () => {
+    if (!sharedCollection) return;
+    if (!navigator.onLine) { setNotice('Conecte-se à internet para finalizar após sincronizar as bipagens.'); return; }
+    if (scanEvents.length > 0) { setNotice('Ainda existem bipagens aguardando sincronização. Aguarde o envio antes de finalizar.'); return; }
+    setFinishBusy(true);
+    try {
+      const response = await fetch('/api/shared/finish', { method: 'POST', headers: { Authorization: `Bearer ${sharedCollection.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ collectionId: sharedCollection.id }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível finalizar');
+      onFinished?.();
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Falha ao finalizar participação.'); }
+    finally { setFinishBusy(false); }
+  };
   const sheet = workbook && sheetName ? workbook.Sheets[sheetName] : null;
   const range = sheet ? (sheet['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }) : null;
   const headers = useMemo(() => {
@@ -149,7 +177,7 @@ function CollectorApp() {
     let active = true;
     const restore = async () => {
       try {
-        const session = await readSavedSession();
+        const session = await readSavedSession(sessionKey);
         if (!active) return;
         if (session?.workbookBytes) {
           const bytes = session.workbookBytes instanceof ArrayBuffer
@@ -165,6 +193,7 @@ function CollectorApp() {
           setHeaderRow(Math.max(0, Number(session.headerRow ?? 0) || 0));
           setColumns(session.columns ? { ...session.columns, code: Array.isArray(session.columns.code) ? session.columns.code : [session.columns.code as unknown as number] } : { code: [0], quantity: 1, description: -1 });
           setCounts(session.counts || {});
+          setScanEvents(session.scanEvents || []);
           setCurrentStep(Math.min(4, Math.max(1, Number(session.currentStep ?? 1))));
           setPendingCode(session.pendingCode || '');
           setQuantityValue(session.quantityValue || '');
@@ -188,7 +217,7 @@ function CollectorApp() {
     };
     void restore();
     return () => { active = false; };
-  }, []);
+  }, [sessionKey]);
 
   useEffect(() => {
     if (!sessionRestored) return;
@@ -201,6 +230,7 @@ function CollectorApp() {
           headerRow,
           columns,
           counts,
+          scanEvents,
           currentStep,
           pendingCode,
           quantityValue,
@@ -209,13 +239,44 @@ function CollectorApp() {
           quickCollectEnabled,
           quickCollectQuantity
         };
-        void writeSavedSession(snapshot).catch(() => setNotice('Não foi possível salvar a sessão neste dispositivo. Verifique o espaço disponível.'));
+        void writeSavedSession(snapshot, sessionKey).catch(() => setNotice('Não foi possível salvar a sessão neste dispositivo. Verifique o espaço disponível.'));
       } catch {
         setNotice('Não foi possível salvar a sessão neste dispositivo. Verifique o espaço disponível.');
       }
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [sessionRestored, fileName, sheetName, headerRow, columns, counts, currentStep, pendingCode, quantityValue, autoReopenCamera, cameraZoom, quickCollectEnabled, quickCollectQuantity]);
+  }, [sessionRestored, sessionKey, fileName, sheetName, headerRow, columns, counts, scanEvents, currentStep, pendingCode, quantityValue, autoReopenCamera, cameraZoom, quickCollectEnabled, quickCollectQuantity]);
+
+  useEffect(() => {
+    if (!sharedCollection || !sessionRestored || scanEvents.length === 0) return;
+    let disposed = false;
+    const flush = async () => {
+      if (disposed || !navigator.onLine || syncInFlightRef.current) return;
+      const batch = scanEvents.slice(0, 500);
+      if (!batch.length) return;
+      syncInFlightRef.current = true;
+      try {
+        const response = await fetch('/api/shared/sync', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${sharedCollection.token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collectionId: sharedCollection.id, events: batch })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Falha ao sincronizar bipagens');
+        const sentIds = new Set(batch.map(event => event.eventId));
+        if (!disposed) setScanEvents(current => current.filter(event => !sentIds.has(event.eventId)));
+      } catch (error) {
+        if (!disposed) setNotice(error instanceof Error ? `Bipagens aguardando sincronização: ${error.message}` : 'Bipagens aguardando conexão.');
+      } finally {
+        syncInFlightRef.current = false;
+      }
+    };
+    void flush();
+    const timer = window.setInterval(() => { void flush(); }, 5000);
+    window.addEventListener('online', flush);
+    return () => { disposed = true; window.clearInterval(timer); window.removeEventListener('online', flush); };
+  }, [sharedCollection?.id, sharedCollection?.token, sessionRestored, scanEvents]);
+
 
   useEffect(() => {
     if (!cameraOpen || !videoRef.current || pendingCode) return;
@@ -400,6 +461,7 @@ function CollectorApp() {
     }
     if (fromCamera && quickCollectEnabled) {
       playScanFeedback();
+      recordEvent(code, quickCollectQuantity, 'scan');
       setCounts(previous => ({ ...previous, [code]: (previous[code] ?? 0) + quickCollectQuantity }));
       setScanValue('');
       setNotice(`Coleta relâmpago: código ${code} · +${quickCollectQuantity} unidade(s). Próxima leitura...`);
@@ -433,6 +495,7 @@ function CollectorApp() {
       if (alreadyCollected <= 0) { setNotice('Ainda não existe quantidade coletada deste produto para retirar.'); quantityRef.current?.focus(); return; }
       if (qty > alreadyCollected) { setNotice(`Você coletou ${alreadyCollected} unidade(s). Não é possível retirar ${qty}.`); quantityRef.current?.focus(); return; }
       const remaining = alreadyCollected - qty;
+      recordEvent(code, -qty, 'adjustment');
       setCounts(previous => {
         const next = { ...previous };
         if (remaining === 0) delete next[code];
@@ -441,6 +504,7 @@ function CollectorApp() {
       });
       setNotice(`Retirada registrada: código ${code} · quantidade retirada: ${qty}.`);
     } else {
+      recordEvent(code, qty, 'scan');
       setCounts(previous => ({ ...previous, [code]: (previous[code] ?? 0) + qty }));
       setNotice(`Registrado: código ${code} · quantidade adicionada: ${qty}.`);
     }
@@ -565,6 +629,7 @@ function CollectorApp() {
 
   const resetSession = () => {
     if (!window.confirm('Limpar toda a contagem desta sessão?')) return;
+    Object.entries(counts).forEach(([code, quantity]) => recordEvent(code, -quantity, 'adjustment'));
     setCounts({});
     setPendingCode('');
     setNotice('Contagem reiniciada. O modelo continua carregado.');
@@ -649,7 +714,7 @@ function CollectorApp() {
                 </div>
                 <div className="quantity-entry-row">
                   <label className="quantity-modal-label">{removeMode ? 'Quantidade a retirar' : 'Quantidade encontrada'}<input ref={quantityRef} type="number" min="1" step="1" value={quantityValue} onChange={event => setQuantityValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmCount(); } }} /></label>
-                  <button type="button" className={removeMode ? 'remove-mode-button active' : 'remove-mode-button'} aria-pressed={removeMode} title="Toque para retirar uma quantidade; segure para zerar tudo que foi coletado deste produto" onPointerDown={() => { removeAllLongPressHandled.current = false; if (removeAllHoldTimer.current) clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = setTimeout(() => { removeAllLongPressHandled.current = true; const collected = counts[pendingCode] ?? 0; if (collected > 0) { setCounts(previous => { const next = { ...previous }; delete next[pendingCode]; return next; }); setNotice(`Coleta zerada: ${collected} unidade(s) removida(s) do código ${pendingCode}.`); } else { setNotice('Este produto ainda não possui quantidade coletada.'); } setRemoveMode(false); setQuantityValue(''); removeAllHoldTimer.current = null; }, 700); }} onPointerUp={() => { if (removeAllHoldTimer.current) { clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = null; } }} onPointerLeave={() => { if (removeAllHoldTimer.current) { clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = null; } }} onPointerCancel={() => { if (removeAllHoldTimer.current) { clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = null; } }} onClick={() => { if (removeAllLongPressHandled.current) { removeAllLongPressHandled.current = false; return; } setRemoveMode(value => !value); setQuantityValue(''); requestAnimationFrame(() => quantityRef.current?.focus()); }}>{removeMode ? 'Retirar: ligado' : 'Retirar'}</button>
+                  <button type="button" className={removeMode ? 'remove-mode-button active' : 'remove-mode-button'} aria-pressed={removeMode} title="Toque para retirar uma quantidade; segure para zerar tudo que foi coletado deste produto" onPointerDown={() => { removeAllLongPressHandled.current = false; if (removeAllHoldTimer.current) clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = setTimeout(() => { removeAllLongPressHandled.current = true; const collected = counts[pendingCode] ?? 0; if (collected > 0) { recordEvent(pendingCode, -collected, 'adjustment'); setCounts(previous => { const next = { ...previous }; delete next[pendingCode]; return next; }); setNotice(`Coleta zerada: ${collected} unidade(s) removida(s) do código ${pendingCode}.`); } else { setNotice('Este produto ainda não possui quantidade coletada.'); } setRemoveMode(false); setQuantityValue(''); removeAllHoldTimer.current = null; }, 700); }} onPointerUp={() => { if (removeAllHoldTimer.current) { clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = null; } }} onPointerLeave={() => { if (removeAllHoldTimer.current) { clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = null; } }} onPointerCancel={() => { if (removeAllHoldTimer.current) { clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = null; } }} onClick={() => { if (removeAllLongPressHandled.current) { removeAllLongPressHandled.current = false; return; } setRemoveMode(value => !value); setQuantityValue(''); requestAnimationFrame(() => quantityRef.current?.focus()); }}>{removeMode ? 'Retirar: ligado' : 'Retirar'}</button>
                 </div>
                 <div className="quantity-modal-actions">
                   <button className="secondary-button" onClick={() => { setPendingCode(''); setQuantityValue(''); inputRef.current?.focus(); }}>Cancelar</button>
@@ -709,7 +774,7 @@ function CollectorApp() {
         </div>
         <div className="product-list">
           {!workbook ? <div className="empty-state"><Package size={28} /><strong>Aguardando modelo</strong><span>Importe a planilha vazia para iniciar a coleta.</span></div> :
-            entries.slice(0,100).map(([code, qty], index) => <div className="product-row" key={code}><div className="product-number">{index + 1}</div><div className="product-details"><strong>{findProductDescription(code) || 'Descrição não identificada'}</strong><span>CÓDIGO: {code}</span></div><div className="review-quantity"><strong>{qty}</strong><button type="button" className="icon-button" aria-label={`Editar quantidade de ${code}`} title="Editar quantidade" onClick={() => { setEditingReviewCode(code); setEditingReviewQuantity(String(qty)); }}><Pencil size={17}/></button></div>{editingReviewCode === code && <div className="review-quantity-editor"><label>Nova quantidade <input type="number" min="0" step="1" value={editingReviewQuantity} onChange={event => setEditingReviewQuantity(event.target.value)} /></label><button type="button" className="primary-button" onClick={() => { const value = Math.max(0, Math.floor(Number(editingReviewQuantity) || 0)); setCounts(current => { const next = { ...current }; if (value === 0) delete next[code]; else next[code] = value; return next; }); setEditingReviewCode(null); }}>Salvar</button><button type="button" className="text-button" onClick={() => setEditingReviewCode(null)}>Cancelar</button></div>}</div>)}
+            entries.slice(0,100).map(([code, qty], index) => <div className="product-row" key={code}><div className="product-number">{index + 1}</div><div className="product-details"><strong>{findProductDescription(code) || 'Descrição não identificada'}</strong><span>CÓDIGO: {code}</span></div><div className="review-quantity"><strong>{qty}</strong><button type="button" className="icon-button" aria-label={`Editar quantidade de ${code}`} title="Editar quantidade" onClick={() => { setEditingReviewCode(code); setEditingReviewQuantity(String(qty)); }}><Pencil size={17}/></button></div>{editingReviewCode === code && <div className="review-quantity-editor"><label>Nova quantidade <input type="number" min="0" step="1" value={editingReviewQuantity} onChange={event => setEditingReviewQuantity(event.target.value)} /></label><button type="button" className="primary-button" onClick={() => { const value = Math.max(0, Math.floor(Number(editingReviewQuantity) || 0)); const previous = counts[code] ?? 0; if (value !== previous) recordEvent(code, value - previous, 'adjustment'); setCounts(current => { const next = { ...current }; if (value === 0) delete next[code]; else next[code] = value; return next; }); setEditingReviewCode(null); }}>Salvar</button><button type="button" className="text-button" onClick={() => setEditingReviewCode(null)}>Cancelar</button></div>}</div>)}
           {workbook && entries.length === 0 && <div className="empty-state"><Search size={24} /><strong>Nenhum código registrado</strong><span>Depois da leitura, os códigos e quantidades aparecerão aqui.</span></div>}
           {entries.length > 100 && <div className="list-footnote">Mostrando os primeiros 100 códigos. Use a busca para localizar outro.</div>}
         </div>
@@ -724,6 +789,8 @@ function CollectorApp() {
           <button className="secondary-button not-found-download" onClick={exportNotFoundReport} disabled={getExportGroups().unmatched.length === 0 || !!pendingCode}><ArrowDownToLine size={18} /> Baixar não encontrados ({getExportGroups().unmatched.length})</button>
         </div>
       </section>}
+      {sharedCollection && <div className="mapping-note" style={{marginTop:14}}>{scanEvents.length > 0 ? `${scanEvents.length} evento(s) aguardando sincronização. Mantenha esta tela aberta até o envio concluir.` : navigator.onLine ? 'Todas as bipagens desta coleta estão sincronizadas.' : 'Sem internet. As próximas bipagens ficarão salvas neste dispositivo.'}</div>}
+      {sharedCollection && <div className="wizard-navigation"><button className="primary-button" disabled={finishBusy || scanEvents.length > 0 || !navigator.onLine} onClick={() => void finishParticipation()}>{finishBusy ? 'Finalizando…' : 'Finalizar minha participação'}</button></div>}
       <footer><span>ColetaFlow <b>•</b> Bipe. Informe. Exporte.</span><span><Smartphone size={14} /> Coleta sem cadastro prévio</span></footer>
     </main>
   );
@@ -788,12 +855,12 @@ function SharedCollections({token,isOwner}:{token:string;isOwner:boolean}) {
       <div className="stats-grid"><div className="stat-card"><span>Participantes</span><strong>{progress?.participants?.length??'—'}</strong><small>Pessoas vinculadas à coleta</small></div><div className="stat-card"><span>Códigos recebidos</span><strong>{progress?.totals?.length??'—'}</strong><small>Produtos com bipagens sincronizadas</small></div><div className="stat-card"><span>Unidades somadas</span><strong>{(progress?.totals||[]).reduce((n:number,x:any)=>n+Number(x.total_quantity||0),0)}</strong><small>Total recebido pelo servidor</small></div></div>
       <h3 style={{marginTop:22}}>Equipe</h3><div className="product-list">{(progress?.participants||[]).map((p:any)=><div className="product-row" key={p.id}><div className="product-details"><strong>{p.display_name}</strong><span>{p.role==='owner'?'DONO':'USUÁRIO'} · {p.status==='active'?'TRABALHANDO':p.status==='finished'?'FINALIZOU':'BLOQUEADO'} · {p.event_count||0} bipagem(ns) · {Number(p.total_units||0)} unidade(s) · {p.distinct_codes||0} código(s)</span><small>{p.last_scan_at?new Date(p.last_scan_at).toLocaleString('pt-BR'):'Ainda sem bipagens'}</small></div></div>)}{!progress&&<p>Carregando dados da coleta…</p>}</div>
       <p className="mapping-note">O painel atualiza os dados recebidos a cada 3 segundos. As bipagens feitas no coletor local ainda não são enviadas automaticamente para esta sala; essa integração precisa ser concluída e testada antes de usar em inventário real.</p>
-      {!isOwner&&<button className="primary-button" style={{marginRight:8}} disabled={busy} onClick={()=>void finish()}>Finalizar minha participação</button>}
       <button className="secondary-button" onClick={leave}>Desconectar desta coleta</button>
     </div> : <div className="mapping-grid">
       {isOwner&&<div className="mapping-panel"><div className="mapping-title"><strong>Criar nova coleta</strong><span>DONO</span></div><label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label><button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()} onClick={()=>void create()}>Criar coleta compartilhada</button></div>}
       <div className="mapping-panel"><div className="mapping-title"><strong>Entrar em uma coleta</strong><span>PARTICIPANTE</span></div><label>Código de acesso<input value={accessCode} onChange={e=>setAccessCode(e.target.value.toUpperCase().replace(/[^A-F0-9]/g,'').slice(0,8))} placeholder="Ex.: A1B2C3D4" maxLength={8}/></label><button className="secondary-button" style={{marginTop:14}} disabled={busy||accessCode.length!==8} onClick={()=>void join()}>Entrar na coleta</button></div>
     </div>}
+    {active && <CollectorApp sharedCollection={{id:active.id,token:active.collectionToken}} onFinished={()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');}} />}
     {busy&&<p>Aguarde…</p>}{error&&<div className="account-error">{error}</div>}{notice&&<p className="mapping-note">{notice}</p>}
   </section>;
 }
