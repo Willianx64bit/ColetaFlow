@@ -814,7 +814,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
 }
 
 
-type SharedCollectionState = { id:string; title:string; accessCode:string; collectionToken:string; role:string };
+type SharedCollectionState = { id:string; title:string; accessCode:string; collectionToken:string; role:string; userId:string };
 type SharedTemplate = { fileName:string; mimeType:string; sha256:string; base64:string };
 function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;userId:string}) {
   const [title,setTitle]=useState('Inventário compartilhado');
@@ -830,6 +830,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
   const [newUser,setNewUser]=useState({name:'',company:'',email:'',password:''});
   const [userBusy,setUserBusy]=useState(false);
   const [userMessage,setUserMessage]=useState('');
+  useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem('coletaflow.shared.active')||'null');if(saved&&saved.userId!==userId)localStorage.removeItem('coletaflow.shared.active');}catch{localStorage.removeItem('coletaflow.shared.active');}},[userId]);
   const auth={Authorization:`Bearer ${token}`,'Content-Type':'application/json'};
   const activate=(data:any)=>{
     const next={id:data.collection.id,title:data.collection.title,accessCode:data.collection.access_code||'',collectionToken:data.collectionToken,role:data.participant?.role||'owner',userId};
