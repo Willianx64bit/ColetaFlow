@@ -464,3 +464,10 @@ body[data-theme="dark"] .review-quantity .icon-button{background:#20384c;color:#
 body[data-theme="dark"] .review-quantity-editor{border-color:#34495f}
 body[data-theme="dark"] .review-quantity-editor label{color:#b4c5d8}
 body[data-theme="dark"] .review-quantity-editor input{background:#0b1726;border-color:#3b566e;color:#f2f7fc}
+
+
+.review-search-box{display:flex;align-items:center;gap:10px;width:100%}
+.review-search-box input{flex:1;min-width:0;border:0!important;background:transparent!important;outline:none!important;box-shadow:none!important}
+.review-search-box .scan-camera-inline{flex:0 0 42px;width:42px;height:42px;border:0;border-radius:10px;background:#e7f5f9;color:#1686a3;display:grid;place-items:center}
+.review-search-box .scan-camera-inline:disabled{opacity:.45}
+body[data-theme="dark"] .review-search-box .scan-camera-inline{background:#203b50;color:#82d8ee}
