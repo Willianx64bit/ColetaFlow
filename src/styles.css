@@ -498,3 +498,8 @@ body[data-theme="dark"] .review-quantity-editor input{background:#0b1726;border-
 .collector-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0 16px}
 .collector-stats .stat-card{min-height:82px;display:flex;flex-direction:column;justify-content:center;padding:12px 18px}
 @media(max-width:760px){.collector-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.collector-stats .stat-card{min-height:78px;padding:11px 10px}.collector-stats .stat-card strong{font-size:23px}}
+
+
+/* Destaque verde padrão ColetaFlow ao redor da área principal de bipagem. */
+.scanner-panel{border:3px solid #16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.10)}
+body[data-theme="dark"] .scanner-panel{border-color:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.14)}
