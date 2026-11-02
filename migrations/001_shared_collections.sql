@@ -52,9 +52,9 @@ CREATE TABLE IF NOT EXISTS cf_participants (
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('active','revoked','finished')),
   joined_at timestamptz NOT NULL DEFAULT now(),
   last_seen_at timestamptz NOT NULL DEFAULT now(),
-  user_id uuid REFERENCES cf_users(id) ON DELETE SET NULL,
-  UNIQUE (collection_id, display_name)
+  user_id uuid REFERENCES cf_users(id) ON DELETE SET NULL
 );
+CREATE UNIQUE INDEX IF NOT EXISTS cf_participants_collection_user_key ON cf_participants(collection_id,user_id) WHERE user_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS cf_participants_collection_status_idx ON cf_participants(collection_id,status);
 CREATE INDEX IF NOT EXISTS cf_participants_user_idx ON cf_participants(user_id);
 
