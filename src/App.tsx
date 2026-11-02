@@ -176,7 +176,6 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
   }, [sheet, range, headerRow]);
 
   const entries = Object.entries(counts).filter(([code]) => !search || normalize(code).includes(normalize(search)) || normalize(findProductDescription(code)).includes(normalize(search)));
-  const totalUnits = Object.values(counts).reduce((sum, qty) => sum + qty, 0);
   const totalCodes = Object.keys(counts).length;
   const catalogCodeSet = new Set<string>();
   if (sheet && range) {
