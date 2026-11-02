@@ -80,6 +80,7 @@ function CollectorApp() {
   const [editingReviewQuantity, setEditingReviewQuantity] = useState('');
   const [notice, setNotice] = useState('Importe o modelo vazio da empresa para começar.');
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraForSearch, setCameraForSearch] = useState(false);
   const [cameraUsed, setCameraUsed] = useState(false);
   const [autoReopenCamera, setAutoReopenCamera] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -237,8 +238,15 @@ function CollectorApp() {
       const code = result.getText().trim();
       if (!code) return;
       setCameraStatus('Código identificado');
-      receiveCode(code, true);
-      if (!quickCollectEnabled) setCameraOpen(false);
+      if (cameraForSearch) {
+        setSearch(code);
+        setNotice(`Busca pela câmera: código ${code}.`);
+        setCameraOpen(false);
+        setCameraForSearch(false);
+      } else {
+        receiveCode(code, true);
+        if (!quickCollectEnabled) setCameraOpen(false);
+      }
     }).then(activeControls => {
       controls = activeControls;
       if (cancelled) activeControls.stop();
@@ -277,7 +285,7 @@ function CollectorApp() {
       stream?.getTracks().forEach(track => track.stop());
       video.srcObject = null;
     };
-  }, [cameraOpen, pendingCode, quickCollectEnabled, quickCollectQuantity]);
+  }, [cameraOpen, pendingCode, quickCollectEnabled, quickCollectQuantity, cameraForSearch]);
 
   useEffect(() => {
     if (!cameraOpen || !videoRef.current) return;
@@ -454,9 +462,19 @@ function CollectorApp() {
 
   const startCamera = () => {
     if (!workbook || pendingCode) return;
+    setCameraForSearch(false);
     setFlashEnabled(false);
     setCameraUsed(true);
     setCameraStatus('Preparando leitor de código de barras…');
+    setCameraOpen(true);
+  };
+
+  const startReviewSearchCamera = () => {
+    if (!workbook || pendingCode) return;
+    setCameraForSearch(true);
+    setFlashEnabled(false);
+    setCameraUsed(true);
+    setCameraStatus('Preparando leitor para buscar produto…');
     setCameraOpen(true);
   };
 
@@ -679,7 +697,7 @@ function CollectorApp() {
         <div className="section-heading"><div><span className="step-label">ETAPA 03 DE 04</span><h2>Resumo da coleta</h2><p>Confira somente os códigos e as quantidades registradas.</p></div><button className="text-button" onClick={resetSession} disabled={!workbook}><RotateCcw size={16} /> Reiniciar contagem</button></div>
         <div className="results-toolbar">
           <div className="blind-mode-note"><ShieldCheck size={17} /> SOMENTE CÓDIGO + QUANTIDADE</div>
-          <label className="search-box"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar por código ou descrição" /></label>
+          <div className="search-box review-search-box"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar por código ou descrição" /><button type="button" className="scan-camera-inline" onClick={startReviewSearchCamera} disabled={!workbook || cameraOpen || !!pendingCode} aria-label="Buscar código com a câmera" title="Buscar código com a câmera"><Camera size={20}/></button></div>
         </div>
         <div className="product-list">
           {!workbook ? <div className="empty-state"><Package size={28} /><strong>Aguardando modelo</strong><span>Importe a planilha vazia para iniciar a coleta.</span></div> :
