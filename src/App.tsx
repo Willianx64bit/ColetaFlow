@@ -830,11 +830,11 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
   const [newUser,setNewUser]=useState({name:'',company:'',email:'',password:''});
   const [userBusy,setUserBusy]=useState(false);
   const [userMessage,setUserMessage]=useState('');
-  useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem('coletaflow.shared.active')||'null');if(saved&&saved.userId!==userId)localStorage.removeItem('coletaflow.shared.active');}catch{localStorage.removeItem('coletaflow.shared.active');}},[userId]);
+  useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem('coletaflow.shared.active')||'null');if(saved&&saved.userId!==userId)localStorage.removeItem('coletaflow.shared.active');}catch{try{localStorage.removeItem('coletaflow.shared.active');}catch{}}},[userId]);
   const auth={Authorization:`Bearer ${token}`,'Content-Type':'application/json'};
   const activate=(data:any)=>{
     const next={id:data.collection.id,title:data.collection.title,accessCode:data.collection.access_code||'',collectionToken:data.collectionToken,role:data.participant?.role||'owner',userId};
-    localStorage.setItem('coletaflow.shared.active',JSON.stringify(next));setActive(next);setProgress(null);setError('');setNotice('Você entrou na coleta. O código pode ser compartilhado com os demais participantes.');
+    localStorage.setItem('coletaflow.shared.active',JSON.stringify(next));setActive(next);setProgress(null);setSharedTemplate(null);setError('');setNotice('Você entrou na coleta. O código pode ser compartilhado com os demais participantes.');
   };
   const create=async()=>{
     if(!templateFile){setError('Selecione a planilha original antes de criar a coleta.');return;}
