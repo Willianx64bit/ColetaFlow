@@ -423,3 +423,29 @@ body[data-theme="dark"] .quantity-modal,body[data-theme="dark"] .modal-card{back
 body[data-theme="dark"] .quantity-modal h3,body[data-theme="dark"] .modal-card h3{color:#eef5fc}
 body[data-theme="dark"] .edit-shortcuts-grid label{color:#b7c6d7}
 @media(max-width:600px){.theme-toggle{margin-left:7px;padding:7px 8px;gap:4px}.theme-toggle small{font-size:9px}.brand{gap:7px}.brand-wordmark{font-size:19px}}
+
+
+/* Modal de produto identificado — contraste completo no tema escuro */
+body[data-theme="dark"] .quantity-modal-heading{
+  background:linear-gradient(135deg,#172b3e,#122235);
+  border-bottom-color:#30465d;
+}
+body[data-theme="dark"] .quantity-modal-eyebrow{color:#72cde5}
+body[data-theme="dark"] .quantity-collected{color:#b9cadb}
+body[data-theme="dark"] .quantity-collected strong{color:#7fe0bd}
+body[data-theme="dark"] .quantity-product-info h3{color:#f1f6fc}
+body[data-theme="dark"] .quantity-product-code{color:#9fb2c7}
+body[data-theme="dark"] .quantity-product-code strong{color:#dce9f6}
+body[data-theme="dark"] .quantity-modal-content{background:#142234;color:#e5edf7}
+body[data-theme="dark"] .quantity-modal-label{color:#b7c8da}
+body[data-theme="dark"] .quantity-modal-label input{background:#0b1726;border-color:#3b566e;color:#f2f7fc}
+body[data-theme="dark"] .quantity-shortcut{background:#20364b;border-color:#3a536b;color:#e5f3fb}
+body[data-theme="dark"] .quantity-shortcut:hover{background:#28465e;border-color:#4a9bb3}
+body[data-theme="dark"] .edit-shortcuts-button{color:#78d0e8}
+body[data-theme="dark"] .edit-shortcuts-grid label{color:#b8c9db}
+body[data-theme="dark"] .edit-shortcuts-grid input{background:#0b1726;border-color:#3b566e;color:#f2f7fc}
+body[data-theme="dark"] .quantity-modal-close{background:#26394d;color:#d5e3f1}
+body[data-theme="dark"] .quantity-modal-actions .secondary-button{background:#26394d;border-color:#3c526a;color:#d6e4f2}
+body[data-theme="dark"] .quantity-modal-actions .primary-button{color:#fff}
+body[data-theme="dark"] .remove-mode-button{background:#3a2a2c;border-color:#75464a;color:#ffb8b8}
+body[data-theme="dark"] .remove-mode-button.active{background:#762e36;color:#fff}
