@@ -503,6 +503,7 @@ function CollectorApp() {
 
   const stopCamera = () => {
     setFlashEnabled(false);
+    setCameraForSearch(false);
     setCameraOpen(false);
     setCameraStatus('Câmera pausada');
   };
@@ -685,6 +686,22 @@ function CollectorApp() {
       </section>}
 
       {currentStep === 3 && <section className="workspace results-section wizard-screen">
+          {cameraOpen && createPortal(
+            <div className="camera-box">
+              <div className="camera-status"><span className="camera-live-dot" />{cameraStatus}</div>
+              <video ref={videoRef} muted playsInline autoPlay />
+              <div key={scanPulse} className={`camera-guide ${scanPulse ? `scan-guide-pulse-${scanPulse % 2}` : ""}`} aria-hidden="true" />
+              <div className="camera-zoom-controls" role="group" aria-label="Zoom da câmera">
+                {[1, 2, 3].map(level => <button type="button" key={level} className={cameraZoom === level ? 'active' : ''} onClick={() => setCameraZoom(level)} aria-pressed={cameraZoom === level} aria-label={`Zoom ${level}x`} title={`Zoom ${level}x`}><span>{level}x</span></button>)}
+              </div>
+              <div className="camera-bottom-controls">
+                <button type="button" className={`camera-round-control ${flashEnabled ? 'flash-active' : ''}`} onClick={() => void toggleCameraFlash()} aria-label={flashEnabled ? 'Desligar flash' : 'Ligar flash'} aria-pressed={flashEnabled} title={flashEnabled ? 'Desligar flash' : 'Ligar flash'}><Zap size={21} fill={flashEnabled ? 'currentColor' : 'none'} /></button>
+                <button type="button" className={`camera-round-control ${scanSoundEnabled ? 'sound-active' : ''}`} onClick={() => setScanSoundEnabled(value => !value)} aria-label={scanSoundEnabled ? 'Desligar som do bip' : 'Ligar som do bip'} aria-pressed={scanSoundEnabled} title={scanSoundEnabled ? 'Desligar som do bip' : 'Ligar som do bip'}>{scanSoundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
+              </div>
+              <button className="camera-close" onClick={stopCamera}><X size={18} /> Fechar câmera</button>
+            </div>,
+            document.body
+          )}
         <div className="section-heading"><div><span className="step-label">ETAPA 03 DE 04</span><h2>Resumo da coleta</h2><p>Confira somente os códigos e as quantidades registradas.</p></div><button className="text-button" onClick={resetSession} disabled={!workbook}><RotateCcw size={16} /> Reiniciar contagem</button></div>
         <div className="results-toolbar">
           <div className="blind-mode-note"><ShieldCheck size={17} /> SOMENTE CÓDIGO + QUANTIDADE</div>
