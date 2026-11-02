@@ -486,6 +486,10 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
           setSheetName(template.mapping.sheetName);
           setHeaderRow(template.mapping.headerRow);
           setColumns({code:template.mapping.codeColumns,quantity:template.mapping.quantityColumn,description:template.mapping.descriptionColumn});
+          // O participante recebe o modelo já configurado pelo dono e começa diretamente na coleta.
+          if(!sharedCollection.isOwner)setCurrentStep(2);
+        } else if(!sharedCollection.isOwner) {
+          setNotice('Aguardando o dono configurar e liberar o modelo. Assim que ele concluir a etapa 1, entre novamente na coleta.');
         }
       })();
     } catch {
