@@ -1,9 +1,9 @@
 import { randomBytes,scryptSync,createHash,timingSafeEqual } from 'node:crypto';
-import { db,readJson,send } from './_db.js';
+import { db,readJson,send,runtimeSecret } from './_db.js';
 export default async function handler(req,res){
  if(req.method!=='POST')return send(res,405,{error:'Método não permitido'});
  try{
-  const expected=process.env.COLETAFLOW_OWNER_SETUP_KEY||'',emailAllowed=String(process.env.COLETAFLOW_OWNER_EMAIL||'').trim().toLowerCase();
+  const expected=runtimeSecret('COLETAFLOW_OWNER_SETUP_KEY'),emailAllowed=String(runtimeSecret('COLETAFLOW_OWNER_EMAIL')).trim().toLowerCase();
   const body=await readJson(req),key=String(body.setupKey||''),email=String(body.email||'').trim().toLowerCase(),name=String(body.name||'').trim().slice(0,80),password=String(body.password||'');
   if(!expected||!emailAllowed)return send(res,503,{error:'Configuração inicial do dono ainda não foi habilitada.'});
   const supplied=Buffer.from(key),configured=Buffer.from(expected);
