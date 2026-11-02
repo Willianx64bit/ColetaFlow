@@ -80,7 +80,7 @@ const cellText = (cell: XLSX.CellObject | undefined) => {
 };
 const hasTerm = (value: string, terms: string[]) => terms.some(term => normalize(value).includes(term));
 
-function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { id: string; token: string; userId: string; accountToken?: string; isOwner?: boolean; template?: SharedTemplate; onMappingSaved?: (mapping: SharedMapping) => void }; onFinished?: () => void } = {}) {
+function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { id: string; token: string; userId: string; accountToken?: string; isOwner?: boolean; mappingLocked?: boolean; template?: SharedTemplate; onMappingSaved?: (mapping: SharedMapping) => void }; onFinished?: () => void } = {}) {
   const sessionKey = sharedCollection ? `shared:${sharedCollection.id}:${sharedCollection.userId}` : 'active';
   const [theme, setTheme] = useState<'light' | 'dark'>(() => { try { return localStorage.getItem('coletaflow.theme') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; } });
   useEffect(() => { document.documentElement.dataset.theme = theme; document.body.dataset.theme = theme; try { localStorage.setItem('coletaflow.theme', theme); } catch { /* armazenamento pode estar indisponível */ } }, [theme]);
@@ -722,26 +722,26 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
 
       {currentStep === 1 && <section className="workspace wizard-screen">
         <div className="section-heading"><div><span className="step-label">ETAPA 01 DE 04</span><h2>Modelo da empresa</h2><p>Importe a planilha vazia que deverá receber os códigos e quantidades.</p></div>
-          <label className="primary-button upload-button"><FolderUp size={18} /> Importar modelo<input type="file" accept=".xlsx,.xls,.csv" onChange={event => { const file = event.target.files?.[0]; if (file) void loadWorkbook(file); event.currentTarget.value = ''; }} /></label>
+          {!sharedCollection&&<label className="primary-button upload-button"><FolderUp size={18} /> Importar modelo<input type="file" accept=".xlsx,.xls,.csv" onChange={event => { const file = event.target.files?.[0]; if (file) void loadWorkbook(file); event.currentTarget.value = ''; }} /></label>}
         </div>
         {workbook && sheet ? (
           <div className="file-card">
             <div className="file-icon"><FileSpreadsheet size={24} /></div>
             <div className="file-info"><strong>{fileName}</strong><span>Modelo carregado · {workbook.SheetNames.length} aba(s) · sem necessidade de cadastro de produtos</span></div>
             <span className="file-status"><Check size={14} /> Pronto</span>
-            <button className="icon-button" title="Remover modelo" onClick={() => { setWorkbook(null); workbookBytesRef.current = null; setFileName(''); setSheetName(''); clearCurrentCounts(); setPendingCode(''); setCurrentStep(1); }}><X size={18} /></button>
+            {!sharedCollection&&<button className="icon-button" title="Remover modelo" onClick={() => { setWorkbook(null); workbookBytesRef.current = null; setFileName(''); setSheetName(''); clearCurrentCounts(); setPendingCode(''); setCurrentStep(1); }}><X size={18} /></button>}
           </div>
-        ) : <label className="dropzone"><input type="file" accept=".xlsx,.xls,.csv" onChange={event => { const file = event.target.files?.[0]; if (file) void loadWorkbook(file); event.currentTarget.value = ''; }} /><span className="drop-icon"><FolderUp size={25} /></span><strong>Selecione o modelo vazio da empresa</strong><span>Excel (.xlsx, .xls) ou CSV</span></label>}
+        ) : sharedCollection ? <div className="dropzone"><span className="drop-icon"><FolderUp size={25} /></span><strong>Carregando o modelo compartilhado</strong><span>O arquivo original é enviado pelo dono da coleta.</span></div> : <label className="dropzone"><input type="file" accept=".xlsx,.xls,.csv" onChange={event => { const file = event.target.files?.[0]; if (file) void loadWorkbook(file); event.currentTarget.value = ''; }} /><span className="drop-icon"><FolderUp size={25} /></span><strong>Selecione o modelo vazio da empresa</strong><span>Excel (.xlsx, .xls) ou CSV</span></label>}
 
         {workbook && sheet && (
           <div className="mapping-panel">
             <div className="mapping-title"><div><ShieldCheck size={18} /><strong>Defina onde gravar os dados</strong></div><span>MAPEAMENTO DO MODELO</span></div>
             <div className="mapping-grid">
-              <label>Aba<select value={sheetName} onChange={event => { setSheetName(event.target.value); clearCurrentCounts(); setPendingCode(''); }}>{workbook.SheetNames.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
-              <label>Código principal<select value={columns.code[0] ?? 0} onChange={event => setColumns(v => ({ ...v, code: [Number(event.target.value), ...(v.code[1] !== undefined && v.code[1] !== Number(event.target.value) ? [v.code[1]] : [])] }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
-              <label>Código alternativo (opcional)<select value={columns.code[1] ?? -1} onChange={event => setColumns(v => ({ ...v, code: event.target.value === '-1' ? [v.code[0] ?? 0] : [v.code[0] ?? 0, Number(event.target.value)] }))}><option value={-1}>Não usar</option>{headers.map((h,i) => <option value={i} key={i} disabled={i === columns.code[0]}>{h}</option>)}</select></label>
-              <label>Coluna da quantidade<select value={columns.quantity} onChange={event => setColumns(v => ({ ...v, quantity: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
-              <label>Coluna da descrição<select value={columns.description} onChange={event => setColumns(v => ({ ...v, description: Number(event.target.value) }))}><option value={-1}>Não possui descrição</option>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
+              <label>Aba<select disabled={!!sharedCollection && (!sharedCollection.isOwner || !!sharedCollection.mappingLocked)} value={sheetName} onChange={event => { setSheetName(event.target.value); clearCurrentCounts(); setPendingCode(''); }}>{workbook.SheetNames.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
+              <label>Código principal<select disabled={!!sharedCollection && (!sharedCollection.isOwner || !!sharedCollection.mappingLocked)} value={columns.code[0] ?? 0} onChange={event => setColumns(v => ({ ...v, code: [Number(event.target.value), ...(v.code[1] !== undefined && v.code[1] !== Number(event.target.value) ? [v.code[1]] : [])] }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
+              <label>Código alternativo (opcional)<select disabled={!!sharedCollection && (!sharedCollection.isOwner || !!sharedCollection.mappingLocked)} value={columns.code[1] ?? -1} onChange={event => setColumns(v => ({ ...v, code: event.target.value === '-1' ? [v.code[0] ?? 0] : [v.code[0] ?? 0, Number(event.target.value)] }))}><option value={-1}>Não usar</option>{headers.map((h,i) => <option value={i} key={i} disabled={i === columns.code[0]}>{h}</option>)}</select></label>
+              <label>Coluna da quantidade<select disabled={!!sharedCollection && (!sharedCollection.isOwner || !!sharedCollection.mappingLocked)} value={columns.quantity} onChange={event => setColumns(v => ({ ...v, quantity: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
+              <label>Coluna da descrição<select disabled={!!sharedCollection && (!sharedCollection.isOwner || !!sharedCollection.mappingLocked)} value={columns.description} onChange={event => setColumns(v => ({ ...v, description: Number(event.target.value) }))}><option value={-1}>Não possui descrição</option>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
             </div>
             <div className="mapping-note">Se houver códigos e descrições na planilha, o ColetaFlow identifica o produto ao bipar. Sem descrição ou sem código cadastrado, a coleta continua normalmente.</div>
           </div>
@@ -982,7 +982,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       {isOwner&&<div className="mapping-panel"><div className="mapping-title"><strong>Criar nova coleta</strong><span>DONO</span></div><label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label><label>Planilha original da empresa<input type="file" accept=".xlsx,.xls,.csv" onChange={e=>setTemplateFile(e.target.files?.[0]||null)}/></label>{templateFile&&<p className="mapping-note">{templateFile.name} · {(templateFile.size/1024/1024).toFixed(2)} MB</p>}<button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()||!templateFile} onClick={()=>void create()}>Criar coleta e compartilhar modelo</button></div>}
       <div className="mapping-panel"><div className="mapping-title"><strong>Entrar em uma coleta</strong><span>PARTICIPANTE</span></div><label>Código de acesso<input value={accessCode} onChange={e=>setAccessCode(e.target.value.toUpperCase().replace(/[^A-F0-9]/g,'').slice(0,8))} placeholder="Ex.: A1B2C3D4" maxLength={8}/></label><button className="secondary-button" style={{marginTop:14}} disabled={busy||accessCode.length!==8} onClick={()=>void join()}>Entrar na coleta</button></div>
     </div>}
-    {active && <CollectorApp sharedCollection={{id:active.id,token,userId,accountToken:token,isOwner,template:sharedTemplate||undefined,onMappingSaved:(mapping)=>setSharedTemplate(current=>current?{...current,mapping}:current)}} onFinished={()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');}} />}
+    {active && <CollectorApp sharedCollection={{id:active.id,token,userId,accountToken:token,isOwner,mappingLocked:(progress?.participants||[]).some((p:any)=>p.role==='user'),template:sharedTemplate||undefined,onMappingSaved:(mapping)=>setSharedTemplate(current=>current?{...current,mapping}:current)}} onFinished={()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');}} />}
     {busy&&<p>Aguarde…</p>}{error&&<div className="account-error">{error}</div>}{notice&&<p className="mapping-note">{notice}</p>}
   </section>;
 }
