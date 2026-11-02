@@ -23,12 +23,13 @@ export default async function handler(req,res) {
    const quantity=Number(ev.quantity);
    const scannedAt=new Date(ev.scannedAt);
    const deviceId=String(ev.deviceId||'');
+   const eventType=ev.eventType==='adjustment'?'adjustment':'scan';
    if(!UUID_PATTERN.test(eventId))return send(res,400,{error:`Bipagem ${index+1}: identificador inválido`});
    if(!barcode||barcode.length>120)return send(res,400,{error:`Bipagem ${index+1}: código vazio ou maior que 120 caracteres`});
-   if(!Number.isFinite(quantity)||quantity<=0||quantity>1000000)return send(res,400,{error:`Bipagem ${index+1}: quantidade inválida`});
+   if(!Number.isFinite(quantity)||quantity===0||Math.abs(quantity)>1000000||(eventType==='scan'&&quantity<0))return send(res,400,{error:`Bipagem ${index+1}: quantidade inválida`});
    if(Number.isNaN(scannedAt.getTime()))return send(res,400,{error:`Bipagem ${index+1}: data inválida`});
    if(deviceId.length>100)return send(res,400,{error:`Bipagem ${index+1}: identificador do dispositivo muito longo`});
-   events.push({eventId,barcode,quantity,scannedAt,deviceId});
+   events.push({eventId,barcode,quantity,eventType,scannedAt,deviceId});
   }
 
   const client=await db().connect();let inserted=0;
@@ -36,15 +37,15 @@ export default async function handler(req,res) {
    await client.query('BEGIN');
    for(const ev of events){
     const result=await client.query(
-     'INSERT INTO cf_scan_events(event_id,collection_id,participant_id,barcode,quantity,device_id,scanned_at) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(event_id) DO NOTHING',
-     [ev.eventId,collectionId,p.id,ev.barcode,ev.quantity,ev.deviceId||null,ev.scannedAt]
+     'INSERT INTO cf_scan_events(event_id,collection_id,participant_id,barcode,quantity,event_type,device_id,scanned_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(event_id) DO NOTHING',
+     [ev.eventId,collectionId,p.id,ev.barcode,ev.quantity,ev.eventType,ev.deviceId||null,ev.scannedAt]
     );
     if(result.rowCount){
      inserted++;
      continue;
     }
     const existing=await client.query(
-     'SELECT collection_id,participant_id,barcode,quantity::text AS quantity,device_id,scanned_at FROM cf_scan_events WHERE event_id=$1',
+     'SELECT collection_id,participant_id,barcode,quantity::text AS quantity,event_type,device_id,scanned_at FROM cf_scan_events WHERE event_id=$1',
      [ev.eventId]
     );
     const saved=existing.rows[0];
@@ -53,6 +54,7 @@ export default async function handler(req,res) {
       && saved.participant_id===p.id
       && saved.barcode===ev.barcode
       && Number(saved.quantity)===ev.quantity
+      && saved.event_type===ev.eventType
       && (saved.device_id||'')===ev.deviceId
       && new Date(saved.scanned_at).getTime()===ev.scannedAt.getTime();
     if(!same) {
