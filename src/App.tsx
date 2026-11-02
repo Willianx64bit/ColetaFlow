@@ -62,7 +62,7 @@ const cellText = (cell: XLSX.CellObject | undefined) => {
 };
 const hasTerm = (value: string, terms: string[]) => terms.some(term => normalize(value).includes(term));
 
-function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { id: string; token: string; userId: string; isOwner?: boolean; template?: SharedTemplate }; onFinished?: () => void } = {}) {
+function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { id: string; token: string; userId: string; accountToken?: string; isOwner?: boolean; template?: SharedTemplate; onMappingSaved?: (mapping: SharedMapping) => void }; onFinished?: () => void } = {}) {
   const sessionKey = sharedCollection ? `shared:${sharedCollection.id}:${sharedCollection.userId}` : 'active';
   const [theme, setTheme] = useState<'light' | 'dark'>(() => { try { return localStorage.getItem('coletaflow.theme') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; } });
   useEffect(() => { document.documentElement.dataset.theme = theme; document.body.dataset.theme = theme; try { localStorage.setItem('coletaflow.theme', theme); } catch { /* armazenamento pode estar indisponível */ } }, [theme]);
@@ -74,6 +74,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [scanEvents, setScanEvents] = useState<ScanEvent[]>([]);
   const [finishBusy, setFinishBusy] = useState(false);
+  const [mappingBusy, setMappingBusy] = useState(false);
   const [scanValue, setScanValue] = useState('');
   const [quantityValue, setQuantityValue] = useState('');
   const [removeMode, setRemoveMode] = useState(false);
@@ -417,6 +418,24 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
     }
   };
 
+  const parsedSheetExists = (bytes: Uint8Array, name: string) => {
+    try { return !!XLSX.read(bytes, { type: 'array' }).Sheets[name]; } catch { return false; }
+  };
+  const continueFromMapping = async () => {
+    if(sharedCollection?.isOwner){
+      if(!sharedCollection.accountToken){setNotice('Sessão do dono inválida. Entre novamente.');return;}
+      setMappingBusy(true);
+      try{
+        const response=await fetch('/api/shared/mapping',{method:'PUT',headers:{Authorization:`Bearer ${sharedCollection.accountToken}`,'Content-Type':'application/json'},body:JSON.stringify({collectionId:sharedCollection.id,mapping:{sheetName,headerRow,codeColumns:columns.code,quantityColumn:columns.quantity,descriptionColumn:columns.description}})});
+        const data=await response.json();if(!response.ok)throw new Error(data.error||'Não foi possível salvar o mapeamento');
+        setNotice('Mapeamento confirmado. Agora os usuários podem entrar nesta coleta.');
+        sharedCollection.onMappingSaved?.(data.mapping);
+      }catch(error){setNotice(error instanceof Error?error.message:'Falha ao salvar o mapeamento.');return;}
+      finally{setMappingBusy(false);}
+    }
+    setCurrentStep(2);
+  };
+
   useEffect(() => {
     const template = sharedCollection?.template;
     if (!sharedCollection || !template?.base64 || !sessionRestored || workbook) return;
@@ -425,7 +444,14 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       const bytes = new Uint8Array(binary.length);
       for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
       const file = new File([bytes], template.fileName, { type: template.mimeType || 'application/octet-stream' });
-      void loadWorkbook(file);
+      void (async()=>{
+        await loadWorkbook(file);
+        if(template.mapping&&parsedSheetExists(bytes,template.mapping.sheetName)){
+          setSheetName(template.mapping.sheetName);
+          setHeaderRow(template.mapping.headerRow);
+          setColumns({code:template.mapping.codeColumns,quantity:template.mapping.quantityColumn,description:template.mapping.descriptionColumn});
+        }
+      })();
     } catch {
       setNotice('Não foi possível abrir o modelo compartilhado. Peça ao dono para reenviar a planilha.');
     }
@@ -692,7 +718,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
             <div className="mapping-note">Se houver códigos e descrições na planilha, o ColetaFlow identifica o produto ao bipar. Sem descrição ou sem código cadastrado, a coleta continua normalmente.</div>
           </div>
         )}
-        <div className="wizard-navigation wizard-next"><span>Confira o modelo e ajuste as colunas antes de continuar.</span><button className="primary-button" disabled={!workbook || !sheet} onClick={() => setCurrentStep(2)}>Continuar <ArrowDownToLine size={17} /></button></div>
+        <div className="wizard-navigation wizard-next"><span>Confira o modelo e ajuste as colunas antes de continuar.</span><button className="primary-button" disabled={!workbook || !sheet || mappingBusy} onClick={() => void continueFromMapping()}>{mappingBusy?'Salvando mapeamento…':'Continuar'} <ArrowDownToLine size={17} /></button></div>
       </section>}
 
       {currentStep === 2 && <section className="workspace collector-section wizard-screen">
@@ -815,7 +841,8 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
 
 
 type SharedCollectionState = { id:string; title:string; accessCode:string; collectionToken:string; role:string; userId:string };
-type SharedTemplate = { fileName:string; mimeType:string; sha256:string; base64:string };
+type SharedMapping = { sheetName:string; headerRow:number; codeColumns:number[]; quantityColumn:number; descriptionColumn:number };
+type SharedTemplate = { fileName:string; mimeType:string; sha256:string; base64:string; mapping?:SharedMapping|null };
 function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;userId:string}) {
   const [title,setTitle]=useState('Inventário compartilhado');
   const [accessCode,setAccessCode]=useState('');
@@ -894,7 +921,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       {isOwner&&<div className="mapping-panel"><div className="mapping-title"><strong>Criar nova coleta</strong><span>DONO</span></div><label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label><label>Planilha original da empresa<input type="file" accept=".xlsx,.xls,.csv" onChange={e=>setTemplateFile(e.target.files?.[0]||null)}/></label>{templateFile&&<p className="mapping-note">{templateFile.name} · {(templateFile.size/1024/1024).toFixed(2)} MB</p>}<button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()||!templateFile} onClick={()=>void create()}>Criar coleta e compartilhar modelo</button></div>}
       <div className="mapping-panel"><div className="mapping-title"><strong>Entrar em uma coleta</strong><span>PARTICIPANTE</span></div><label>Código de acesso<input value={accessCode} onChange={e=>setAccessCode(e.target.value.toUpperCase().replace(/[^A-F0-9]/g,'').slice(0,8))} placeholder="Ex.: A1B2C3D4" maxLength={8}/></label><button className="secondary-button" style={{marginTop:14}} disabled={busy||accessCode.length!==8} onClick={()=>void join()}>Entrar na coleta</button></div>
     </div>}
-    {active && <CollectorApp sharedCollection={{id:active.id,token:active.collectionToken,userId,isOwner,template:sharedTemplate||undefined}} onFinished={()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');}} />}
+    {active && <CollectorApp sharedCollection={{id:active.id,token:active.collectionToken,userId,accountToken:token,isOwner,template:sharedTemplate||undefined,onMappingSaved:(mapping)=>setSharedTemplate(current=>current?{...current,mapping}:current)}} onFinished={()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');}} />}
     {busy&&<p>Aguarde…</p>}{error&&<div className="account-error">{error}</div>}{notice&&<p className="mapping-note">{notice}</p>}
   </section>;
 }
