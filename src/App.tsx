@@ -514,11 +514,11 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
   };
 
   const findProductDescription = (code: string) => {
-    if (!sheet || !range || columns.description < 0) return '';
-    const productRow = findProductRow(code);
-    return productRow >= 0
-      ? cellText(sheet[XLSX.utils.encode_cell({ r: productRow, c: range.s.c + columns.description })])
-      : '';
+    if (sheet && range && columns.description >= 0) {
+      const productRow = findProductRow(code);
+      if (productRow >= 0) return cellText(sheet[XLSX.utils.encode_cell({ r: productRow, c: range.s.c + columns.description })]);
+    }
+    return [...scanEvents].reverse().find(event => event.barcode === code && event.description?.trim())?.description || '';
   };
 
   const playScanFeedback = () => {
@@ -895,7 +895,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
 
 
 type SharedCollectionState = { id:string; title:string; accessCode:string; role:string; userId:string };
-type SharedMapping = { sheetName:string; headerRow:number; codeColumns:number[]; quantityColumn:number; descriptionColumn:number };
+type SharedMapping = { sheetName:string; headerRow:number; codeColumns:number[]; quantityColumn:number; descriptionColumn:number; hasProductList?:boolean };
 type SharedTemplate = { fileName:string; mimeType:string; sha256:string; base64:string; mapping?:SharedMapping|null };
 function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;userId:string}) {
   const [title,setTitle]=useState('Inventário compartilhado');
