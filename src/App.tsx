@@ -54,11 +54,11 @@ const writeSavedSession = async (session: SavedSession, sessionKey = 'active') =
     transaction.onabort = () => { db.close(); reject(transaction.error); };
   });
 };
-const readSavedEvents = async (sessionKey: string): Promise<ScanEvent[]> => {
+const readSavedEvents = async (sessionKey: string): Promise<ScanEvent[] | null> => {
   const db = await openSessionDb();
   return new Promise((resolve, reject) => {
     const request = db.transaction(SESSION_STORE, 'readonly').objectStore(SESSION_STORE).get(`${sessionKey}:events`);
-    request.onsuccess = () => { db.close(); resolve(Array.isArray(request.result) ? request.result as ScanEvent[] : []); };
+    request.onsuccess = () => { db.close(); resolve(request.result === undefined ? null : (Array.isArray(request.result) ? request.result as ScanEvent[] : [])); };
     request.onerror = () => { db.close(); reject(request.error); };
   });
 };
@@ -91,6 +91,12 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
   const [columns, setColumns] = useState<ColumnMap>({ code: [0], quantity: 1, description: -1 });
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [scanEvents, setScanEvents] = useState<ScanEvent[]>([]);
+  const scanEventsRef = useRef<ScanEvent[]>([]);
+  const persistEventsRef = useRef<Promise<void>>(Promise.resolve());
+  const persistEvents = (events: ScanEvent[]) => {
+    persistEventsRef.current = persistEventsRef.current.catch(() => {}).then(() => writeSavedEvents(events, sessionKey));
+    return persistEventsRef.current;
+  };
   const [finishBusy, setFinishBusy] = useState(false);
   const [mappingBusy, setMappingBusy] = useState(false);
   const [scanValue, setScanValue] = useState('');
@@ -136,11 +142,10 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       localStorage.setItem('coletaflow.device-id', deviceId);
     } catch { /* o identificador do dispositivo é apenas auxiliar */ }
     const event={ eventId: crypto.randomUUID(), barcode, quantity, eventType, scannedAt: new Date().toISOString(), deviceId };
-    setScanEvents(current => {
-      const next=[...current,event];
-      void writeSavedEvents(next,sessionKey).catch(()=>setNotice('Não foi possível gravar a fila offline. Não feche esta tela até confirmar a sincronização.'));
-      return next;
-    });
+    const next=[...scanEventsRef.current,event];
+    scanEventsRef.current=next;
+    setScanEvents(next);
+    void persistEvents(next).catch(()=>setNotice('Não foi possível gravar a fila offline. Verifique o armazenamento deste dispositivo antes de continuar.'));
   };
   const finishParticipation = async () => {
     if (!sharedCollection || sharedCollection.isOwner) return;
@@ -207,8 +212,10 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       try {
         const session = await readSavedSession(sessionKey);
         if (!active) return;
-        const pendingEvents=await readSavedEvents(sessionKey).catch(()=>[] as ScanEvent[]);
-        setScanEvents(pendingEvents.length?pendingEvents:(session?.scanEvents||[]));
+        const pendingEvents=await readSavedEvents(sessionKey).catch(()=>null);
+        const restoredEvents=pendingEvents??(session?.scanEvents||[]);
+        scanEventsRef.current=restoredEvents;
+        setScanEvents(restoredEvents);
         if (session?.workbookBytes) {
           const bytes = session.workbookBytes instanceof ArrayBuffer
             ? session.workbookBytes
@@ -293,11 +300,12 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Falha ao sincronizar bipagens');
         const sentIds = new Set(batch.map(event => event.eventId));
-        if (!disposed) setScanEvents(current => {
-          const remaining=current.filter(event => !sentIds.has(event.eventId));
-          void writeSavedEvents(remaining,sessionKey).catch(()=>setNotice('Não foi possível atualizar a fila offline após sincronizar.'));
-          return remaining;
-        });
+        if (!disposed) {
+          const remaining=scanEventsRef.current.filter(event => !sentIds.has(event.eventId));
+          scanEventsRef.current=remaining;
+          setScanEvents(remaining);
+          await persistEvents(remaining).catch(()=>setNotice('O servidor recebeu as bipagens, mas não foi possível atualizar a fila local. Elas serão reenviadas com segurança quando possível.'));
+        }
       } catch (error) {
         if (!disposed) setNotice(error instanceof Error ? `Bipagens aguardando sincronização: ${error.message}` : 'Bipagens aguardando conexão.');
       } finally {
