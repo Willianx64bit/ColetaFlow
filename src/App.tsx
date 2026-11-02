@@ -131,6 +131,10 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
     } catch (error) { setNotice(error instanceof Error ? error.message : 'Falha ao finalizar participação.'); }
     finally { setFinishBusy(false); }
   };
+  const clearCurrentCounts = () => {
+    Object.entries(counts).forEach(([code, quantity]) => recordEvent(code, -quantity, 'adjustment'));
+    setCounts({});
+  };
   const sheet = workbook && sheetName ? workbook.Sheets[sheetName] : null;
   const range = sheet ? (sheet['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }) : null;
   const headers = useMemo(() => {
@@ -404,7 +408,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
         quantity: findColumn(['quantidade', 'qtd', 'contagem', 'unidades'], 1),
         description: detectedDescriptionColumn >= 0 && detectedDescriptionColumn !== detectedCodeColumn ? detectedDescriptionColumn : -1
       });
-      if (!sameTemplate) setCounts({});
+      if (!sameTemplate) clearCurrentCounts();
       setPendingCode('');
       setNotice(sameTemplate ? '' : 'Modelo vazio importado. Agora é só bipar o código e informar a quantidade.');
       setCurrentStep(1);
@@ -629,8 +633,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
 
   const resetSession = () => {
     if (!window.confirm('Limpar toda a contagem desta sessão?')) return;
-    Object.entries(counts).forEach(([code, quantity]) => recordEvent(code, -quantity, 'adjustment'));
-    setCounts({});
+    clearCurrentCounts();
     setPendingCode('');
     setNotice('Contagem reiniciada. O modelo continua carregado.');
   };
@@ -658,7 +661,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
             <div className="file-icon"><FileSpreadsheet size={24} /></div>
             <div className="file-info"><strong>{fileName}</strong><span>Modelo carregado · {workbook.SheetNames.length} aba(s) · sem necessidade de cadastro de produtos</span></div>
             <span className="file-status"><Check size={14} /> Pronto</span>
-            <button className="icon-button" title="Remover modelo" onClick={() => { setWorkbook(null); workbookBytesRef.current = null; setFileName(''); setSheetName(''); setCounts({}); setPendingCode(''); setCurrentStep(1); }}><X size={18} /></button>
+            <button className="icon-button" title="Remover modelo" onClick={() => { setWorkbook(null); workbookBytesRef.current = null; setFileName(''); setSheetName(''); clearCurrentCounts(); setPendingCode(''); setCurrentStep(1); }}><X size={18} /></button>
           </div>
         ) : <label className="dropzone"><input type="file" accept=".xlsx,.xls,.csv" onChange={event => { const file = event.target.files?.[0]; if (file) void loadWorkbook(file); event.currentTarget.value = ''; }} /><span className="drop-icon"><FolderUp size={25} /></span><strong>Selecione o modelo vazio da empresa</strong><span>Excel (.xlsx, .xls) ou CSV</span></label>}
 
@@ -666,7 +669,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
           <div className="mapping-panel">
             <div className="mapping-title"><div><ShieldCheck size={18} /><strong>Defina onde gravar os dados</strong></div><span>MAPEAMENTO DO MODELO</span></div>
             <div className="mapping-grid">
-              <label>Aba<select value={sheetName} onChange={event => { setSheetName(event.target.value); setCounts({}); setPendingCode(''); }}>{workbook.SheetNames.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
+              <label>Aba<select value={sheetName} onChange={event => { setSheetName(event.target.value); clearCurrentCounts(); setPendingCode(''); }}>{workbook.SheetNames.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
               <label>Código principal<select value={columns.code[0] ?? 0} onChange={event => setColumns(v => ({ ...v, code: [Number(event.target.value), ...(v.code[1] !== undefined && v.code[1] !== Number(event.target.value) ? [v.code[1]] : [])] }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
               <label>Código alternativo (opcional)<select value={columns.code[1] ?? -1} onChange={event => setColumns(v => ({ ...v, code: event.target.value === '-1' ? [v.code[0] ?? 0] : [v.code[0] ?? 0, Number(event.target.value)] }))}><option value={-1}>Não usar</option>{headers.map((h,i) => <option value={i} key={i} disabled={i === columns.code[0]}>{h}</option>)}</select></label>
               <label>Coluna da quantidade<select value={columns.quantity} onChange={event => setColumns(v => ({ ...v, quantity: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
@@ -836,16 +839,6 @@ function SharedCollections({token,isOwner}:{token:string;isOwner:boolean}) {
     return()=>{alive=false;window.clearInterval(timer);};
   },[active?.id,active?.collectionToken]);
   const leave=()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setError('');setNotice('Coleta desconectada deste dispositivo.');};
-  const finish=async()=>{
-    if(!active)return;
-    setBusy(true);setError('');
-    try{
-      const r=await fetch('/api/shared/finish',{method:'POST',headers:{Authorization:`Bearer ${active.collectionToken}`,'Content-Type':'application/json'},body:JSON.stringify({collectionId:active.id})});
-      const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível finalizar');
-      localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');
-    }catch(e){setError(e instanceof Error?e.message:'Falha ao finalizar');}
-    finally{setBusy(false);}
-  };
   return <section className="workspace" style={{maxWidth:980,margin:'28px auto'}}>
     <div className="section-heading"><div><span className="step-label">ÁREA COLABORATIVA</span><h2>Minhas coletas</h2><p>Crie uma sala de inventário ou entre usando o código recebido.</p></div></div>
     {isOwner&&<div className="mapping-panel" style={{marginBottom:18}}><div className="mapping-title"><strong>Cadastrar usuário</strong><span>CONTROLE DO DONO</span></div><div className="mapping-grid"><label>Nome<input value={newUser.name} onChange={e=>setNewUser(v=>({...v,name:e.target.value}))}/></label><label>Empresa<input value={newUser.company} onChange={e=>setNewUser(v=>({...v,company:e.target.value}))}/></label><label>E-mail<input type="email" value={newUser.email} onChange={e=>setNewUser(v=>({...v,email:e.target.value}))}/></label><label>Senha inicial<input type="password" minLength={8} value={newUser.password} onChange={e=>setNewUser(v=>({...v,password:e.target.value}))}/></label></div><button className="primary-button" style={{marginTop:12}} disabled={userBusy||!newUser.name||!newUser.company||!newUser.email||newUser.password.length<8} onClick={()=>void addUser()}>{userBusy?'Salvando…':'Cadastrar usuário'}</button>{userMessage&&<p className="mapping-note">{userMessage}</p>}<h3>Usuários cadastrados</h3><div className="product-list">{users.map(u=><div className="product-row" key={u.id}><div className="product-details"><strong>{u.display_name}</strong><span>{u.email} · {u.company_name} · {u.status==='active'?'ATIVO':'BLOQUEADO'}</span></div><button className="secondary-button" onClick={async()=>{const status=u.status==='active'?'disabled':'active';const r=await fetch('/api/shared/users',{method:'PATCH',headers:auth,body:JSON.stringify({id:u.id,status})});if(r.ok)setUsers(v=>v.map(x=>x.id===u.id?{...x,status}:x));}}> {u.status==='active'?'Bloquear':'Liberar'} </button></div>)}</div></div>}
@@ -854,7 +847,7 @@ function SharedCollections({token,isOwner}:{token:string;isOwner:boolean}) {
       {active.accessCode&&<div className="stat-card" style={{margin:'14px 0'}}><span>Código para convidar participantes</span><strong style={{letterSpacing:3}}>{active.accessCode}</strong><small>Compartilhe este código com quem vai participar.</small><button className="secondary-button" style={{marginTop:10}} onClick={()=>{void navigator.clipboard?.writeText(active.accessCode);setNotice('Código copiado.');}}>Copiar código</button></div>}
       <div className="stats-grid"><div className="stat-card"><span>Participantes</span><strong>{progress?.participants?.length??'—'}</strong><small>Pessoas vinculadas à coleta</small></div><div className="stat-card"><span>Códigos recebidos</span><strong>{progress?.totals?.length??'—'}</strong><small>Produtos com bipagens sincronizadas</small></div><div className="stat-card"><span>Unidades somadas</span><strong>{(progress?.totals||[]).reduce((n:number,x:any)=>n+Number(x.total_quantity||0),0)}</strong><small>Total recebido pelo servidor</small></div></div>
       <h3 style={{marginTop:22}}>Equipe</h3><div className="product-list">{(progress?.participants||[]).map((p:any)=><div className="product-row" key={p.id}><div className="product-details"><strong>{p.display_name}</strong><span>{p.role==='owner'?'DONO':'USUÁRIO'} · {p.status==='active'?'TRABALHANDO':p.status==='finished'?'FINALIZOU':'BLOQUEADO'} · {p.event_count||0} bipagem(ns) · {Number(p.total_units||0)} unidade(s) · {p.distinct_codes||0} código(s)</span><small>{p.last_scan_at?new Date(p.last_scan_at).toLocaleString('pt-BR'):'Ainda sem bipagens'}</small></div></div>)}{!progress&&<p>Carregando dados da coleta…</p>}</div>
-      <p className="mapping-note">O painel atualiza os dados recebidos a cada 3 segundos. As bipagens feitas no coletor local ainda não são enviadas automaticamente para esta sala; essa integração precisa ser concluída e testada antes de usar em inventário real.</p>
+      <p className="mapping-note">O painel atualiza os dados recebidos a cada 3 segundos. As bipagens feitas no coletor são salvas localmente e enviadas automaticamente quando há conexão.</p>
       <button className="secondary-button" onClick={leave}>Desconectar desta coleta</button>
     </div> : <div className="mapping-grid">
       {isOwner&&<div className="mapping-panel"><div className="mapping-title"><strong>Criar nova coleta</strong><span>DONO</span></div><label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label><button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()} onClick={()=>void create()}>Criar coleta compartilhada</button></div>}
