@@ -41,6 +41,25 @@ jobs:
           if ! wrangler pages project list | grep -Eq '(^|[[:space:]])coletaflow([[:space:]]|$)'; then
             wrangler pages project create coletaflow --production-branch main
           fi
+      - name: Diagnose Cloudflare Preview bindings (names only)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          curl -fsS "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/coletaflow" \\
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \\
+            -H "Content-Type: application/json" | node -e '
+          let raw=""; process.stdin.on("data", d => raw += d); process.stdin.on("end", () => {
+            const data=JSON.parse(raw);
+            if (!data.success) { console.error("Cloudflare API não confirmou leitura do projeto"); process.exit(1); }
+            for (const envName of ["preview", "production"]) {
+              const cfg=data.result?.deployment_configs?.[envName] || {};
+              const vars=cfg.env_vars || {};
+              const hyperdrive=cfg.hyperdrive_bindings || {};
+              console.log(envName.toUpperCase()+" variables: "+Object.entries(vars).map(([k,v])=>k+" ("+(v?.type||"tipo desconhecido")+")").join(", "));
+              console.log(envName.toUpperCase()+" Hyperdrive bindings: "+Object.keys(hyperdrive).join(", "));
+            }
+          });'
       - name: Deploy feature preview using dashboard bindings
 
         env:
