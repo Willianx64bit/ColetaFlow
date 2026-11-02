@@ -22,7 +22,12 @@ export default async function handler(req,res){
     WHERE c.id=$1 AND EXISTS(SELECT 1 FROM cf_participants p WHERE p.collection_id=c.id AND p.user_id=$2 AND p.role='owner' AND p.status='active')`,[collectionId,owner.id]);
   if(!owns.rowCount)return send(res,404,{error:'Coleta não encontrada ou não pertence ao dono'});
   const mapping={sheetName,headerRow,codeColumns,quantityColumn,descriptionColumn};
-  await db().query('UPDATE cf_collections SET template_mapping=$2::jsonb WHERE id=$1',[collectionId,JSON.stringify(mapping)]);
-  return send(res,200,{ok:true,mapping});
+  const saved=await db().query(`UPDATE cf_collections c SET template_mapping=$2::jsonb
+    WHERE c.id=$1 AND (
+      NOT EXISTS(SELECT 1 FROM cf_participants p WHERE p.collection_id=c.id AND p.role='user')
+      OR c.template_mapping=$2::jsonb
+    ) RETURNING c.template_mapping`,[collectionId,JSON.stringify(mapping)]);
+  if(!saved.rowCount)return send(res,409,{error:'O mapeamento não pode ser alterado depois que os usuários entram na coleta.'});
+  return send(res,200,{ok:true,mapping:saved.rows[0].template_mapping});
  }catch(e){console.error('shared mapping',e);return send(res,500,{error:'Não foi possível salvar o mapeamento'});}
 }
