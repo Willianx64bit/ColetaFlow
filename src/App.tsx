@@ -739,7 +739,8 @@ function AccountGate() {
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [user,setUser]=useState<{name:string;email:string;company:string;role:string}|null>(null);
-  const [token,setToken]=useState(()=>{try{return localStorage.getItem('coletaflow.auth.token')||'';}catch{return '';}});
+  const [token,setToken]=useState(()=>{try{return localStorage.getItem('coletaflow.auth.token')||'';}catch{return ''; }});
+  const [localMode,setLocalMode]=useState(false);
   useEffect(()=>{
     if(!token)return;
     let alive=true;
@@ -763,7 +764,8 @@ function AccountGate() {
     }catch(err){setError(err instanceof Error?err.message:'Erro de conexão');}
     finally{setBusy(false);}
   };
-  if(user)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow</strong><span>{user.name} · {user.company}</span><button onClick={()=>{localStorage.removeItem('coletaflow.auth.token');setToken('');setUser(null);}}>Sair</button></header><CollectorApp /></div>;
+  if(localMode)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow · modo local</strong><span>Funciona sem conta e mantém a coleta neste dispositivo.</span><button onClick={()=>setLocalMode(false)}>Acessar conta</button></header><CollectorApp /></div>;
+  if(user)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow</strong><span>{user.name} · {user.company}</span><button onClick={async()=>{try{await fetch('/api/shared/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}});}catch{} try{localStorage.removeItem('coletaflow.auth.token');}catch{} setToken('');setUser(null);}}>Sair</button></header><CollectorApp /></div>;
   return <main className="account-page"><section className="account-card">
     <div className="account-brand"><span className="account-mark">CF</span><div><strong>ColetaFlow</strong><small>Coleta colaborativa de inventário</small></div></div>
     <div className="account-intro"><span>ACESSO SEGURO</span><h1>{mode==='login'?'Entre na sua conta':'Crie sua conta'}</h1><p>{mode==='login'?'Acesse suas coletas e acompanhe sua equipe.':'Cadastre sua empresa para começar a organizar coletas.'}</p></div>
@@ -775,6 +777,7 @@ function AccountGate() {
       <button className="primary-button" type="submit" disabled={busy}>{busy?'Aguarde...':mode==='login'?'Entrar':'Criar conta'}</button>
     </form>
     <p className="account-switch">{mode==='login'?'Ainda não tem conta?':'Já possui conta?'} <button onClick={()=>{setMode(mode==='login'?'register':'login');setError('');}}>{mode==='login'?'Criar conta':'Fazer login'}</button></p>
+    <button type="button" className="secondary-button" style={{width:'100%',marginTop:12}} onClick={()=>setLocalMode(true)}>Continuar no modo local (sem conta)</button>
     <small className="account-security">Suas credenciais são protegidas e a senha não é armazenada em texto aberto.</small>
   </section></main>;
 }
