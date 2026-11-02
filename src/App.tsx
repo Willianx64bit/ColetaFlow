@@ -569,15 +569,6 @@ function CollectorApp() {
     setNotice('Contagem reiniciada. O modelo continua carregado.');
   };
 
-  const updateCount = (code: string, delta: number) => {
-    setCounts(previous => {
-      const next = Math.max(0, (previous[code] ?? 0) + delta);
-      const updated = { ...previous };
-      if (next === 0) delete updated[code]; else updated[code] = next;
-      return updated;
-    });
-  };
-
   return (
     <main className="app-shell">
       <header className="topbar">
