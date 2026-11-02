@@ -22,3 +22,11 @@ export async function participant(req,collectionId) {
     WHERE p.token_hash=$1 AND p.collection_id=$2 AND p.status='active'`,[hashToken(token),collectionId]);
   return r.rows[0]||null;
 }
+
+export async function loggedUser(req) {
+ const token=tokenFrom(req); if(!token)return null;
+ const r=await db().query(`SELECT u.id,u.email,u.display_name,u.company_name,u.role,u.status
+  FROM cf_user_sessions s JOIN cf_users u ON u.id=s.user_id
+  WHERE s.token_hash=$1 AND s.expires_at>now() AND u.status='active'`,[hashToken(token)]);
+ return r.rows[0]||null;
+}
