@@ -15,7 +15,7 @@ import {
   sync,
   template,
   users
-} from '../../../api/shared/index.js';
+} from '../../../lib/shared/index.js';
 
 const routes = {
   'bootstrap-owner': bootstrapOwner,
@@ -37,7 +37,7 @@ const routes = {
 };
 
 export async function onRequest({ request, env }) {
-  const { configureRuntime } = await import('../../../api/shared/_db.js');
+  const { configureRuntime } = await import('../../../lib/shared/_db.js');
   configureRuntime(env);
 
   const url = new URL(request.url);
