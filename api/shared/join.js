@@ -10,7 +10,14 @@ export default async function handler(req,res){
   if(!c.rows[0]||c.rows[0].status!=='open')return send(res,404,{error:'Coleta não encontrada ou encerrada'});
   if(!c.rows[0].template_mapping)return send(res,409,{error:'O dono ainda precisa confirmar o mapeamento da planilha antes de liberar a coleta'});
   const token=randomBytes(32).toString('base64url'),hash=createHash('sha256').update(token).digest('hex');
-  const p=await db().query("INSERT INTO cf_participants(collection_id,display_name,token_hash,role,user_id) VALUES($1,$2,$3,'user',$4) RETURNING id,display_name,role",[c.rows[0].id,user.display_name,hash,user.id]);
-  return send(res,201,{collection:c.rows[0],participant:p.rows[0],collectionToken:token});
+  const role=user.is_owner?'owner':'user';
+  const p=await db().query(`INSERT INTO cf_participants(collection_id,display_name,token_hash,role,user_id)
+    VALUES($1,$2,$3,$4,$5)
+    ON CONFLICT(collection_id,user_id) WHERE user_id IS NOT NULL
+    DO UPDATE SET display_name=EXCLUDED.display_name,token_hash=EXCLUDED.token_hash,
+      role=EXCLUDED.role,status='active',last_seen_at=now()
+    RETURNING id,display_name,role,status`,[c.rows[0].id,user.display_name,hash,role,user.id]);
+  if(!p.rowCount)return send(res,409,{error:'Não foi possível reativar sua participação nesta coleta'});
+  return send(res,200,{collection:c.rows[0],participant:p.rows[0],collectionToken:token});
  }catch(e){if(e.code==='23505')return send(res,409,{error:'Você já participa desta coleta ou seu nome já está em uso'});console.error('shared join',e);return send(res,500,{error:'Não foi possível entrar na coleta'});}
 }
