@@ -851,6 +851,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
   const [active,setActive]=useState<SharedCollectionState|null>(()=>{try{const saved=JSON.parse(localStorage.getItem('coletaflow.shared.active')||'null');return saved?.userId===userId?saved:null;}catch{return null;}});
   const [progress,setProgress]=useState<any>(null);
   const [busy,setBusy]=useState(false);
+  const [exportBusy,setExportBusy]=useState(false);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [users,setUsers]=useState<any[]>([]);
@@ -907,6 +908,23 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
     return()=>{alive=false;window.clearInterval(timer);};
   },[active?.id,active?.collectionToken]);
   const leave=()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setError('');setNotice('Coleta desconectada deste dispositivo.');};
+  const exportConsolidated=async()=>{
+    if(!active)return;
+    setExportBusy(true);setError('');
+    try{
+      const r=await fetch(`/api/shared/export?collectionId=${encodeURIComponent(active.id)}`,{headers:auth,cache:'no-store'});
+      const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível exportar');
+      const binary=atob(d.base64),bytes=new Uint8Array(binary.length);
+      for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+      const blob=new Blob([bytes],{type:d.mimeType||'application/octet-stream'});
+      const url=URL.createObjectURL(blob),anchor=document.createElement('a');
+      anchor.href=url;anchor.download=d.fileName||'coletaflow-coletado.xlsx';document.body.appendChild(anchor);anchor.click();anchor.remove();
+      window.setTimeout(()=>URL.revokeObjectURL(url),1500);
+      setNotice(`Planilha consolidada gerada: ${d.matchedCodes} códigos encontrados, ${d.unmatchedCodes} não encontrados e ${d.totalUnits} unidades.`);
+    }catch(e){setError(e instanceof Error?e.message:'Falha ao gerar a planilha consolidada.');}
+    finally{setExportBusy(false);}
+  };
+
   return <section className="workspace" style={{maxWidth:980,margin:'28px auto'}}>
     <div className="section-heading"><div><span className="step-label">ÁREA COLABORATIVA</span><h2>Minhas coletas</h2><p>Crie uma sala de inventário ou entre usando o código recebido.</p></div></div>
     {isOwner&&<div className="mapping-panel" style={{marginBottom:18}}><div className="mapping-title"><strong>Cadastrar usuário</strong><span>CONTROLE DO DONO</span></div><div className="mapping-grid"><label>Nome<input value={newUser.name} onChange={e=>setNewUser(v=>({...v,name:e.target.value}))}/></label><label>Empresa<input value={newUser.company} onChange={e=>setNewUser(v=>({...v,company:e.target.value}))}/></label><label>E-mail<input type="email" value={newUser.email} onChange={e=>setNewUser(v=>({...v,email:e.target.value}))}/></label><label>Senha inicial<input type="password" minLength={8} value={newUser.password} onChange={e=>setNewUser(v=>({...v,password:e.target.value}))}/></label></div><button className="primary-button" style={{marginTop:12}} disabled={userBusy||!newUser.name||!newUser.company||!newUser.email||newUser.password.length<8} onClick={()=>void addUser()}>{userBusy?'Salvando…':'Cadastrar usuário'}</button>{userMessage&&<p className="mapping-note">{userMessage}</p>}<h3>Usuários cadastrados</h3><div className="product-list">{users.map(u=><div className="product-row" key={u.id}><div className="product-details"><strong>{u.display_name}</strong><span>{u.email} · {u.company_name} · {u.status==='active'?'ATIVO':'BLOQUEADO'}</span></div><button className="secondary-button" onClick={async()=>{const status=u.status==='active'?'disabled':'active';const r=await fetch('/api/shared/users',{method:'PATCH',headers:auth,body:JSON.stringify({id:u.id,status})});if(r.ok)setUsers(v=>v.map(x=>x.id===u.id?{...x,status}:x));}}> {u.status==='active'?'Bloquear':'Liberar'} </button></div>)}</div></div>}
@@ -914,6 +932,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       <div className="mapping-title"><div><strong>{progress?.collection?.title||active.title}</strong></div><span>{progress?.collection?.status==='open'?'COLETA ABERTA':(progress?.collection?.status||'CONECTANDO').toUpperCase()}</span></div>
       {active.accessCode&&<div className="stat-card" style={{margin:'14px 0'}}><span>Código para convidar participantes</span><strong style={{letterSpacing:3}}>{active.accessCode}</strong><small>Compartilhe este código com quem vai participar.</small><button className="secondary-button" style={{marginTop:10}} onClick={()=>{void navigator.clipboard?.writeText(active.accessCode);setNotice('Código copiado.');}}>Copiar código</button></div>}
       <div className="stats-grid"><div className="stat-card"><span>Participantes</span><strong>{progress?.participants?.length??'—'}</strong><small>Pessoas vinculadas à coleta</small></div><div className="stat-card"><span>Códigos recebidos</span><strong>{progress?.totals?.length??'—'}</strong><small>Produtos com bipagens sincronizadas</small></div><div className="stat-card"><span>Unidades somadas</span><strong>{(progress?.totals||[]).reduce((n:number,x:any)=>n+Number(x.total_quantity||0),0)}</strong><small>Total recebido pelo servidor</small></div></div>
+       {isOwner&&<div className="mapping-panel" style={{marginTop:16}}><div className="mapping-title"><strong>Planilha consolidada</strong><span>{sharedTemplate?.mapping?'MAPEAMENTO CONFIRMADO':'AGUARDANDO MAPEAMENTO'}</span></div><p className="mapping-note">{sharedTemplate?.mapping?'O modelo original e as colunas confirmadas estão prontos para gerar o arquivo final.':'Abra a etapa Modelo no coletor, confira as colunas e aperte Continuar para liberar a entrada dos usuários.'}</p><button className="primary-button" disabled={exportBusy||!sharedTemplate?.mapping} onClick={()=>void exportConsolidated()}>{exportBusy?'Gerando planilha…':'Baixar planilha consolidada'}</button></div>}
       <h3 style={{marginTop:22}}>Equipe</h3><div className="product-list">{(progress?.participants||[]).map((p:any)=><div className="product-row" key={p.id}><div className="product-details"><strong>{p.display_name}</strong><span>{p.role==='owner'?'DONO':'USUÁRIO'} · {p.status==='active'?'TRABALHANDO':p.status==='finished'?'FINALIZOU':'BLOQUEADO'} · {p.event_count||0} evento(s) · {Number(p.total_units||0)} unidade(s) · {p.distinct_codes||0} código(s)</span><small>{p.last_scan_at?new Date(p.last_scan_at).toLocaleString('pt-BR'):'Ainda sem bipagens'}</small></div></div>)}{!progress&&<p>Carregando dados da coleta…</p>}</div>
       <p className="mapping-note">O painel atualiza os dados recebidos a cada 3 segundos. As bipagens feitas no coletor são salvas localmente e enviadas automaticamente quando há conexão.</p>
       <button className="secondary-button" onClick={leave}>Desconectar desta coleta</button>
