@@ -852,6 +852,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
   const [progress,setProgress]=useState<any>(null);
   const [busy,setBusy]=useState(false);
   const [exportBusy,setExportBusy]=useState(false);
+  const [closeBusy,setCloseBusy]=useState(false);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [users,setUsers]=useState<any[]>([]);
@@ -908,6 +909,19 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
     return()=>{alive=false;window.clearInterval(timer);};
   },[active?.id,token]);
   const leave=()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setError('');setNotice('Coleta desconectada deste dispositivo.');};
+  const closeCollection=async()=>{
+    if(!active)return;
+    const activeUsers=(progress?.participants||[]).filter((p:any)=>p.role==='user'&&p.status==='active').length;
+    if(activeUsers>0){setError(`Ainda existem ${activeUsers} usuário(s) trabalhando.`);return;}
+    setCloseBusy(true);setError('');
+    try{
+      const r=await fetch('/api/shared/close',{method:'POST',headers:auth,body:JSON.stringify({collectionId:active.id})});
+      const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível encerrar');
+      setProgress((current:any)=>current?{...current,collection:{...current.collection,...d.collection}}:current);
+      setNotice('Coleta encerrada. Agora você pode baixar a planilha consolidada.');
+    }catch(e){setError(e instanceof Error?e.message:'Falha ao encerrar a coleta.');}
+    finally{setCloseBusy(false);}
+  };
   const exportConsolidated=async()=>{
     if(!active)return;
     setExportBusy(true);setError('');
@@ -932,7 +946,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       <div className="mapping-title"><div><strong>{progress?.collection?.title||active.title}</strong></div><span>{progress?.collection?.status==='open'?'COLETA ABERTA':(progress?.collection?.status||'CONECTANDO').toUpperCase()}</span></div>
       {active.accessCode&&<div className="stat-card" style={{margin:'14px 0'}}><span>Código para convidar participantes</span><strong style={{letterSpacing:3}}>{active.accessCode}</strong><small>Compartilhe este código com quem vai participar.</small><button className="secondary-button" style={{marginTop:10}} onClick={()=>{void navigator.clipboard?.writeText(active.accessCode);setNotice('Código copiado.');}}>Copiar código</button></div>}
       <div className="stats-grid"><div className="stat-card"><span>Participantes</span><strong>{progress?.participants?.length??'—'}</strong><small>Pessoas vinculadas à coleta</small></div><div className="stat-card"><span>Códigos recebidos</span><strong>{progress?.totals?.length??'—'}</strong><small>Produtos com bipagens sincronizadas</small></div><div className="stat-card"><span>Unidades somadas</span><strong>{(progress?.totals||[]).reduce((n:number,x:any)=>n+Number(x.total_quantity||0),0)}</strong><small>Total recebido pelo servidor</small></div></div>
-       {isOwner&&<div className="mapping-panel" style={{marginTop:16}}><div className="mapping-title"><strong>Planilha consolidada</strong><span>{sharedTemplate?.mapping?'MAPEAMENTO CONFIRMADO':'AGUARDANDO MAPEAMENTO'}</span></div><p className="mapping-note">{sharedTemplate?.mapping?'O modelo original e as colunas confirmadas estão prontos para gerar o arquivo final.':'Abra a etapa Modelo no coletor, confira as colunas e aperte Continuar para liberar a entrada dos usuários.'}</p><button className="primary-button" disabled={exportBusy||!sharedTemplate?.mapping} onClick={()=>void exportConsolidated()}>{exportBusy?'Gerando planilha…':'Baixar planilha consolidada'}</button></div>}
+       {isOwner&&<div className="mapping-panel" style={{marginTop:16}}><div className="mapping-title"><strong>Planilha consolidada</strong><span>{sharedTemplate?.mapping?'MAPEAMENTO CONFIRMADO':'AGUARDANDO MAPEAMENTO'}</span></div><p className="mapping-note">{sharedTemplate?.mapping?'O modelo original e as colunas confirmadas estão prontos para gerar o arquivo final.':'Abra a etapa Modelo no coletor, confira as colunas e aperte Continuar para liberar a entrada dos usuários.'}</p>{progress?.collection?.status==='open'&&<button className="secondary-button" style={{marginBottom:10}} disabled={closeBusy||!progress||(progress?.participants||[]).some((p:any)=>p.role==='user'&&p.status==='active')} onClick={()=>void closeCollection()}>{closeBusy?'Encerrando…':'Encerrar coleta'}</button>}<button className="primary-button" disabled={exportBusy||!sharedTemplate?.mapping} onClick={()=>void exportConsolidated()}>{exportBusy?'Gerando planilha…':'Baixar planilha consolidada'}</button></div>}
       <h3 style={{marginTop:22}}>Equipe</h3><div className="product-list">{(progress?.participants||[]).map((p:any)=><div className="product-row" key={p.id}><div className="product-details"><strong>{p.display_name}</strong><span>{p.role==='owner'?'DONO':'USUÁRIO'} · {p.status==='active'?'TRABALHANDO':p.status==='finished'?'FINALIZOU':'BLOQUEADO'} · {p.event_count||0} evento(s) · {Number(p.total_units||0)} unidade(s) · {p.distinct_codes||0} código(s)</span><small>{p.last_scan_at?new Date(p.last_scan_at).toLocaleString('pt-BR'):'Ainda sem bipagens'}</small></div></div>)}{!progress&&<p>Carregando dados da coleta…</p>}</div>
       <p className="mapping-note">O painel atualiza os dados recebidos a cada 3 segundos. As bipagens feitas no coletor são salvas localmente e enviadas automaticamente quando há conexão.</p>
       <button className="secondary-button" onClick={leave}>Desconectar desta coleta</button>
