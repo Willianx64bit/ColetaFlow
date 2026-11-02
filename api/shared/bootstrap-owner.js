@@ -5,7 +5,12 @@ export default async function handler(req,res){
  try{
   const expected=runtimeSecret('COLETAFLOW_OWNER_SETUP_KEY'),emailAllowed=String(runtimeSecret('COLETAFLOW_OWNER_EMAIL')).trim().toLowerCase();
   const body=await readJson(req),key=String(body.setupKey||''),email=String(body.email||'').trim().toLowerCase(),name=String(body.name||'').trim().slice(0,80),password=String(body.password||'');
-  if(!expected||!emailAllowed)return send(res,503,{error:'Configuração inicial do dono ainda não foi habilitada.'});
+  if(!expected||!emailAllowed){
+   const missing=[];
+   if(!emailAllowed)missing.push('COLETAFLOW_OWNER_EMAIL');
+   if(!expected)missing.push('COLETAFLOW_OWNER_SETUP_KEY');
+   return send(res,503,{error:'Configuração inicial do dono ainda não foi habilitada.',diagnostic:{missing,hasHyperdrive:Boolean(runtimeSecret('HYPERDRIVE'))}});
+  }
   const supplied=Buffer.from(key),configured=Buffer.from(expected);
   if(!key||supplied.length!==configured.length||!timingSafeEqual(supplied,configured))return send(res,403,{error:'Chave de configuração inválida'});
   if(email!==emailAllowed||!name||password.length<10||password.length>128)return send(res,400,{error:'Confira o e-mail autorizado, nome e senha (mínimo 10 caracteres).'});
