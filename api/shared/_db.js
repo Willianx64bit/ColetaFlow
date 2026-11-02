@@ -18,8 +18,11 @@ export function tokenFrom(req) { const h=req.headers.authorization||''; return h
 export async function participant(req,collectionId) {
   const token=tokenFrom(req); if (!token) return null;
   const r=await db().query(`SELECT p.id,p.collection_id,p.role,p.display_name,p.status,c.status AS collection_status
-    FROM cf_participants p JOIN cf_collections c ON c.id=p.collection_id
-    WHERE p.token_hash=$1 AND p.collection_id=$2 AND p.status='active'`,[hashToken(token),collectionId]);
+    FROM cf_participants p
+    JOIN cf_collections c ON c.id=p.collection_id
+    LEFT JOIN cf_users u ON u.id=p.user_id
+    WHERE p.token_hash=$1 AND p.collection_id=$2 AND p.status='active'
+      AND (p.user_id IS NULL OR u.status='active')`,[hashToken(token),collectionId]);
   return r.rows[0]||null;
 }
 
