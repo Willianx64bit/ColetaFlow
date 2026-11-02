@@ -471,3 +471,16 @@ body[data-theme="dark"] .review-quantity-editor input{background:#0b1726;border-
 .review-search-box .scan-camera-inline{flex:0 0 42px;width:42px;height:42px;border:0;border-radius:10px;background:#e7f5f9;color:#1686a3;display:grid;place-items:center}
 .review-search-box .scan-camera-inline:disabled{opacity:.45}
 body[data-theme="dark"] .review-search-box .scan-camera-inline{background:#203b50;color:#82d8ee}
+
+
+/* Conferência: editor de quantidade compacto e alinhado */
+.product-row{flex-wrap:wrap}
+.review-quantity-editor{flex:1 0 100%;display:flex;align-items:center;gap:10px;margin:3px 0 0;padding:12px;background:#f5f9fc;border:1px solid #e3edf3!important;border-radius:10px}
+.review-quantity-editor label{flex:1;min-width:110px;display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:10px;color:#60758a;font-size:11px;font-weight:700}
+.review-quantity-editor input{width:88px;height:38px;padding:0 10px;border:1px solid #cbd8e3;border-radius:8px;background:#fff;color:#19344b;font-size:14px;font-weight:700}
+.review-quantity-editor .primary-button{min-height:38px;padding:0 14px}
+.review-quantity-editor .text-button{min-height:38px;padding:0 10px}
+body[data-theme="dark"] .review-quantity-editor{background:#1a2b3d;border-color:#34495f!important}
+body[data-theme="dark"] .review-quantity-editor label{color:#b8c9db}
+body[data-theme="dark"] .review-quantity-editor input{background:#0b1726;border-color:#3b566e;color:#f2f7fc}
+@media(max-width:480px){.review-quantity-editor{gap:7px;padding:9px}.review-quantity-editor label{font-size:10px}.review-quantity-editor input{width:76px}.review-quantity-editor .primary-button{padding:0 11px}.review-quantity-editor .text-button{padding:0 7px}}
