@@ -2,6 +2,37 @@
 
 **Coletor inteligente universal de produtos.**
 
+## Desenvolvimento compartilhado (branch feature/shared-collections)
+
+O projeto está evoluindo para dois tipos de conta, sem cadastro público:
+
+- **Dono:** existe um único proprietário da plataforma, identificado por `cf_platform_owner`. Somente ele cria coletas, cadastra usuários e bloqueia/libera acessos.
+- **Usuários:** contas criadas manualmente pelo dono, com e-mail e senha inicial próprios.
+- Não existe conta de gerente ou supervisor. O endpoint legado de cadastro público permanece bloqueado.
+- O modo local continua independente: não exige login nem internet para coletar e exportar neste dispositivo.
+- Nas coletas compartilhadas, as leituras e ajustes são eventos independentes com UUID. O cliente mantém eventos pendentes no IndexedDB e tenta sincronizá-los quando a conexão volta. O servidor usa o UUID para evitar duplicação e rejeita reutilização do mesmo identificador com conteúdo diferente.
+- O painel apresenta o progresso por participante e a situação de conclusão.
+
+### Configuração inicial do proprietário (ambiente Preview)
+
+Configure estas variáveis somente no ambiente **Preview** da Vercel durante os testes:
+
+- `DATABASE_URL`: conexão do branch Neon de teste `br-delicate-cloud-b63jsp4d`.
+- `COLETAFLOW_OWNER_EMAIL`: e-mail autorizado para a única conta de dono.
+- `COLETAFLOW_OWNER_SETUP_KEY`: chave aleatória forte, criada pelo proprietário e mantida como segredo.
+
+Depois de configurar as variáveis, abra a tela de login, escolha **Primeiro acesso do dono** e informe a chave, o e-mail autorizado, o nome e uma senha inicial com pelo menos 10 caracteres. A configuração é de uso único; depois que a conta do dono existir, o endpoint não cria outro proprietário.
+
+### Migrações
+
+- `001_shared_collections.sql`: estrutura base completa para uma instalação nova.
+- `002_owner_user_roles.sql`: normaliza os papéis para `owner` e `user`.
+- `003_independent_scan_events.sql`: habilita eventos de ajuste assinados sem apagar eventos anteriores.
+
+Aplicações de migração e testes de banco devem usar o branch Neon de teste, nunca o branch principal.
+
+**Ainda em desenvolvimento:** envio do modelo original pelo dono, distribuição automática do modelo aos participantes, exportação consolidada no formato original e testes ponta a ponta em dispositivos reais. Não usar para inventário comercial até esses itens serem validados.
+
 
 ## Estado do desenvolvimento
 
