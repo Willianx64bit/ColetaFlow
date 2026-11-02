@@ -1049,7 +1049,11 @@ function AccountGate() {
     try{
       const response=await fetch('/api/shared/bootstrap-owner',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({setupKey,email:setupEmail,name:setupName,password:setupPassword})});
       const data=await response.json();
-      if(!response.ok)throw new Error(data.error||'Não foi possível configurar o dono');
+      if(!response.ok){
+        const diagnostic=data.diagnostic;
+        const details=diagnostic ? ` Diagnóstico: variáveis ausentes: ${diagnostic.missing?.length ? diagnostic.missing.join(', ') : 'nenhuma'}. Hyperdrive disponível: ${diagnostic.hasHyperdrive ? 'sim' : 'não'}.` : '';
+        throw new Error((data.error||'Não foi possível configurar o dono')+details);
+      }
       localStorage.setItem('coletaflow.auth.token',data.token);
       setUser({id:data.user.id,name:data.user.display_name,email:data.user.email,company:data.user.company_name,role:'owner',isOwner:true});
       setToken(data.token);
