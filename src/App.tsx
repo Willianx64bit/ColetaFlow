@@ -731,7 +731,7 @@ function CollectorApp() {
 
 
 type SharedCollectionState = { id:string; title:string; accessCode:string; collectionToken:string; role:string };
-function SharedCollections({token}:{token:string}) {
+function SharedCollections({token,isOwner}:{token:string;isOwner:boolean}) {
   const [title,setTitle]=useState('Inventário compartilhado');
   const [accessCode,setAccessCode]=useState('');
   const [active,setActive]=useState<SharedCollectionState|null>(()=>{try{return JSON.parse(localStorage.getItem('coletaflow.shared.active')||'null');}catch{return null;}});
@@ -739,6 +739,10 @@ function SharedCollections({token}:{token:string}) {
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
+  const [users,setUsers]=useState<any[]>([]);
+  const [newUser,setNewUser]=useState({name:'',company:'',email:'',password:''});
+  const [userBusy,setUserBusy]=useState(false);
+  const [userMessage,setUserMessage]=useState('');
   const auth={Authorization:`Bearer ${token}`,'Content-Type':'application/json'};
   const activate=(data:any)=>{
     const next={id:data.collection.id,title:data.collection.title,accessCode:data.collection.access_code||'',collectionToken:data.collectionToken,role:data.participant?.role||'manager'};
@@ -754,6 +758,8 @@ function SharedCollections({token}:{token:string}) {
     try{const r=await fetch('/api/shared/join',{method:'POST',headers:auth,body:JSON.stringify({accessCode})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao entrar na coleta');activate(d);}
     catch(e){setError(e instanceof Error?e.message:'Erro de conexão');}finally{setBusy(false);}
   };
+  useEffect(()=>{if(!isOwner)return;let alive=true;const loadUsers=async()=>{try{const r=await fetch('/api/shared/users',{headers:auth,cache:'no-store'});const d=await r.json();if(r.ok&&alive)setUsers(d.users||[]);}catch{}};void loadUsers();return()=>{alive=false;};},[token,isOwner]);
+  const addUser=async()=>{setUserBusy(true);setUserMessage('');try{const r=await fetch('/api/shared/users',{method:'POST',headers:auth,body:JSON.stringify(newUser)});const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível cadastrar');setUsers(v=>[d.user,...v]);setNewUser({name:'',company:'',email:'',password:''});setUserMessage('Usuário cadastrado.');}catch(e){setUserMessage(e instanceof Error?e.message:'Erro de conexão');}finally{setUserBusy(false);}};
   useEffect(()=>{
     if(!active)return;
     let alive=true;
@@ -765,15 +771,16 @@ function SharedCollections({token}:{token:string}) {
   const leave=()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setError('');setNotice('Coleta desconectada deste dispositivo.');};
   return <section className="workspace" style={{maxWidth:980,margin:'28px auto'}}>
     <div className="section-heading"><div><span className="step-label">ÁREA COLABORATIVA</span><h2>Minhas coletas</h2><p>Crie uma sala de inventário ou entre usando o código recebido.</p></div></div>
+    {isOwner&&<div className="mapping-panel" style={{marginBottom:18}}><div className="mapping-title"><strong>Cadastrar usuário</strong><span>CONTROLE DO DONO</span></div><div className="mapping-grid"><label>Nome<input value={newUser.name} onChange={e=>setNewUser(v=>({...v,name:e.target.value}))}/></label><label>Empresa<input value={newUser.company} onChange={e=>setNewUser(v=>({...v,company:e.target.value}))}/></label><label>E-mail<input type="email" value={newUser.email} onChange={e=>setNewUser(v=>({...v,email:e.target.value}))}/></label><label>Senha inicial<input type="password" minLength={8} value={newUser.password} onChange={e=>setNewUser(v=>({...v,password:e.target.value}))}/></label></div><button className="primary-button" style={{marginTop:12}} disabled={userBusy||!newUser.name||!newUser.company||!newUser.email||newUser.password.length<8} onClick={()=>void addUser()}>{userBusy?'Salvando…':'Cadastrar usuário'}</button>{userMessage&&<p className="mapping-note">{userMessage}</p>}<h3>Usuários cadastrados</h3><div className="product-list">{users.map(u=><div className="product-row" key={u.id}><div className="product-details"><strong>{u.display_name}</strong><span>{u.email} · {u.company_name} · {u.status==='active'?'ATIVO':'BLOQUEADO'}</span></div><button className="secondary-button" onClick={async()=>{const status=u.status==='active'?'disabled':'active';const r=await fetch('/api/shared/users',{method:'PATCH',headers:auth,body:JSON.stringify({id:u.id,status})});if(r.ok)setUsers(v=>v.map(x=>x.id===u.id?{...x,status}:x));}}> {u.status==='active'?'Bloquear':'Liberar'} </button></div>)}</div></div>}
     {active ? <div className="mapping-panel">
       <div className="mapping-title"><div><strong>{progress?.collection?.title||active.title}</strong></div><span>{progress?.collection?.status==='open'?'COLETA ABERTA':(progress?.collection?.status||'CONECTANDO').toUpperCase()}</span></div>
       {active.accessCode&&<div className="stat-card" style={{margin:'14px 0'}}><span>Código para convidar participantes</span><strong style={{letterSpacing:3}}>{active.accessCode}</strong><small>Compartilhe este código com quem vai participar.</small><button className="secondary-button" style={{marginTop:10}} onClick={()=>{void navigator.clipboard?.writeText(active.accessCode);setNotice('Código copiado.');}}>Copiar código</button></div>}
       <div className="stats-grid"><div className="stat-card"><span>Participantes</span><strong>{progress?.participants?.length??'—'}</strong><small>Pessoas vinculadas à coleta</small></div><div className="stat-card"><span>Códigos recebidos</span><strong>{progress?.totals?.length??'—'}</strong><small>Produtos com bipagens sincronizadas</small></div><div className="stat-card"><span>Unidades somadas</span><strong>{(progress?.totals||[]).reduce((n:number,x:any)=>n+Number(x.total_quantity||0),0)}</strong><small>Total recebido pelo servidor</small></div></div>
-      <h3 style={{marginTop:22}}>Equipe</h3><div className="product-list">{(progress?.participants||[]).map((p:any)=><div className="product-row" key={p.id}><div className="product-details"><strong>{p.display_name}</strong><span>{p.role==='manager'?'GERENTE':'COLETOR'} · {p.status==='active'?'ATIVO':p.status.toUpperCase()}</span></div></div>)}{!progress&&<p>Carregando dados da coleta…</p>}</div>
+      <h3 style={{marginTop:22}}>Equipe</h3><div className="product-list">{(progress?.participants||[]).map((p:any)=><div className="product-row" key={p.id}><div className="product-details"><strong>{p.display_name}</strong><span>USUÁRIO · {p.status==='active'?'ATIVO':p.status.toUpperCase()}</span></div></div>)}{!progress&&<p>Carregando dados da coleta…</p>}</div>
       <p className="mapping-note">O painel atualiza os dados recebidos a cada 3 segundos. As bipagens feitas no coletor local ainda não são enviadas automaticamente para esta sala; essa integração precisa ser concluída e testada antes de usar em inventário real.</p>
       <button className="secondary-button" onClick={leave}>Desconectar desta coleta</button>
     </div> : <div className="mapping-grid">
-      <div className="mapping-panel"><div className="mapping-title"><strong>Criar nova coleta</strong><span>GERENTE</span></div><label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label><button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()} onClick={()=>void create()}>Criar coleta compartilhada</button></div>
+      {isOwner&&<div className="mapping-panel"><div className="mapping-title"><strong>Criar nova coleta</strong><span>DONO</span></div><label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label><button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()} onClick={()=>void create()}>Criar coleta compartilhada</button></div>}
       <div className="mapping-panel"><div className="mapping-title"><strong>Entrar em uma coleta</strong><span>PARTICIPANTE</span></div><label>Código de acesso<input value={accessCode} onChange={e=>setAccessCode(e.target.value.toUpperCase().replace(/[^A-F0-9]/g,'').slice(0,8))} placeholder="Ex.: A1B2C3D4" maxLength={8}/></label><button className="secondary-button" style={{marginTop:14}} disabled={busy||accessCode.length!==8} onClick={()=>void join()}>Entrar na coleta</button></div>
     </div>}
     {busy&&<p>Aguarde…</p>}{error&&<div className="account-error">{error}</div>}{notice&&<p className="mapping-note">{notice}</p>}
@@ -782,14 +789,12 @@ function SharedCollections({token}:{token:string}) {
 
 
 function AccountGate() {
-  const [mode,setMode]=useState<'login'|'register'>('login');
-  const [name,setName]=useState('');
-  const [company,setCompany]=useState('');
+  const [mode]=useState<'login'>('login');
   const [email,setEmail]=useState('');
   const [password,setPassword]=useState('');
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
-  const [user,setUser]=useState<{name:string;email:string;company:string;role:string}|null>(null);
+  const [user,setUser]=useState<{name:string;email:string;company:string;role:string;isOwner:boolean}|null>(null);
   const [token,setToken]=useState(()=>{try{return localStorage.getItem('coletaflow.auth.token')||'';}catch{return ''; }});
   const [localMode,setLocalMode]=useState(false);
   useEffect(()=>{
@@ -797,37 +802,35 @@ function AccountGate() {
     let alive=true;
     fetch('/api/shared/me',{headers:{Authorization:`Bearer ${token}`}})
       .then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||'Sessão expirada');return d;})
-      .then(d=>{if(alive)setUser({name:d.user.display_name,email:d.user.email,company:d.user.company_name,role:d.user.role});})
+      .then(d=>{if(alive)setUser({name:d.user.display_name,email:d.user.email,company:d.user.company_name,role:d.user.role,isOwner:!!d.user.is_owner});})
       .catch(()=>{try{localStorage.removeItem('coletaflow.auth.token');}catch{} if(alive){setToken('');setUser(null);}});
     return()=>{alive=false;};
   },[token]);
   const submit=async(e:FormEvent)=>{
     e.preventDefault();setBusy(true);setError('');
     try{
-      const endpoint=mode==='login'?'/api/shared/login':'/api/shared/register';
-      const payload=mode==='login'?{email,password}:{name,company,email,password};
+      const endpoint='/api/shared/login';
+      const payload={email,password};
       const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       const data=await response.json();
       if(!response.ok)throw new Error(data.error||'Não foi possível continuar');
       localStorage.setItem('coletaflow.auth.token',data.token);
-      setUser(mode==='login'?data.user:{name:data.user.display_name,email:data.user.email,company:data.user.company_name,role:data.user.role});
+      setUser({...data.user,isOwner:!!data.user.is_owner});
       setToken(data.token);
     }catch(err){setError(err instanceof Error?err.message:'Erro de conexão');}
     finally{setBusy(false);}
   };
   if(localMode)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow · modo local</strong><span>Funciona sem conta e mantém a coleta neste dispositivo.</span><button onClick={()=>setLocalMode(false)}>Acessar conta</button></header><CollectorApp /></div>;
-  if(user)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow</strong><span>{user.name} · {user.company}</span><button onClick={async()=>{try{await fetch('/api/shared/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}});}catch{} try{localStorage.removeItem('coletaflow.auth.token');}catch{} setToken('');setUser(null);}}>Sair</button></header><SharedCollections token={token}/></div>;
+  if(user)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow</strong><span>{user.name} · {user.company}</span><button onClick={async()=>{try{await fetch('/api/shared/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}});}catch{} try{localStorage.removeItem('coletaflow.auth.token');}catch{} setToken('');setUser(null);}}>Sair</button></header><SharedCollections token={token} isOwner={!!user.isOwner}/></div>;
   return <main className="account-page"><section className="account-card">
     <div className="account-brand"><span className="account-mark">CF</span><div><strong>ColetaFlow</strong><small>Coleta colaborativa de inventário</small></div></div>
-    <div className="account-intro"><span>ACESSO SEGURO</span><h1>{mode==='login'?'Entre na sua conta':'Crie sua conta'}</h1><p>{mode==='login'?'Acesse suas coletas e acompanhe sua equipe.':'Cadastre sua empresa para começar a organizar coletas.'}</p></div>
+    <div className="account-intro"><span>ACESSO SEGURO</span><h1>Entre na sua conta</h1><p>Acesse as coletas liberadas para você.</p></div>
     <form className="account-form" onSubmit={submit}>
-      {mode==='register'&&<><label>Seu nome<input required value={name} onChange={e=>setName(e.target.value)} autoComplete="name" placeholder="Nome completo"/></label><label>Empresa<input required value={company} onChange={e=>setCompany(e.target.value)} placeholder="Nome da empresa"/></label></>}
       <label>E-mail<input required type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email" placeholder="voce@empresa.com"/></label>
-      <label>Senha<input required type="password" minLength={8} value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==='login'?'current-password':'new-password'} placeholder="Mínimo de 8 caracteres"/></label>
+      <label>Senha<input required type="password" minLength={8} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password" placeholder="Mínimo de 8 caracteres"/></label>
       {error&&<div className="account-error">{error}</div>}
-      <button className="primary-button" type="submit" disabled={busy}>{busy?'Aguarde...':mode==='login'?'Entrar':'Criar conta'}</button>
+      <button className="primary-button" type="submit" disabled={busy}>{busy?'Aguarde...':'Entrar'}</button>
     </form>
-    <p className="account-switch">{mode==='login'?'Ainda não tem conta?':'Já possui conta?'} <button onClick={()=>{setMode(mode==='login'?'register':'login');setError('');}}>{mode==='login'?'Criar conta':'Fazer login'}</button></p>
     <button type="button" className="secondary-button" style={{width:'100%',marginTop:12}} onClick={()=>setLocalMode(true)}>Continuar no modo local (sem conta)</button>
     <small className="account-security">Suas credenciais são protegidas e a senha não é armazenada em texto aberto.</small>
   </section></main>;
