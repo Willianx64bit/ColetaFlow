@@ -41,38 +41,69 @@ jobs:
           if ! wrangler pages project list | grep -Eq '(^|[[:space:]])coletaflow([[:space:]]|$)'; then
             wrangler pages project create coletaflow --production-branch main
           fi
-      - name: Validate Cloudflare Preview bindings (names only)
+      - name: Configure Cloudflare Preview bindings securely
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          COLETAFLOW_OWNER_SETUP_KEY: ${{ secrets.COLETAFLOW_OWNER_SETUP_KEY }}
         run: |
-          curl -fsS "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/coletaflow" -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" | node -e '
-          let raw = "";
-          process.stdin.on("data", d => raw += d);
-          process.stdin.on("end", () => {
-            const data = JSON.parse(raw);
-            if (!data.success) {
-              console.error("Cloudflare API não confirmou leitura do projeto");
-              process.exit(1);
+          node <<'NODE'
+          const base = `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/pages/projects/coletaflow`;
+          const headers = {
+            Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
+            "Content-Type": "application/json"
+          };
+          async function api(method, body) {
+            const response = await fetch(base, {
+              method,
+              headers,
+              ...(body ? { body: JSON.stringify(body) } : {})
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+              const errors = (data.errors || []).map(e => e.message).join("; ");
+              throw new Error(`Cloudflare API ${method} falhou (${response.status}): ${errors || "sem detalhes"}`);
             }
-            const cfg = data.result?.deployment_configs?.preview || {};
-            const vars = cfg.env_vars || {};
-            const hyperdrive = cfg.hyperdrive_bindings || {};
-            const required = ["COLETAFLOW_OWNER_EMAIL", "COLETAFLOW_OWNER_SETUP_KEY"];
-            const missing = required.filter(name => !vars[name]);
-            const missingTypes = required.filter(name => vars[name] && vars[name].type !== (name.endsWith("SETUP_KEY") ? "secret_text" : "plain_text"));
-            const hasHyperdrive = Object.prototype.hasOwnProperty.call(hyperdrive, "HYPERDRIVE");
-            console.log("PREVIEW variables: " + Object.entries(vars).map(([k, v]) => k + " (" + (v?.type || "tipo desconhecido") + ")").join(", "));
-            console.log("PREVIEW Hyperdrive bindings: " + Object.keys(hyperdrive).join(", "));
-            if (missing.length || missingTypes.length || !hasHyperdrive) {
-              console.error("PREVIEW INCOMPLETO. Em Cloudflare > Workers & Pages > coletaflow > Settings > Variables and Secrets, configure no ambiente Preview: COLETAFLOW_OWNER_EMAIL (Text), COLETAFLOW_OWNER_SETUP_KEY (Secret) e HYPERDRIVE apontando para coletaflow-db.");
-              if (missing.length) console.error("Ausentes: " + missing.join(", "));
-              if (missingTypes.length) console.error("Tipo incorreto: " + missingTypes.join(", "));
-              if (!hasHyperdrive) console.error("Binding ausente: HYPERDRIVE");
-              process.exit(1);
+            return data.result;
+          }
+          (async () => {
+            const key = process.env.COLETAFLOW_OWNER_SETUP_KEY;
+            if (!key || key.length < 32) throw new Error("Secret COLETAFLOW_OWNER_SETUP_KEY ausente ou menor que 32 caracteres.");
+            const project = await api("GET");
+            const production = project.deployment_configs?.production || {};
+            const productionVars = production.env_vars || {};
+            const email = productionVars.COLETAFLOW_OWNER_EMAIL?.value;
+            const hyperdriveId = production.hyperdrive_bindings?.HYPERDRIVE?.id;
+            if (!email) throw new Error("Não encontrei COLETAFLOW_OWNER_EMAIL na configuração de Produção; não vou inventar nem alterar esse dado.");
+            if (!hyperdriveId) throw new Error("Não encontrei o ID do Hyperdrive HYPERDRIVE na Produção; não vou criar um vínculo incorreto.");
+            await api("PATCH", {
+              deployment_configs: {
+                preview: {
+                  env_vars: {
+                    COLETAFLOW_OWNER_EMAIL: { type: "plain_text", value: email },
+                    COLETAFLOW_OWNER_SETUP_KEY: { type: "secret_text", value: key }
+                  },
+                  hyperdrive_bindings: {
+                    HYPERDRIVE: { id: hyperdriveId }
+                  }
+                }
+              }
+            });
+            const updated = await api("GET");
+            const preview = updated.deployment_configs?.preview || {};
+            const vars = preview.env_vars || {};
+            const bindings = preview.hyperdrive_bindings || {};
+            if (vars.COLETAFLOW_OWNER_EMAIL?.type !== "plain_text" ||
+                vars.COLETAFLOW_OWNER_SETUP_KEY?.type !== "secret_text" ||
+                !bindings.HYPERDRIVE?.id) {
+              throw new Error("Cloudflare não confirmou todas as configurações no Preview.");
             }
-            console.log("Preview possui os nomes e tipos de bindings necessários.");
-          });'
+            console.log("Preview configurado e verificado: e-mail do dono, chave secreta e Hyperdrive HYPERDRIVE.");
+          })().catch(error => {
+            console.error(error.message);
+            process.exit(1);
+          });
+          NODE
       - name: Deploy feature preview using dashboard bindings
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
