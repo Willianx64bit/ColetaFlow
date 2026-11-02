@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 type ColumnMap = { code: number[]; quantity: number; description: number };
-type ScanEvent = { eventId: string; barcode: string; quantity: number; eventType: 'scan' | 'adjustment'; scannedAt: string; deviceId: string };
+type ScanEvent = { eventId: string; barcode: string; quantity: number; eventType: 'scan' | 'adjustment'; scannedAt: string; deviceId: string; description?: string };
 type SavedSession = {
   workbookBytes?: ArrayBuffer | Uint8Array | number[] | null;
   fileName?: string;
@@ -24,6 +24,7 @@ type SavedSession = {
   quickCollectEnabled?: boolean;
   quickCollectQuantity?: number;
   scanEvents?: ScanEvent[];
+  hasProductList?: boolean;
 };
 const STORAGE_KEY = 'coletaflow.blind-session.v2';
 const SESSION_DB = 'coletaflow-session-db';
@@ -89,6 +90,8 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
   const [sheetName, setSheetName] = useState('');
   const [headerRow, setHeaderRow] = useState(0);
   const [columns, setColumns] = useState<ColumnMap>({ code: [0], quantity: 1, description: -1 });
+  const [hasProductList, setHasProductList] = useState(true);
+  const [pendingDescription, setPendingDescription] = useState('');
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [scanEvents, setScanEvents] = useState<ScanEvent[]>([]);
   const scanEventsRef = useRef<ScanEvent[]>([]);
@@ -134,14 +137,14 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
   const removeAllLongPressHandled = useRef(false);
   const syncInFlightRef = useRef(false);
 
-  const recordEvent = (barcode: string, quantity: number, eventType: 'scan' | 'adjustment' = 'scan') => {
+  const recordEvent = (barcode: string, quantity: number, eventType: 'scan' | 'adjustment' = 'scan', description = '') => {
     if (!sharedCollection || !barcode || !Number.isFinite(quantity) || quantity === 0) return;
     let deviceId = 'device-unknown';
     try {
       deviceId = localStorage.getItem('coletaflow.device-id') || crypto.randomUUID();
       localStorage.setItem('coletaflow.device-id', deviceId);
     } catch { /* o identificador do dispositivo é apenas auxiliar */ }
-    const event={ eventId: crypto.randomUUID(), barcode, quantity, eventType, scannedAt: new Date().toISOString(), deviceId };
+    const event={ eventId: crypto.randomUUID(), barcode, quantity, eventType, scannedAt: new Date().toISOString(), deviceId, ...(description.trim()?{description:description.trim()}: {}) };
     const next=[...scanEventsRef.current,event];
     scanEventsRef.current=next;
     setScanEvents(next);
@@ -229,6 +232,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
           setHeaderRow(Math.max(0, Number(session.headerRow ?? 0) || 0));
           setColumns(session.columns ? { ...session.columns, code: Array.isArray(session.columns.code) ? session.columns.code : [session.columns.code as unknown as number] } : { code: [0], quantity: 1, description: -1 });
           setCounts(session.counts || {});
+          setHasProductList(session.hasProductList !== false);
           setCurrentStep(Math.min(4, Math.max(1, Number(session.currentStep ?? 1))));
           setPendingCode(session.pendingCode || '');
           setQuantityValue(session.quantityValue || '');
@@ -266,6 +270,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
           columns,
           counts,
           scanEvents,
+          hasProductList,
           currentStep,
           pendingCode,
           quantityValue,
@@ -280,7 +285,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       }
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [sessionRestored, sessionKey, fileName, sheetName, headerRow, columns, counts, scanEvents, currentStep, pendingCode, quantityValue, autoReopenCamera, cameraZoom, quickCollectEnabled, quickCollectQuantity]);
+  }, [sessionRestored, sessionKey, fileName, sheetName, headerRow, columns, counts, scanEvents, currentStep, pendingCode, quantityValue, autoReopenCamera, cameraZoom, quickCollectEnabled, quickCollectQuantity, hasProductList]);
 
   useEffect(() => {
     if (!sharedCollection || !sessionRestored || scanEvents.length === 0) return;
@@ -439,6 +444,8 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       setHeaderRow(detectedHeader);
       const detectedCodeColumn = findColumn(['ean', 'gtin', 'codigo de barras', 'cod barras', 'barcode', 'codigo', 'cod.'], 0);
       const detectedDescriptionColumn = rowHeaders.findIndex(value => hasTerm(value, ['descricao', 'produto', 'nome', 'mercadoria', 'item']));
+      setHasProductList(true);
+      setPendingDescription('');
       setColumns({
         code: [detectedCodeColumn],
         quantity: findColumn(['quantidade', 'qtd', 'contagem', 'unidades'], 1),
@@ -461,7 +468,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       if(!sharedCollection.accountToken){setNotice('Sessão do dono inválida. Entre novamente.');return;}
       setMappingBusy(true);
       try{
-        const response=await fetch('/api/shared/mapping',{method:'PUT',headers:{Authorization:`Bearer ${sharedCollection.accountToken}`,'Content-Type':'application/json'},body:JSON.stringify({collectionId:sharedCollection.id,mapping:{sheetName,headerRow,codeColumns:columns.code,quantityColumn:columns.quantity,descriptionColumn:columns.description}})});
+        const response=await fetch('/api/shared/mapping',{method:'PUT',headers:{Authorization:`Bearer ${sharedCollection.accountToken}`,'Content-Type':'application/json'},body:JSON.stringify({collectionId:sharedCollection.id,mapping:{sheetName,headerRow,codeColumns:columns.code,quantityColumn:columns.quantity,descriptionColumn:columns.description,hasProductList}})});
         const data=await response.json();if(!response.ok)throw new Error(data.error||'Não foi possível salvar o mapeamento');
         setNotice('Mapeamento confirmado. Agora os usuários podem entrar nesta coleta.');
         sharedCollection.onMappingSaved?.(data.mapping);
@@ -542,7 +549,9 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       if (last?.code === code && Date.now() - last.at < 1600) return;
       lastCameraScan.current = { code, at: Date.now() };
     }
-    if (fromCamera && quickCollectEnabled) {
+    const knownProduct = findProductRow(code) >= 0;
+    const needsDescription = hasProductList && !knownProduct;
+    if (fromCamera && quickCollectEnabled && !needsDescription) {
       playScanFeedback();
       recordEvent(code, quickCollectQuantity, 'scan');
       setCounts(previous => ({ ...previous, [code]: (previous[code] ?? 0) + quickCollectQuantity }));
@@ -552,6 +561,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       return;
     }
     const productDescription = findProductDescription(code);
+    setPendingDescription(needsDescription ? '' : productDescription);
     const catalogCodes = sheet && range ? Array.from({ length: Math.max(0, range.e.r - headerRow) }, (_, index) => {
       const r = headerRow + 1 + index;
       return columns.code.map(column => cellText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + column })]).trim()).filter(Boolean);
@@ -562,8 +572,8 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
     if (fromCamera) playScanFeedback();
     setNotice(productDescription
       ? `${productDescription} · informe a quantidade.`
-      : catalogCodes.length > 0 && !codeExists
-        ? `Código ${code} não encontrado na lista. Você pode continuar a coleta.`
+      : hasProductList && catalogCodes.length > 0 && !codeExists
+        ? `Produto não encontrado. Informe a descrição para continuar.`
         : `Código ${code} lido. Informe a quantidade.`);
     requestAnimationFrame(() => quantityRef.current?.focus());
   };
@@ -572,6 +582,8 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
     const code = pendingCode.trim();
     const qty = shortcutQuantity ?? Number(quantityValue);
     if (!code) { setNotice('Bipe ou digite um código primeiro.'); inputRef.current?.focus(); return; }
+    const isUnlistedProduct = hasProductList && findProductRow(code) < 0;
+    if (isUnlistedProduct && !pendingDescription.trim()) { setNotice('Informe a descrição do produto não encontrado para continuar.'); return; }
     if (!Number.isFinite(qty) || qty <= 0 || !Number.isInteger(qty)) { setNotice('Informe uma quantidade inteira maior que zero.'); quantityRef.current?.focus(); return; }
     const alreadyCollected = counts[code] ?? 0;
     if (removeMode) {
@@ -587,12 +599,13 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       });
       setNotice(`Retirada registrada: código ${code} · quantidade retirada: ${qty}.`);
     } else {
-      recordEvent(code, qty, 'scan');
+      recordEvent(code, qty, 'scan', isUnlistedProduct ? pendingDescription : '');
       setCounts(previous => ({ ...previous, [code]: (previous[code] ?? 0) + qty }));
       setNotice(`Registrado: código ${code} · quantidade adicionada: ${qty}.`);
     }
     setRemoveMode(false);
     setPendingCode('');
+    setPendingDescription('');
     setQuantityValue('');
     setScanValue('');
     if (autoReopenCamera && cameraUsed) {
@@ -748,13 +761,14 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
           <div className="mapping-panel">
             <div className="mapping-title"><div><ShieldCheck size={18} /><strong>Defina onde gravar os dados</strong></div><span>MAPEAMENTO DO MODELO</span></div>
             <div className="mapping-grid">
-              <label>Aba<select disabled={!!sharedCollection && (!sharedCollection.isOwner || !!sharedCollection.mappingLocked)} value={sheetName} onChange={event => { setSheetName(event.target.value); clearCurrentCounts(); setPendingCode(''); }}>{workbook.SheetNames.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
+              <label>Cadastro de produtos<select disabled={!!sharedCollection && (!sharedCollection.isOwner || !!sharedCollection.mappingLocked)} value={hasProductList ? 'yes' : 'no'} onChange={event=>setHasProductList(event.target.value==='yes')}><option value="yes">Planilha contém produtos cadastrados</option><option value="no">Planilha sem cadastro de produtos</option></select></label>
+               <label>Aba<select disabled={!!sharedCollection && (!sharedCollection.isOwner || !!sharedCollection.mappingLocked)} value={sheetName} onChange={event => { setSheetName(event.target.value); clearCurrentCounts(); setPendingCode(''); }}>{workbook.SheetNames.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
               <label>Código principal<select disabled={!!sharedCollection && (!sharedCollection.isOwner || !!sharedCollection.mappingLocked)} value={columns.code[0] ?? 0} onChange={event => setColumns(v => ({ ...v, code: [Number(event.target.value), ...(v.code[1] !== undefined && v.code[1] !== Number(event.target.value) ? [v.code[1]] : [])] }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
               <label>Código alternativo (opcional)<select disabled={!!sharedCollection && (!sharedCollection.isOwner || !!sharedCollection.mappingLocked)} value={columns.code[1] ?? -1} onChange={event => setColumns(v => ({ ...v, code: event.target.value === '-1' ? [v.code[0] ?? 0] : [v.code[0] ?? 0, Number(event.target.value)] }))}><option value={-1}>Não usar</option>{headers.map((h,i) => <option value={i} key={i} disabled={i === columns.code[0]}>{h}</option>)}</select></label>
               <label>Coluna da quantidade<select disabled={!!sharedCollection && (!sharedCollection.isOwner || !!sharedCollection.mappingLocked)} value={columns.quantity} onChange={event => setColumns(v => ({ ...v, quantity: Number(event.target.value) }))}>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
               <label>Coluna da descrição<select disabled={!!sharedCollection && (!sharedCollection.isOwner || !!sharedCollection.mappingLocked)} value={columns.description} onChange={event => setColumns(v => ({ ...v, description: Number(event.target.value) }))}><option value={-1}>Não possui descrição</option>{headers.map((h,i) => <option value={i} key={i}>{h}</option>)}</select></label>
             </div>
-            <div className="mapping-note">Se houver códigos e descrições na planilha, o ColetaFlow identifica o produto ao bipar. Sem descrição ou sem código cadastrado, a coleta continua normalmente.</div>
+            <div className="mapping-note">Com cadastro: códigos fora da lista exigem descrição antes de salvar. Sem cadastro: a coleta funciona em modo aberto, sem comparação com catálogo.</div>
           </div>
         )}
         <div className="wizard-navigation wizard-next"><span>Confira o modelo e ajuste as colunas antes de continuar.</span><button className="primary-button" disabled={!workbook || !sheet || mappingBusy} onClick={() => void continueFromMapping()}>{mappingBusy?'Salvando mapeamento…':'Continuar'} <ArrowDownToLine size={17} /></button></div>
@@ -782,7 +796,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
             <section className="quantity-modal" role="dialog" aria-modal="true" aria-labelledby="quantity-modal-title">
               <div className="quantity-modal-heading">
                 <div className="quantity-product-info">
-                  <div className="quantity-modal-topline"><span className="quantity-modal-eyebrow">PRODUTO IDENTIFICADO</span><span className="quantity-collected">Coletado: <strong>{counts[pendingCode] ?? 0}</strong></span></div>
+                  <div className="quantity-modal-topline"><span className="quantity-modal-eyebrow">{hasProductList && findProductRow(pendingCode) < 0 ? 'PRODUTO NÃO ENCONTRADO' : 'PRODUTO IDENTIFICADO'}</span><span className="quantity-collected">Coletado: <strong>{counts[pendingCode] ?? 0}</strong></span></div>
                   <h3 id="quantity-modal-title">{findProductDescription(pendingCode) || (findProductRow(pendingCode) >= 0 ? 'Produto sem descrição' : 'Produto não encontrado')}</h3>
                   <span className="quantity-product-code">Código: <strong>{pendingCode}</strong></span>
                 </div>
@@ -794,7 +808,8 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
                   <div className="quantity-shortcut-list">{quantityShortcuts.map((amount, index) => <button type="button" className="quantity-shortcut" key={index} onPointerDown={event => { event.preventDefault(); shortcutLongPressHandled.current = false; if (shortcutHoldTimer.current) clearTimeout(shortcutHoldTimer.current); shortcutHoldTimer.current = setTimeout(() => { shortcutLongPressHandled.current = true; confirmCount(amount); shortcutHoldTimer.current = null; }, 500); }} onPointerUp={() => { if (shortcutHoldTimer.current) { clearTimeout(shortcutHoldTimer.current); shortcutHoldTimer.current = null; } }} onPointerLeave={() => { if (!shortcutLongPressHandled.current && shortcutHoldTimer.current) { clearTimeout(shortcutHoldTimer.current); shortcutHoldTimer.current = null; } }} onPointerCancel={() => { if (!shortcutLongPressHandled.current && shortcutHoldTimer.current) { clearTimeout(shortcutHoldTimer.current); shortcutHoldTimer.current = null; } }} onContextMenu={event => event.preventDefault()} onClick={event => { event.preventDefault(); if (shortcutLongPressHandled.current) { shortcutLongPressHandled.current = false; return; } setQuantityValue(String((Number(quantityValue) || 0) + amount)); }}>{amount}</button>)}</div>
                   {editingShortcuts && <div className="edit-shortcuts-grid">{quantityShortcuts.map((amount, index) => <label key={index}>Atalho {index + 1}<input type="number" min="1" step="1" value={amount} onChange={event => setQuantityShortcuts(values => values.map((value, i) => i === index ? Math.max(1, Number(event.target.value) || 1) : value))} /></label>)}</div>}
                 </div>
-                <div className="quantity-entry-row">
+                {hasProductList && findProductRow(pendingCode) < 0 && <label className="quantity-modal-label" style={{display:'block',marginBottom:12}}>Descrição do produto <input type="text" value={pendingDescription} onChange={event=>setPendingDescription(event.target.value)} placeholder="Digite o nome/descrição do produto" maxLength={180} required autoComplete="off" /></label>}
+              <div className="quantity-entry-row">
                   <label className="quantity-modal-label">{removeMode ? 'Quantidade a retirar' : 'Quantidade encontrada'}<input ref={quantityRef} type="number" min="1" step="1" value={quantityValue} onChange={event => setQuantityValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmCount(); } }} /></label>
                   <button type="button" className={removeMode ? 'remove-mode-button active' : 'remove-mode-button'} aria-pressed={removeMode} title="Toque para retirar uma quantidade; segure para zerar tudo que foi coletado deste produto" onPointerDown={() => { removeAllLongPressHandled.current = false; if (removeAllHoldTimer.current) clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = setTimeout(() => { removeAllLongPressHandled.current = true; const collected = counts[pendingCode] ?? 0; if (collected > 0) { recordEvent(pendingCode, -collected, 'adjustment'); setCounts(previous => { const next = { ...previous }; delete next[pendingCode]; return next; }); setNotice(`Coleta zerada: ${collected} unidade(s) removida(s) do código ${pendingCode}.`); } else { setNotice('Este produto ainda não possui quantidade coletada.'); } setRemoveMode(false); setQuantityValue(''); removeAllHoldTimer.current = null; }, 700); }} onPointerUp={() => { if (removeAllHoldTimer.current) { clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = null; } }} onPointerLeave={() => { if (removeAllHoldTimer.current) { clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = null; } }} onPointerCancel={() => { if (removeAllHoldTimer.current) { clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = null; } }} onClick={() => { if (removeAllLongPressHandled.current) { removeAllLongPressHandled.current = false; return; } setRemoveMode(value => !value); setQuantityValue(''); requestAnimationFrame(() => quantityRef.current?.focus()); }}>{removeMode ? 'Retirar: ligado' : 'Retirar'}</button>
                 </div>
