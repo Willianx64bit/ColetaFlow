@@ -762,7 +762,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       </section>}
 
       {currentStep === 2 && <section className="workspace collector-section wizard-screen">
-        <div className="section-heading"><div><span className="step-label">ETAPA 02 DE 04</span><h2>Coletor</h2><p>Bipe qualquer código e informe quantas unidades encontrou.</p></div><span className={workbook ? 'ready-chip' : 'waiting-chip'}>{workbook ? 'MODELO PRONTO' : 'AGUARDANDO MODELO'}</span></div>
+        <div className="section-heading"><div><span className="step-label">ETAPA 02 DE 04</span><h2>Coletor</h2></div><span className={workbook ? 'ready-chip' : 'waiting-chip'}>{workbook ? 'MODELO PRONTO' : 'AGUARDANDO MODELO'}</span></div>
           {cameraOpen && createPortal(
             <div className="camera-box">
               <div className="camera-status"><span className="camera-live-dot" />{cameraStatus}</div>
