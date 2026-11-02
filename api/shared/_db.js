@@ -25,7 +25,8 @@ export async function participant(req,collectionId) {
 
 export async function loggedUser(req) {
  const token=tokenFrom(req); if(!token)return null;
- const r=await db().query(`SELECT u.id,u.email,u.display_name,u.company_name,u.role,u.status
+ const r=await db().query(`SELECT u.id,u.email,u.display_name,u.company_name,u.role,u.status,
+    EXISTS(SELECT 1 FROM cf_platform_owner o WHERE o.user_id=u.id) AS is_owner
   FROM cf_user_sessions s JOIN cf_users u ON u.id=s.user_id
   WHERE s.token_hash=$1 AND s.expires_at>now() AND u.status='active'`,[hashToken(token)]);
  return r.rows[0]||null;
