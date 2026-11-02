@@ -1,4 +1,5 @@
 name = "coletaflow"
-pages_build_output_dir = "./dist"
+# Intentionally omit pages_build_output_dir: keep dashboard as the source of truth
+# for Pages runtime bindings and secrets; this file is only for local development.
 compatibility_date = "2026-11-01"
 compatibility_flags = ["nodejs_compat"]
