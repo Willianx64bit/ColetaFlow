@@ -10,7 +10,7 @@ export default async function handler(req,res){
   const templateMimeType=String(body.templateMimeType||'application/octet-stream').slice(0,120);
   const templateBase64=String(body.templateBase64||'');
   if(!title)return send(res,400,{error:'Informe o nome da coleta'});
-  if(!/\\.(xlsx|xls|csv)$/i.test(templateFileName)||!templateBase64)return send(res,400,{error:'Envie o modelo XLSX, XLS ou CSV da coleta'});
+  if(!/\.(xlsx|xls|csv)$/i.test(templateFileName)||!templateBase64)return send(res,400,{error:'Envie o modelo XLSX, XLS ou CSV da coleta'});
   if(!/^[A-Za-z0-9+/]+={0,2}$/.test(templateBase64)||templateBase64.length%4!==0)return send(res,400,{error:'Arquivo do modelo inválido'});
   if(templateBase64.length>4*1024*1024)return send(res,413,{error:'O modelo deve ter no máximo 3 MB'});
   const templateBytes=Buffer.from(templateBase64,'base64');
