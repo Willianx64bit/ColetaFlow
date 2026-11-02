@@ -19,7 +19,19 @@ export default async function handler(req,res){
   if(req.method==='PATCH'){
    const b=await readJson(req),id=String(b.id||''),status=b.status==='disabled'?'disabled':b.status==='active'?'active':'';
    if(!id||!status)return send(res,400,{error:'Usuário ou situação inválida.'});
-   const r=await db().query("UPDATE cf_users SET status=$2 WHERE id=$1 AND NOT EXISTS(SELECT 1 FROM cf_platform_owner WHERE user_id=$1) RETURNING id,status",[id,status]);
+   const r=await db().query(`WITH changed AS (
+      UPDATE cf_users SET status=$2
+      WHERE id=$1 AND NOT EXISTS(SELECT 1 FROM cf_platform_owner WHERE user_id=$1)
+      RETURNING id,status
+    ), participants_updated AS (
+      UPDATE cf_participants p
+      SET status=CASE WHEN changed.status='disabled' THEN 'revoked' ELSE 'active' END
+      FROM changed
+      WHERE p.user_id=changed.id
+        AND ((changed.status='disabled' AND p.status='active') OR (changed.status='active' AND p.status='revoked'))
+      RETURNING p.id
+    )
+    SELECT id,status FROM changed`,[id,status]);
    if(!r.rowCount)return send(res,404,{error:'Usuário não encontrado.'});
    return send(res,200,{user:r.rows[0]});
   }
