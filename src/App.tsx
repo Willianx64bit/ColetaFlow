@@ -183,6 +183,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       try {
         const session = await readSavedSession(sessionKey);
         if (!active) return;
+        setScanEvents(session?.scanEvents || []);
         if (session?.workbookBytes) {
           const bytes = session.workbookBytes instanceof ArrayBuffer
             ? session.workbookBytes
@@ -197,7 +198,6 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
           setHeaderRow(Math.max(0, Number(session.headerRow ?? 0) || 0));
           setColumns(session.columns ? { ...session.columns, code: Array.isArray(session.columns.code) ? session.columns.code : [session.columns.code as unknown as number] } : { code: [0], quantity: 1, description: -1 });
           setCounts(session.counts || {});
-          setScanEvents(session.scanEvents || []);
           setCurrentStep(Math.min(4, Math.max(1, Number(session.currentStep ?? 1))));
           setPendingCode(session.pendingCode || '');
           setQuantityValue(session.quantityValue || '');
@@ -206,7 +206,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
           setQuickCollectEnabled(!!session.quickCollectEnabled);
           setQuickCollectQuantity(Math.max(1, Math.floor(Number(session.quickCollectQuantity ?? 1) || 1)));
           setNotice('Sessão recuperada automaticamente. Você pode continuar de onde parou.');
-        } else {
+        } else if (sessionKey === 'active') {
           try {
             const legacy = JSON.parse(localStorage.getItem('coletaflow.blind-session.v2') || '{}') as { counts?: Record<string, number>; fileName?: string };
             if (legacy.counts) setCounts(legacy.counts);
