@@ -11,7 +11,7 @@ export default async function handler(req,res){
   try{
    await client.query('BEGIN');
    const c=await client.query("INSERT INTO cf_collections(access_code,title) VALUES($1,$2) RETURNING id,access_code,title,status,created_at",[code,title]);
-   const p=await client.query("INSERT INTO cf_participants(collection_id,display_name,token_hash,role,user_id) VALUES($1,$2,$3,'manager',$4) RETURNING id",[c.rows[0].id,user.display_name,hash,user.id]);
+   const p=await client.query("INSERT INTO cf_participants(collection_id,display_name,token_hash,role,user_id) VALUES($1,$2,$3,'owner',$4) RETURNING id",[c.rows[0].id,user.display_name,hash,user.id]);
    await client.query('COMMIT');
    return send(res,201,{collection:c.rows[0],participantId:p.rows[0].id,collectionToken:token});
   }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
