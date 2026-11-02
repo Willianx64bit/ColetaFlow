@@ -745,12 +745,12 @@ function SharedCollections({token,isOwner}:{token:string;isOwner:boolean}) {
   const [userMessage,setUserMessage]=useState('');
   const auth={Authorization:`Bearer ${token}`,'Content-Type':'application/json'};
   const activate=(data:any)=>{
-    const next={id:data.collection.id,title:data.collection.title,accessCode:data.collection.access_code||'',collectionToken:data.collectionToken,role:data.participant?.role||'manager'};
+    const next={id:data.collection.id,title:data.collection.title,accessCode:data.collection.access_code||'',collectionToken:data.collectionToken,role:data.participant?.role||'owner'};
     localStorage.setItem('coletaflow.shared.active',JSON.stringify(next));setActive(next);setProgress(null);setError('');setNotice('Você entrou na coleta. O código pode ser compartilhado com os demais participantes.');
   };
   const create=async()=>{
     setBusy(true);setError('');setNotice('');
-    try{const r=await fetch('/api/shared/create',{method:'POST',headers:auth,body:JSON.stringify({title})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao criar coleta');activate({...d,participant:{role:'manager'}});}
+    try{const r=await fetch('/api/shared/create',{method:'POST',headers:auth,body:JSON.stringify({title})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao criar coleta');activate({...d,participant:{role:'owner'}});}
     catch(e){setError(e instanceof Error?e.message:'Erro de conexão');}finally{setBusy(false);}
   };
   const join=async()=>{
