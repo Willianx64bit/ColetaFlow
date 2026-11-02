@@ -1,12 +1,53 @@
 import pg from 'pg';
 import crypto from 'node:crypto';
-const { Pool } = pg;
-let pool;
-export function db() {
-  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL não configurada');
-  if (!pool) pool = new Pool({ connectionString:process.env.DATABASE_URL,max:5,idleTimeoutMillis:10000,connectionTimeoutMillis:8000,ssl:{rejectUnauthorized:true} });
-  return pool;
+
+const { Client } = pg;
+let runtimeEnv = null;
+
+export function configureRuntime(env) {
+  runtimeEnv = env;
 }
+
+function connectionString() {
+  const value = runtimeEnv?.HYPERDRIVE?.connectionString || runtimeEnv?.DATABASE_URL;
+  if (!value) throw new Error('Binding HYPERDRIVE não configurado');
+  return value;
+}
+
+function createClient() {
+  return new Client({
+    connectionString: connectionString(),
+    connectionTimeoutMillis: 8000,
+    application_name: 'ColetaFlow'
+  });
+}
+
+// Hyperdrive owns the upstream connection pool. A short-lived pg Client is
+// created per query/request, while explicit transactions keep one client.
+export function db() {
+  return {
+    async query(...args) {
+      const client = createClient();
+      await client.connect();
+      try {
+        return await client.query(...args);
+      } finally {
+        await client.end();
+      }
+    },
+    async connect() {
+      const client = createClient();
+      await client.connect();
+      client.release = () => { void client.end(); };
+      return client;
+    }
+  };
+}
+
+export function runtimeSecret(name) {
+  return runtimeEnv?.[name] || '';
+}
+
 export function send(res,status,body) { res.status(status).setHeader('Cache-Control','no-store').json(body); }
 export async function readJson(req) {
   if (req.body && typeof req.body==='object') return req.body;
@@ -24,7 +65,6 @@ export async function participant(req,collectionId) {
       WHERE p.user_id=$1 AND p.collection_id=$2 AND p.status='active'`,[user.id,collectionId]);
     if(byAccount.rows[0])return byAccount.rows[0];
   }
-  // Backward compatibility for collection-scoped tokens issued by earlier builds.
   const byCollectionToken=await db().query(`SELECT p.id,p.collection_id,p.role,p.display_name,p.status,c.status AS collection_status
     FROM cf_participants p
     JOIN cf_collections c ON c.id=p.collection_id
