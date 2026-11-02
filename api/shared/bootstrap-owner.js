@@ -12,9 +12,9 @@ export default async function handler(req,res){
   try{
    await client.query('BEGIN');
    const exists=await client.query('SELECT 1 FROM cf_platform_owner LIMIT 1');
-   if(exists.rowCount)return send(res,409,{error:'A conta de dono já foi configurada.'});
+   if(exists.rowCount){await client.query('ROLLBACK');return send(res,409,{error:'A conta de dono já foi configurada.'});}
    const salt=randomBytes(16).toString('hex'),passwordHash=salt+':'+scryptSync(password,salt,64).toString('hex');
-   const u=await client.query("INSERT INTO cf_users(email,password_hash,display_name,company_name,role) VALUES($1,$2,$3,'ColetaFlow','collector') RETURNING id,email,display_name,company_name,role",[email,passwordHash,name]);
+   const u=await client.query("INSERT INTO cf_users(email,password_hash,display_name,company_name,role) VALUES($1,$2,$3,'ColetaFlow','owner') RETURNING id,email,display_name,company_name,role",[email,passwordHash,name]);
    await client.query('INSERT INTO cf_platform_owner(singleton,user_id) VALUES(true,$1)',[u.rows[0].id]);
    const token=randomBytes(32).toString('base64url'),hash=createHash('sha256').update(token).digest('hex');
    await client.query("INSERT INTO cf_user_sessions(user_id,token_hash,expires_at) VALUES($1,$2,now()+interval '30 days')",[u.rows[0].id,hash]);
