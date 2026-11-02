@@ -807,7 +807,6 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
             </section>
           </div>}
         <div className="stats-grid">
-          <div className="stat-card"><span>Unidades contadas</span><strong>{totalUnits}</strong><small>Soma das quantidades informadas</small></div>
           <div className="stat-card"><span>Produtos coletados</span><strong>{totalCodes}</strong><small>Produtos com quantidade registrada</small></div>
           <div className="stat-card warning-stat"><span>Produtos não encontrados</span><strong>{notFoundProducts}</strong><small>{notFoundProducts ? 'Códigos fora da planilha' : 'Nenhum produto fora da planilha'}</small></div>
         </div>
