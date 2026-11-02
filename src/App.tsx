@@ -730,6 +730,54 @@ function CollectorApp() {
 }
 
 
+function AccountGate() {
+  const [mode,setMode]=useState<'login'|'register'>('login');
+  const [name,setName]=useState('');
+  const [company,setCompany]=useState('');
+  const [email,setEmail]=useState('');
+  const [password,setPassword]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState('');
+  const [user,setUser]=useState<{name:string;email:string;company:string;role:string}|null>(null);
+  const [token,setToken]=useState(()=>{try{return localStorage.getItem('coletaflow.auth.token')||'';}catch{return '';}});
+  useEffect(()=>{
+    if(!token)return;
+    let alive=true;
+    fetch('/api/shared/me',{headers:{Authorization:`Bearer ${token}`}})
+      .then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||'Sessão expirada');return d;})
+      .then(d=>{if(alive)setUser({name:d.user.display_name,email:d.user.email,company:d.user.company_name,role:d.user.role});})
+      .catch(()=>{try{localStorage.removeItem('coletaflow.auth.token');}catch{} if(alive){setToken('');setUser(null);}});
+    return()=>{alive=false;};
+  },[token]);
+  const submit=async(e:React.FormEvent)=>{
+    e.preventDefault();setBusy(true);setError('');
+    try{
+      const endpoint=mode==='login'?'/api/shared/login':'/api/shared/register';
+      const payload=mode==='login'?{email,password}:{name,company,email,password};
+      const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error||'Não foi possível continuar');
+      localStorage.setItem('coletaflow.auth.token',data.token);
+      setUser(mode==='login'?data.user:{name:data.user.display_name,email:data.user.email,company:data.user.company_name,role:data.user.role});
+      setToken(data.token);
+    }catch(err){setError(err instanceof Error?err.message:'Erro de conexão');}
+    finally{setBusy(false);}
+  };
+  if(user)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow</strong><span>{user.name} · {user.company}</span><button onClick={()=>{localStorage.removeItem('coletaflow.auth.token');setToken('');setUser(null);}}>Sair</button></header><CollectorApp /></div>;
+  return <main className="account-page"><section className="account-card">
+    <div className="account-brand"><span className="account-mark">CF</span><div><strong>ColetaFlow</strong><small>Coleta colaborativa de inventário</small></div></div>
+    <div className="account-intro"><span>ACESSO SEGURO</span><h1>{mode==='login'?'Entre na sua conta':'Crie sua conta'}</h1><p>{mode==='login'?'Acesse suas coletas e acompanhe sua equipe.':'Cadastre sua empresa para começar a organizar coletas.'}</p></div>
+    <form className="account-form" onSubmit={submit}>
+      {mode==='register'&&<><label>Seu nome<input required value={name} onChange={e=>setName(e.target.value)} autoComplete="name" placeholder="Nome completo"/></label><label>Empresa<input required value={company} onChange={e=>setCompany(e.target.value)} placeholder="Nome da empresa"/></label></>}
+      <label>E-mail<input required type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email" placeholder="voce@empresa.com"/></label>
+      <label>Senha<input required type="password" minLength={8} value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==='login'?'current-password':'new-password'} placeholder="Mínimo de 8 caracteres"/></label>
+      {error&&<div className="account-error">{error}</div>}
+      <button className="primary-button" type="submit" disabled={busy}>{busy?'Aguarde...':mode==='login'?'Entrar':'Criar conta'}</button>
+    </form>
+    <p className="account-switch">{mode==='login'?'Ainda não tem conta?':'Já possui conta?'} <button onClick={()=>{setMode(mode==='login'?'register':'login');setError('');}}>{mode==='login'?'Criar conta':'Fazer login'}</button></p>
+    <small className="account-security">Suas credenciais são protegidas e a senha não é armazenada em texto aberto.</small>
+  </section></main>;
+}
 export default function App() {
-  return <CollectorApp />;
+  return <AccountGate />;
 }
