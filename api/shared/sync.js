@@ -23,7 +23,8 @@ export default async function handler(req,res) {
    const quantity=Number(ev.quantity);
    const scannedAt=new Date(ev.scannedAt);
    const deviceId=String(ev.deviceId||'');
-   const eventType=ev.eventType==='adjustment'?'adjustment':'scan';
+   const eventType=ev.eventType===undefined?'scan':ev.eventType;
+   if(eventType!=='scan'&&eventType!=='adjustment')return send(res,400,{error:`Bipagem ${index+1}: tipo de evento inválido`});
    if(!UUID_PATTERN.test(eventId))return send(res,400,{error:`Bipagem ${index+1}: identificador inválido`});
    if(!barcode||barcode.length>120)return send(res,400,{error:`Bipagem ${index+1}: código vazio ou maior que 120 caracteres`});
    if(!Number.isFinite(quantity)||quantity===0||Math.abs(quantity)>1000000||(eventType==='scan'&&quantity<0))return send(res,400,{error:`Bipagem ${index+1}: quantidade inválida`});
