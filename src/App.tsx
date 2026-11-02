@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import * as XLSX from 'xlsx';
@@ -749,7 +749,7 @@ function AccountGate() {
       .catch(()=>{try{localStorage.removeItem('coletaflow.auth.token');}catch{} if(alive){setToken('');setUser(null);}});
     return()=>{alive=false;};
   },[token]);
-  const submit=async(e:React.FormEvent)=>{
+  const submit=async(e:FormEvent)=>{
     e.preventDefault();setBusy(true);setError('');
     try{
       const endpoint=mode==='login'?'/api/shared/login':'/api/shared/register';
