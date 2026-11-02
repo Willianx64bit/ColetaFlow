@@ -54,6 +54,24 @@ const writeSavedSession = async (session: SavedSession, sessionKey = 'active') =
     transaction.onabort = () => { db.close(); reject(transaction.error); };
   });
 };
+const readSavedEvents = async (sessionKey: string): Promise<ScanEvent[]> => {
+  const db = await openSessionDb();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(SESSION_STORE, 'readonly').objectStore(SESSION_STORE).get(`${sessionKey}:events`);
+    request.onsuccess = () => { db.close(); resolve(Array.isArray(request.result) ? request.result as ScanEvent[] : []); };
+    request.onerror = () => { db.close(); reject(request.error); };
+  });
+};
+const writeSavedEvents = async (events: ScanEvent[], sessionKey: string) => {
+  const db = await openSessionDb();
+  return new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(SESSION_STORE, 'readwrite');
+    transaction.objectStore(SESSION_STORE).put(events, `${sessionKey}:events`);
+    transaction.oncomplete = () => { db.close(); resolve(); };
+    transaction.onerror = () => { db.close(); reject(transaction.error); };
+    transaction.onabort = () => { db.close(); reject(transaction.error); };
+  });
+};
 
 const normalize = (value: string) => value.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
 const cellText = (cell: XLSX.CellObject | undefined) => {
@@ -117,7 +135,12 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       deviceId = localStorage.getItem('coletaflow.device-id') || crypto.randomUUID();
       localStorage.setItem('coletaflow.device-id', deviceId);
     } catch { /* o identificador do dispositivo é apenas auxiliar */ }
-    setScanEvents(current => [...current, { eventId: crypto.randomUUID(), barcode, quantity, eventType, scannedAt: new Date().toISOString(), deviceId }]);
+    const event={ eventId: crypto.randomUUID(), barcode, quantity, eventType, scannedAt: new Date().toISOString(), deviceId };
+    setScanEvents(current => {
+      const next=[...current,event];
+      void writeSavedEvents(next,sessionKey).catch(()=>setNotice('Não foi possível gravar a fila offline. Não feche esta tela até confirmar a sincronização.'));
+      return next;
+    });
   };
   const finishParticipation = async () => {
     if (!sharedCollection || sharedCollection.isOwner) return;
@@ -184,7 +207,8 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       try {
         const session = await readSavedSession(sessionKey);
         if (!active) return;
-        setScanEvents(session?.scanEvents || []);
+        const pendingEvents=await readSavedEvents(sessionKey).catch(()=>[] as ScanEvent[]);
+        setScanEvents(pendingEvents.length?pendingEvents:(session?.scanEvents||[]));
         if (session?.workbookBytes) {
           const bytes = session.workbookBytes instanceof ArrayBuffer
             ? session.workbookBytes
@@ -269,7 +293,11 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Falha ao sincronizar bipagens');
         const sentIds = new Set(batch.map(event => event.eventId));
-        if (!disposed) setScanEvents(current => current.filter(event => !sentIds.has(event.eventId)));
+        if (!disposed) setScanEvents(current => {
+          const remaining=current.filter(event => !sentIds.has(event.eventId));
+          void writeSavedEvents(remaining,sessionKey).catch(()=>setNotice('Não foi possível atualizar a fila offline após sincronizar.'));
+          return remaining;
+        });
       } catch (error) {
         if (!disposed) setNotice(error instanceof Error ? `Bipagens aguardando sincronização: ${error.message}` : 'Bipagens aguardando conexão.');
       } finally {
