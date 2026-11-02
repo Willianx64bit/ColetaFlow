@@ -4,7 +4,7 @@ import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import * as XLSX from 'xlsx';
 import {
   ArrowDownToLine, Camera, Check, FileSpreadsheet, FolderUp,
-  Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw, Zap, Pencil, Volume2, VolumeX
+  Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw, Zap, Pencil, Volume2, VolumeX, Sun, Moon
 } from 'lucide-react';
 
 type ColumnMap = { code: number[]; quantity: number; description: number };
@@ -61,6 +61,8 @@ const cellText = (cell: XLSX.CellObject | undefined) => {
 const hasTerm = (value: string, terms: string[]) => terms.some(term => normalize(value).includes(term));
 
 function CollectorApp() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => { try { return localStorage.getItem('coletaflow.theme') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; } });
+  useEffect(() => { document.documentElement.dataset.theme = theme; document.body.dataset.theme = theme; try { localStorage.setItem('coletaflow.theme', theme); } catch { /* armazenamento pode estar indisponível */ } }, [theme]);
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [fileName, setFileName] = useState('');
   const [sheetName, setSheetName] = useState('');
@@ -563,6 +565,7 @@ function CollectorApp() {
           <span className="brand-mark" aria-hidden="true"><FileSpreadsheet size={34} strokeWidth={2.2} /><RefreshCw size={17} strokeWidth={2.8} className="brand-sync" /></span>
           <span className="brand-wordmark"><span>Coleta</span><strong>Flow</strong></span>
         </a>
+        <button type="button" className="theme-toggle" onClick={() => setTheme(value => value === "light" ? "dark" : "light")} aria-label={theme === "light" ? "Ativar tema escuro" : "Ativar tema claro"} title={theme === "light" ? "Ativar tema escuro" : "Ativar tema claro"}><span>{theme === "light" ? <Moon size={17} /> : <Sun size={17} />}</span><small>{theme === "light" ? "Escuro" : "Claro"}</small></button>
         <div className="topbar-right"><span className="offline-pill"><span /> CONTAGEM LOCAL</span><span className="version">MVP 0.2</span></div>
       </header>
 
