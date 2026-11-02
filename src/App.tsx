@@ -805,10 +805,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
               </div>
             </section>
           </div>}
-        <div className="stats-grid">
-          <div className="stat-card"><span>Produtos coletados</span><strong>{totalCodes}</strong><small>Produtos com quantidade registrada</small></div>
-          <div className="stat-card warning-stat"><span>Produtos não encontrados</span><strong>{notFoundProducts}</strong><small>{notFoundProducts ? 'Códigos fora da planilha' : 'Nenhum produto fora da planilha'}</small></div>
-        </div>
+
         <div className={`scanner-panel scan-pulse-${scanPulse % 2}`}>
 
           <form className="scan-form" onSubmit={event => { event.preventDefault(); receiveCode(scanValue); }}>
@@ -827,6 +824,10 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
           </div>
 
           <div key={scanPulse} className={`scan-feedback ${scanPulse ? 'scan-feedback-active' : ''}`}>{notice}</div>
+        </div>
+        <div className="stats-grid collector-stats">
+          <div className="stat-card"><span>Produtos coletados</span><strong>{totalCodes}</strong><small>Produtos com quantidade registrada</small></div>
+          <div className="stat-card warning-stat"><span>Produtos não encontrados</span><strong>{notFoundProducts}</strong><small>{notFoundProducts ? 'Códigos fora da planilha' : 'Nenhum produto fora da planilha'}</small></div>
         </div>
         <div className="wizard-navigation"><button className="secondary-button" onClick={() => { stopCamera(); setCurrentStep(1); }}>Voltar</button><button className="primary-button" disabled={!!pendingCode || totalCodes === 0} onClick={() => { stopCamera(); setCurrentStep(3); }}>Continuar para conferência <ArrowDownToLine size={17} /></button></div>
       </section>}
