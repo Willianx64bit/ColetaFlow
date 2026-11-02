@@ -33,7 +33,7 @@ Depois de configurar as variáveis, abra a tela de login, escolha **Primeiro ace
 
 Aplicações de migração e testes de banco devem usar o branch Neon de teste, nunca o branch principal.
 
-**Implementado nesta branch, ainda aguardando validação ponta a ponta:** envio e distribuição do modelo original, confirmação do mapeamento pelo dono e exportação consolidada usando os eventos recebidos. A fidelidade de formatação de arquivos Excel complexos e o comportamento offline em vários dispositivos ainda precisam de testes reais. Não usar para inventário comercial até esses testes serem concluídos.
+**Implementado nesta branch, ainda aguardando validação ponta a ponta:** envio e distribuição do modelo original, confirmação do mapeamento pelo dono e exportação consolidada usando os eventos recebidos. A exportação de arquivos `.xlsx` usa ExcelJS para preservar estilos e estrutura; os formatos `.xls` e `.csv` usam o conversor alternativo. A fidelidade de arquivos Excel complexos e o comportamento offline em vários dispositivos ainda precisam de testes reais. Não usar para inventário comercial até esses testes serem concluídos.
 
 
 ## Estado do desenvolvimento
