@@ -27,7 +27,8 @@ export default async function handler(req, res) {
     const url = new URL(req.url || '/', 'https://coletaflow.invalid');
     const pathValue = query.path ?? url.pathname.slice('/api/shared/'.length);
     const parts = Array.isArray(pathValue) ? pathValue : [pathValue].filter(Boolean);
-    const routeName = parts.join('/').replace(/\\/$/, '');
+    const joinedPath = parts.join('/');
+    const routeName = joinedPath.endsWith('/') ? joinedPath.slice(0, -1) : joinedPath;
     const action = routes[routeName];
     res.setHeader('Cache-Control', 'no-store');
     if (!action) return res.status(404).json({ error: 'Rota não encontrada', route: routeName });
