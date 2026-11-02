@@ -29,6 +29,7 @@ Depois de configurar as variáveis, abra a tela de login, escolha **Primeiro ace
 - `002_owner_user_roles.sql`: normaliza os papéis para `owner` e `user`.
 - `003_independent_scan_events.sql`: habilita eventos de ajuste assinados sem apagar eventos anteriores.
 - `004_template_mapping.sql`: salva o mapeamento confirmado pelo dono para a exportação consolidada.
+- `005_unique_collection_accounts.sql`: permite nomes iguais e reentrada segura usando o ID da conta.
 
 Aplicações de migração e testes de banco devem usar o branch Neon de teste, nunca o branch principal.
 
