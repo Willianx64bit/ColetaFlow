@@ -76,6 +76,8 @@ function CollectorApp() {
   const [editingShortcuts, setEditingShortcuts] = useState(false);
   const [pendingCode, setPendingCode] = useState('');
   const [search, setSearch] = useState('');
+  const [editingReviewCode, setEditingReviewCode] = useState<string | null>(null);
+  const [editingReviewQuantity, setEditingReviewQuantity] = useState('');
   const [notice, setNotice] = useState('Importe o modelo vazio da empresa para começar.');
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraUsed, setCameraUsed] = useState(false);
@@ -111,7 +113,7 @@ function CollectorApp() {
     return result;
   }, [sheet, range, headerRow]);
 
-  const entries = Object.entries(counts).filter(([code]) => !search || normalize(code).includes(normalize(search)));
+  const entries = Object.entries(counts).filter(([code]) => !search || normalize(code).includes(normalize(search)) || normalize(findProductDescription(code)).includes(normalize(search)));
   const totalUnits = Object.values(counts).reduce((sum, qty) => sum + qty, 0);
   const totalCodes = Object.keys(counts).length;
   const catalogCodeSet = new Set<string>();
@@ -677,11 +679,11 @@ function CollectorApp() {
         <div className="section-heading"><div><span className="step-label">ETAPA 03 DE 04</span><h2>Resumo da coleta</h2><p>Confira somente os códigos e as quantidades registradas.</p></div><button className="text-button" onClick={resetSession} disabled={!workbook}><RotateCcw size={16} /> Reiniciar contagem</button></div>
         <div className="results-toolbar">
           <div className="blind-mode-note"><ShieldCheck size={17} /> SOMENTE CÓDIGO + QUANTIDADE</div>
-          <label className="search-box"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar código registrado" /></label>
+          <label className="search-box"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar por código ou descrição" /></label>
         </div>
         <div className="product-list">
           {!workbook ? <div className="empty-state"><Package size={28} /><strong>Aguardando modelo</strong><span>Importe a planilha vazia para iniciar a coleta.</span></div> :
-            entries.slice(0,100).map(([code, qty], index) => <div className="product-row" key={code}><div className="product-number">{index + 1}</div><div className="product-details"><strong>{code}</strong><span>CÓDIGO</span></div><div className="quantity-control"><button onClick={() => updateCount(code, -1)} disabled={qty <= 1}>−</button><strong>{qty}</strong><button onClick={() => updateCount(code, 1)}>+</button></div></div>)}
+            entries.slice(0,100).map(([code, qty], index) => <div className="product-row" key={code}><div className="product-number">{index + 1}</div><div className="product-details"><strong>{findProductDescription(code) || 'Descrição não identificada'}</strong><span>CÓDIGO: {code}</span></div><div className="review-quantity"><strong>{qty}</strong><button type="button" className="icon-button" aria-label={`Editar quantidade de ${code}`} title="Editar quantidade" onClick={() => { setEditingReviewCode(code); setEditingReviewQuantity(String(qty)); }}><Pencil size={17}/></button></div>{editingReviewCode === code && <div className="review-quantity-editor"><label>Nova quantidade <input type="number" min="0" step="1" value={editingReviewQuantity} onChange={event => setEditingReviewQuantity(event.target.value)} /></label><button type="button" className="primary-button" onClick={() => { const value = Math.max(0, Math.floor(Number(editingReviewQuantity) || 0)); setCounts(current => { const next = { ...current }; if (value === 0) delete next[code]; else next[code] = value; return next; }); setEditingReviewCode(null); }}>Salvar</button><button type="button" className="text-button" onClick={() => setEditingReviewCode(null)}>Cancelar</button></div>}</div>)}
           {workbook && entries.length === 0 && <div className="empty-state"><Search size={24} /><strong>Nenhum código registrado</strong><span>Depois da leitura, os códigos e quantidades aparecerão aqui.</span></div>}
           {entries.length > 100 && <div className="list-footnote">Mostrando os primeiros 100 códigos. Use a busca para localizar outro.</div>}
         </div>
