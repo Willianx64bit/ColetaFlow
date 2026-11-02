@@ -350,3 +350,76 @@ body:has(.camera-box) .camera-box video{
   body:has(.camera-box) .camera-box{width:calc(100vw - 40px)!important;padding:9px!important}
   body:has(.camera-box) .camera-box video{max-height:230px!important;min-height:0!important}
 }
+
+
+/* Tema global ColetaFlow — aplicado a todas as etapas e formulários */
+.theme-toggle{display:inline-flex;align-items:center;gap:6px;margin-left:14px;padding:7px 10px;border:1px solid #d8e2ec;border-radius:999px;background:#f5f8fb;color:#30465e;font-size:10px;font-weight:800;white-space:nowrap;transition:.18s}
+.theme-toggle span{display:grid;place-items:center}.theme-toggle:hover{border-color:#0b91b3;background:#eaf7fa;color:#087fa5}
+:root[data-theme="dark"],body[data-theme="dark"]{color-scheme:dark;background:#0b1220;color:#e5edf7}
+body[data-theme="dark"]{background:#0b1220!important;color:#e5edf7}
+body[data-theme="dark"] .app-shell{color:#e5edf7}
+body[data-theme="dark"] .topbar{border-color:#26364a}
+body[data-theme="dark"] .brand{color:#e5edf7}
+body[data-theme="dark"] .brand-wordmark span{color:#e5edf7}
+body[data-theme="dark"] .brand-sync{background:#0b1220;color:#d6e4f3}
+body[data-theme="dark"] .theme-toggle{background:#1c2b3d;border-color:#3a5068;color:#f6d77b}
+body[data-theme="dark"] .theme-toggle:hover{background:#263b52;color:#fff}
+body[data-theme="dark"] .offline-pill{background:#153b35;color:#8ce0c1}
+body[data-theme="dark"] .version,body[data-theme="dark"] footer{color:#91a4ba}
+body[data-theme="dark"] .workspace{background:#131e2d;border-color:#26384d;box-shadow:0 5px 20px #0003}
+body[data-theme="dark"] .section-heading h2,body[data-theme="dark"] .mapping-title strong{color:#edf4fc}
+body[data-theme="dark"] .section-heading p,body[data-theme="dark"] .file-info span,body[data-theme="dark"] .scanner-heading>div:nth-child(2) span{color:#9aabc0}
+body[data-theme="dark"] .mapping-panel,body[data-theme="dark"] .scanner-panel{background:#172537;border-color:#2a4057}
+body[data-theme="dark"] .mapping-grid label,body[data-theme="dark"] .export-actions label{color:#b1c0d2}
+body[data-theme="dark"] .mapping-grid select,body[data-theme="dark"] .export-actions select,body[data-theme="dark"] input,body[data-theme="dark"] select,body[data-theme="dark"] textarea{background:#0f1a29;border-color:#34485f;color:#e5edf7}
+body[data-theme="dark"] input::placeholder,body[data-theme="dark"] textarea::placeholder{color:#71859b}
+body[data-theme="dark"] .dropzone{background:#101d2c;border-color:#40566e}
+body[data-theme="dark"] .dropzone strong,body[data-theme="dark"] .mapping-title strong{color:#dce8f5}
+body[data-theme="dark"] .dropzone>span:last-child{color:#91a4ba}
+body[data-theme="dark"] .file-card{background:#142b2b;border-color:#285044}
+body[data-theme="dark"] .file-info strong{color:#e2edf8}
+body[data-theme="dark"] .file-icon{background:#1d4038}
+body[data-theme="dark"] .stat-card{background:#1b2a3b;border-color:#2a3c51}
+body[data-theme="dark"] .stat-card span,body[data-theme="dark"] .stat-card small{color:#a4b4c7}
+body[data-theme="dark"] .stat-card strong{color:#e4eef9}
+body[data-theme="dark"] .scan-input-wrap{background:#0f1a29;border-color:#40566e;color:#a9bbce}
+body[data-theme="dark"] .scan-input-wrap input{background:transparent;color:#f1f6fc}
+body[data-theme="dark"] .scan-feedback{background:#1c2d40;color:#b6c6d8}
+body[data-theme="dark"] .secondary-button{background:#203b50;color:#9ddcf0}
+body[data-theme="dark"] .scanner-actions>span,body[data-theme="dark"] .icon-button{color:#9aadc2}
+body[data-theme="dark"] .ready-chip{background:#173c35;color:#8fe0bd}
+body[data-theme="dark"] .waiting-chip{background:#29384a;color:#afbdce}
+body[data-theme="dark"] .product-list{border-color:#2b3d52}
+body[data-theme="dark"] .product-row{border-color:#2a3b50}
+body[data-theme="dark"] .product-details strong{color:#e1ebf6}
+body[data-theme="dark"] .product-details span,body[data-theme="dark"] .empty-state span{color:#91a4ba}
+body[data-theme="dark"] .product-number{background:#25374b;color:#b4c5d8}
+body[data-theme="dark"] .quantity-control button{background:#1a2a3c;border-color:#40546b;color:#c3d2e1}
+body[data-theme="dark"] .quantity-control strong{color:#e5eef8}
+body[data-theme="dark"] .list-footnote{background:#172537;color:#9aadc1}
+body[data-theme="dark"] .tabs button{color:#9aadc1}
+body[data-theme="dark"] .tabs button.active{background:#173b4d;color:#7ed8f0}
+body[data-theme="dark"] .search-box{border-color:#3a4e65;color:#9aadc1}
+body[data-theme="dark"] .search-box input{background:transparent;color:#e5edf7}
+body[data-theme="dark"] .pending-code-card{background:#142d3b;border-color:#28536a}
+body[data-theme="dark"] .pending-code-card strong{color:#e5f3fb}
+body[data-theme="dark"] .pending-code-card small,body[data-theme="dark"] .pending-code-card label{color:#9dc8d8}
+body[data-theme="dark"] .pending-code-card input{background:#0e1b29;border-color:#3b566d;color:#f1f6fc}
+body[data-theme="dark"] .unknown-panel{background:#30291e;border-color:#5a482c}
+body[data-theme="dark"] .unknown-panel>span{background:#493820;color:#f1d3a0}
+body[data-theme="dark"] .export-bar{background:#081827;border:1px solid #263e54}
+body[data-theme="dark"] .text-button{color:#a4b5c8}
+body[data-theme="dark"] .empty-state{color:#8298af}
+body[data-theme="dark"] footer b{color:#58c6e3}
+body[data-theme="dark"] .camera-box{background:#071827;border-color:#24465d}
+body[data-theme="dark"] .hero{box-shadow:0 8px 24px #0003}
+body[data-theme="dark"] .wizard-progress{background:#131e2d;border-color:#26384d}
+body[data-theme="dark"] .wizard-step small{color:#9aadc1}
+body[data-theme="dark"] .wizard-step>span{background:#172537;border-color:#40546b;color:#b8c8d9}
+body[data-theme="dark"] .wizard-step.current>span{background:#087f91;border-color:#087f91;color:#fff}
+body[data-theme="dark"] .wizard-step.completed>span{background:#173c35;border-color:#28634f;color:#8fe0bd}
+body[data-theme="dark"] .quantity-modal-backdrop{background:#020914bb}
+body[data-theme="dark"] .quantity-modal,body[data-theme="dark"] .modal-card{background:#142234;border-color:#344b63;color:#e5edf7}
+body[data-theme="dark"] .quantity-modal h3,body[data-theme="dark"] .modal-card h3{color:#eef5fc}
+body[data-theme="dark"] .edit-shortcuts-grid label{color:#b7c6d7}
+@media(max-width:600px){.theme-toggle{margin-left:7px;padding:7px 8px;gap:4px}.theme-toggle small{font-size:9px}.brand{gap:7px}.brand-wordmark{font-size:19px}}
