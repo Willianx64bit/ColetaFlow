@@ -18,5 +18,7 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install
+      - name: Check API syntax
+        run: find api -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Build
         run: npm run build
