@@ -932,6 +932,16 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
   const [title,setTitle]=useState('Inventário compartilhado');
   const [templateFile,setTemplateFile]=useState<File|null>(null);
   const [templateInputKey,setTemplateInputKey]=useState(0);
+  const [createWorkbook,setCreateWorkbook]=useState<XLSX.WorkBook|null>(null);
+  const [createSheet,setCreateSheet]=useState('');
+  const [createHeaderRow,setCreateHeaderRow]=useState(0);
+  const [createCodeColumn,setCreateCodeColumn]=useState(0);
+  const [createAltCodeColumn,setCreateAltCodeColumn]=useState(-1);
+  const [createQuantityColumn,setCreateQuantityColumn]=useState(1);
+  const [createDescriptionColumn,setCreateDescriptionColumn]=useState(-1);
+  const [createHasProductList,setCreateHasProductList]=useState(true);
+  const createHeaders=useMemo(()=>{if(!createWorkbook||!createSheet)return[];const ws=createWorkbook.Sheets[createSheet];const ref=ws?.['!ref'];if(!ref)return[];const rg=XLSX.utils.decode_range(ref);return Array.from({length:Math.max(0,rg.e.c-rg.s.c+1)},(_,i)=>{const cell=ws[XLSX.utils.encode_cell({r:createHeaderRow,c:rg.s.c+i})];return cell?.w??(cell?.v==null?'':String(cell.v))||`Coluna ${XLSX.utils.encode_col(rg.s.c+i)}`;});},[createWorkbook,createSheet,createHeaderRow]);
+  const loadCreateFile=async(file:File|null)=>{setTemplateFile(file);setCreateWorkbook(null);setCreateSheet('');setError('');if(!file)return;try{const bytes=await file.arrayBuffer();const wb=XLSX.read(bytes,{type:'array',cellText:true,cellNF:true});if(!wb.SheetNames.length)throw new Error('A planilha não contém abas.');const first=wb.Sheets[wb.SheetNames[0]];const ref=first['!ref'];const rg=ref?XLSX.utils.decode_range(ref):{s:{r:0,c:0},e:{r:0,c:1}};const hs=Array.from({length:Math.max(2,rg.e.c-rg.s.c+1)},(_,i)=>{const cell=first[XLSX.utils.encode_cell({r:rg.s.r,c:rg.s.c+i})];return normalize(cell?.w??String(cell?.v??''));});const find=(terms:string[],fallback:number)=>{const idx=hs.findIndex(v=>terms.some(t=>v.includes(t)));return idx>=0?idx:fallback;};const code=find(['codigo de barras','cod barras','barcode','codigo','cod.'],0);const qty=find(['quantidade','qtd','contagem','unidades'],Math.min(1,hs.length-1));const desc=hs.findIndex(v=>['descricao','produto','nome','mercadoria','item'].some(t=>v.includes(t)));setCreateWorkbook(wb);setCreateSheet(wb.SheetNames[0]);setCreateHeaderRow(rg.s.r);setCreateCodeColumn(code);setCreateAltCodeColumn(-1);setCreateQuantityColumn(qty===code?Math.min(1,hs.length-1):qty);setCreateDescriptionColumn(desc>=0&&desc!==code?desc:-1);setCreateHasProductList(true);}catch(e){setTemplateFile(null);setError(e instanceof Error?e.message:'Não foi possível ler a planilha.');}};
   const [sharedTemplate,setSharedTemplate]=useState<SharedTemplate|null>(null);
   const [active,setActive]=useState<SharedCollectionState|null>(()=>{try{const saved=JSON.parse(localStorage.getItem('coletaflow.shared.active')||'null');return saved?.userId===userId?{id:saved.id,title:saved.title,accessCode:saved.accessCode||'',role:saved.role||'user',userId}:null;}catch{return null;}});
   const [progress,setProgress]=useState<any>(null);
@@ -963,7 +973,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       let binary='';
       for(let offset=0;offset<bytes.length;offset+=8192)binary+=String.fromCharCode(...bytes.subarray(offset,offset+8192));
       const templateBase64=btoa(binary);
-      const payload={title,templateFileName:templateFile.name,templateMimeType:templateFile.type||'application/octet-stream',templateBase64};
+      const payload={title,templateFileName:templateFile.name,templateMimeType:templateFile.type||'application/octet-stream',templateBase64,mapping:{sheetName:createSheet,headerRow:createHeaderRow,codeColumns:createAltCodeColumn>=0?[createCodeColumn,createAltCodeColumn]:[createCodeColumn],quantityColumn:createQuantityColumn,descriptionColumn:createDescriptionColumn,hasProductList:createHasProductList}};
       const r=await fetch('/api/shared/create',{method:'POST',headers:auth,body:JSON.stringify(payload)});
       const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao criar coleta');
       setTemplateFile(null);setCreateExpanded(false);setOwnerPage('home');setOwnerCollections(current=>[d.collection,...current.filter((item:any)=>item.id!==d.collection.id)]);void loadOwnerCollections();setNotice('Coleta criada. Ela está pendente no painel; abra para acompanhar os participantes.');
@@ -1058,9 +1068,22 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
         </button>
         {createExpanded&&<div className="owner-create-form" style={{marginTop:16}}>
           <label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label>
-          <label>Planilha original da empresa<input key={templateInputKey} type="file" accept=".xlsx,.xls,.csv" onChange={e=>setTemplateFile(e.target.files?.[0]||null)}/></label>
+          <label>Planilha original da empresa<input key={templateInputKey} type="file" accept=".xlsx,.xls,.csv" onChange={e=>void loadCreateFile(e.target.files?.[0]||null)}/></label>
+          {createWorkbook&&<div className="mapping-panel" style={{marginTop:14}}>
+            <div className="mapping-title"><div><ShieldCheck size={18}/><strong>Configurar colunas da planilha</strong></div><span>ANTES DE CRIAR</span></div>
+            <div className="mapping-grid">
+              <label>Cadastro de produtos<select value={createHasProductList?'yes':'no'} onChange={e=>setCreateHasProductList(e.target.value==='yes')}><option value="yes">Planilha contém produtos cadastrados</option><option value="no">Planilha sem cadastro de produtos</option></select></label>
+              <label>Aba<select value={createSheet} onChange={e=>{setCreateSheet(e.target.value);setCreateHeaderRow(0);}}>{createWorkbook.SheetNames.map(n=><option key={n} value={n}>{n}</option>)}</select></label>
+              <label>Linha do cabeçalho<input type="number" min="1" value={createHeaderRow+1} onChange={e=>setCreateHeaderRow(Math.max(0,Number(e.target.value)-1))}/></label>
+              <label>Código principal<select value={createCodeColumn} onChange={e=>setCreateCodeColumn(Number(e.target.value))}>{createHeaders.map((h,i)=><option key={i} value={i}>{h}</option>)}</select></label>
+              <label>Código alternativo (opcional)<select value={createAltCodeColumn} onChange={e=>setCreateAltCodeColumn(Number(e.target.value))}><option value={-1}>Não usar</option>{createHeaders.map((h,i)=><option key={i} value={i} disabled={i===createCodeColumn}>{h}</option>)}</select></label>
+              <label>Coluna da quantidade<select value={createQuantityColumn} onChange={e=>setCreateQuantityColumn(Number(e.target.value))}>{createHeaders.map((h,i)=><option key={i} value={i}>{h}</option>)}</select></label>
+              <label>Coluna da descrição<select value={createDescriptionColumn} onChange={e=>setCreateDescriptionColumn(Number(e.target.value))}><option value={-1}>Não possui descrição</option>{createHeaders.map((h,i)=><option key={i} value={i}>{h}</option>)}</select></label>
+            </div>
+            <p className="mapping-note">Ajuste as colunas aqui. Essa configuração será salva junto com a coleta e reaproveitada quando você entrar nela.</p>
+          </div>}
           {templateFile&&<div className="mapping-note" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}><span style={{minWidth:0,overflowWrap:'anywhere'}}>{templateFile.name} · {(templateFile.size/1024/1024).toFixed(2)} MB</span><button type="button" className="secondary-button" style={{padding:'7px 10px',flexShrink:0}} disabled={busy} onClick={()=>{setTemplateFile(null);setTemplateInputKey(value=>value+1);}}>Remover planilha</button></div>}
-          <button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()||!templateFile} onClick={()=>void create()}>Criar coleta e compartilhar modelo</button>
+          <button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()||!templateFile||!createWorkbook||!createSheet||createCodeColumn===createQuantityColumn||createAltCodeColumn===createQuantityColumn} onClick={()=>void create()}>Criar coleta e compartilhar modelo</button>
         </div>}
       </div>
       <div className="mapping-grid" style={{marginBottom:16}}>
