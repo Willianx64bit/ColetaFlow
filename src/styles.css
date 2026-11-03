@@ -605,3 +605,18 @@ body[data-theme="dark"] .owner-status-done{background:#193c32;color:#8ce0b9}
 .owner-back-button{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:46px;margin:0 0 14px;padding:11px 14px;border:1px solid #cbd8e5;border-radius:11px;background:#f4f8fc;color:#31516d;font-size:14px;font-weight:750;text-align:center;cursor:pointer}
 body[data-theme="dark"] .owner-back-button{background:#17283a;border-color:#3a5069;color:#d9e8f7}
 @media(max-width:520px){.owner-back-button{min-height:50px;margin-bottom:12px;font-size:14px;touch-action:manipulation}}
+
+
+/* Cabeçalho da conta: identidade original ColetaFlow e tema centralizado. */
+.account-top{position:relative;min-height:76px;justify-content:space-between;gap:18px}
+.account-top .account-top-brand{display:flex;align-items:center;gap:9px;margin-right:auto;color:#14243b;flex:0 0 auto}
+.account-top .account-top-brand .brand-mark{width:43px;height:48px;flex:0 0 43px}
+.account-top .account-top-brand .brand-wordmark{font-size:21px}
+.account-top .account-theme-toggle{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin:0}
+.account-top .account-user{max-width:30%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:auto}
+.account-top .account-logout{flex:0 0 auto}
+body[data-theme="dark"] .account-top{border-color:#26364a}
+body[data-theme="dark"] .account-top .account-top-brand .brand-wordmark span{color:#e5edf7}
+body[data-theme="dark"] .account-top .account-top-brand .brand-wordmark strong{color:#58c9e8}
+body[data-theme="dark"] .account-top .brand-sync{background:#f3f6fa;color:#12304b}
+@media(max-width:600px){.account-top{padding:10px 14px;min-height:68px;gap:8px;flex-wrap:nowrap}.account-top .account-top-brand{gap:5px}.account-top .account-top-brand .brand-mark{width:34px;height:40px;flex-basis:34px}.account-top .account-top-brand .brand-mark>svg:first-child{width:28px;height:28px}.account-top .account-top-brand .brand-wordmark{font-size:18px}.account-top .account-theme-toggle{left:50%;padding:6px 8px}.account-top .account-user{max-width:27%;font-size:9px}.account-top .account-logout{padding:7px 9px;font-size:10px}}
