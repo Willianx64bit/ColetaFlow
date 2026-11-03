@@ -4,7 +4,7 @@ import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import * as XLSX from 'xlsx';
 import {
   ArrowDownToLine, Camera, Check, FileSpreadsheet, FolderUp,
-  Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw, Zap, Pencil, Volume2, VolumeX, Sun, Moon
+  Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw, Zap, Pencil, Volume2, VolumeX, Sun, Moon, Trash2
 } from 'lucide-react';
 
 type ColumnMap = { code: number[]; quantity: number; description: number };
@@ -940,6 +940,8 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
   const [busy,setBusy]=useState(false);
   const [exportBusy,setExportBusy]=useState(false);
   const [closeBusy,setCloseBusy]=useState(false);
+  const [deleteTarget,setDeleteTarget]=useState<any|null>(null);
+  const [deleteBusy,setDeleteBusy]=useState(false);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [users,setUsers]=useState<any[]>([]);
@@ -1020,6 +1022,18 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
     finally{setJoinBusy(false);}
   };
   const leave=()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setOwnerCollectorEntered(false);if(isOwner)setOwnerPage('home');setError('');setNotice(isOwner?'Você voltou ao painel do dono.':'Coleta desconectada deste dispositivo.');};
+  const deleteCollection=async()=>{
+    if(!deleteTarget||deleteBusy)return;
+    setDeleteBusy(true);setError('');
+    try{
+      const r=await fetch('/api/shared/delete',{method:'POST',headers:auth,body:JSON.stringify({collectionId:deleteTarget.id})});
+      const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível apagar a coleta.');
+      setOwnerCollections(current=>current.filter((item:any)=>item.id!==deleteTarget.id));
+      if(active?.id===deleteTarget.id){localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setOwnerCollectorEntered(false);setOwnerPage('home');}
+      setNotice(`A coleta “${deleteTarget.title}” foi apagada.`);setDeleteTarget(null);
+    }catch(e){setError(e instanceof Error?e.message:'Falha ao apagar a coleta.');}
+    finally{setDeleteBusy(false);}
+  };
   const closeCollection=async()=>{
     if(!active)return;
     const activeUsers=(progress?.participants||[]).filter((p:any)=>p.role==='user'&&p.status==='active').length;
@@ -1122,11 +1136,11 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
           </span>
         </button>
         {myCollectionsExpanded&&<div className="product-list">
-          {ownerCollections.length===0?<p className="owner-empty-collections">Nenhuma coleta criada ainda.</p>:ownerCollections.map((collection:any)=><button type="button" className="owner-collection-row" key={collection.id} onClick={()=>activate({collection,participant:{role:'owner'}})}>
+          {ownerCollections.length===0?<p className="owner-empty-collections">Nenhuma coleta criada ainda.</p>:ownerCollections.map((collection:any)=><div className="owner-collection-row" key={collection.id}>
             <span className="owner-collection-copy"><strong>{collection.title}</strong><small>{collection.participant_count||0} participante(s) · {collection.finished_count||0} finalizado(s)</small></span>
             <span className={collection.status==='open'?'owner-status-pending':'owner-status-done'}>{collection.status==='open'?'PENDENTE':collection.status==='completed'?'CONCLUÍDA':String(collection.status||'').toUpperCase()}</span>
-            <span className="owner-collection-open">Abrir</span>
-          </button>)}
+            <div className="owner-collection-actions"><button type="button" className="owner-collection-open" onClick={()=>activate({collection,participant:{role:'owner'}})}>Abrir</button><button type="button" className="owner-collection-delete" onClick={()=>setDeleteTarget(collection)}><Trash2 size={14}/> Apagar</button></div>
+          </div>)}
         </div>}
       </div>
     </>}
@@ -1157,6 +1171,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       {isOwner&&<><h3 style={{marginTop:22}}>Equipe</h3><div className="product-list">{(progress?.participants||[]).map((p:any)=><div className="product-row" key={p.id}><div className="product-details" style={{width:'100%',gap:6}}><strong>{p.display_name}</strong><span>{p.role==='owner'?'DONO':'USUÁRIO'} · {p.status==='active'?'TRABALHANDO':p.status==='finished'?'FINALIZOU':'BLOQUEADO'}</span><div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:'5px 12px',marginTop:4}}><small><strong>Códigos coletados:</strong> {p.distinct_codes||0}</small><small><strong>Unidades totais:</strong> {Number(p.total_units||0)}</small><small><strong>Início:</strong> {p.joined_at?new Date(p.joined_at).toLocaleString('pt-BR'):'—'}</small><small><strong>Finalização:</strong> {p.status==='finished'&&p.last_seen_at?new Date(p.last_seen_at).toLocaleString('pt-BR'):'—'}</small></div></div></div>)}{!progress&&<p>Carregando dados da coleta…</p>}</div><p className="mapping-note">A equipe mostra os totais enviados por cada participante e os horários de entrada e finalização.</p></>}
       {isOwner?<button className="primary-button owner-enter-collection" onClick={()=>setOwnerCollectorEntered(value=>!value)}>{ownerCollectorEntered?'Voltar ao acompanhamento':'Entrar na coleta'}</button>:<button className="secondary-button" onClick={leave}>Desconectar desta coleta</button>}
     </div>}
+    {deleteTarget&&<div className="collection-delete-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!deleteBusy)setDeleteTarget(null);}}><section className="collection-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="collection-delete-title"><div className="collection-delete-icon"><Trash2 size={22}/></div><h2 id="collection-delete-title">Apagar esta coleta?</h2><p>Você está prestes a apagar <strong>{deleteTarget.title}</strong>.</p><p>Isso remove a coleta, os participantes e todas as bipagens salvas no servidor. Essa ação não pode ser desfeita.</p><div className="collection-delete-actions"><button type="button" className="secondary-button" disabled={deleteBusy} onClick={()=>setDeleteTarget(null)}>Cancelar</button><button type="button" className="collection-delete-confirm" disabled={deleteBusy} onClick={()=>void deleteCollection()}>{deleteBusy?'Apagando…':'Sim, apagar coleta'}</button></div></section></div>}
     {busy&&<p>Aguarde…</p>}{error&&<div className="account-error">{error}</div>}{notice&&<p className="mapping-note">{notice}</p>}
   </section>;
 }
