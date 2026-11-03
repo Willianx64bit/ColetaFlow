@@ -151,50 +151,54 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
     void persistEvents(next).catch(()=>setNotice('Não foi possível gravar a fila offline. Verifique o armazenamento deste dispositivo antes de continuar.'));
   };
   const finishParticipation = async () => {
-    if (!sharedCollection || sharedCollection.isOwner) return;
+    if (!sharedCollection || sharedCollection.isOwner || syncInFlightRef.current) return;
     if (!navigator.onLine) { setNotice('Conecte-se à internet para sincronizar e finalizar sua participação.'); return; }
+    syncInFlightRef.current = true;
     setFinishBusy(true);
     setNotice('Preparando as bipagens salvas neste aparelho…');
+    const readResponse = async (response: Response, action: string) => {
+      const raw = await response.text();
+      let data: any;
+      try { data = raw ? JSON.parse(raw) : {}; }
+      catch { throw new Error(`${action}: servidor respondeu HTTP ${response.status} em formato inesperado.`); }
+      if (!response.ok) throw new Error(data.error || `${action}: erro HTTP ${response.status}.`);
+      return data;
+    };
     try {
-      // Aguarda a gravação local terminar antes de montar o pacote final.
       await persistEventsRef.current;
-      syncInFlightRef.current = true;
-      try {
-        const pending = [...scanEventsRef.current];
-        for (let offset = 0; offset < pending.length; offset += 500) {
-          const batch = pending.slice(offset, offset + 500);
-          setNotice(`Enviando bipagens ${Math.min(offset + batch.length, pending.length)} de ${pending.length}…`);
-          const syncResponse = await fetch('/api/shared/sync', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${sharedCollection.token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ collectionId: sharedCollection.id, events: batch })
-          });
-          const syncData = await syncResponse.json();
-          if (!syncResponse.ok) throw new Error(syncData.error || 'Não foi possível sincronizar as bipagens');
-          const sentIds = new Set(batch.map(event => event.eventId));
-          const remaining = scanEventsRef.current.filter(event => !sentIds.has(event.eventId));
-          scanEventsRef.current = remaining;
-          setScanEvents(remaining);
-          await persistEvents(remaining);
-        }
-        const response = await fetch('/api/shared/finish', {
+      const pending = [...scanEventsRef.current];
+      for (let offset = 0; offset < pending.length; offset += 500) {
+        const batch = pending.slice(offset, offset + 500);
+        setNotice(`Enviando bipagens ${Math.min(offset + batch.length, pending.length)} de ${pending.length}…`);
+        const syncResponse = await fetch('/api/shared/sync', {
           method: 'POST',
           headers: { Authorization: `Bearer ${sharedCollection.token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ collectionId: sharedCollection.id })
+          body: JSON.stringify({ collectionId: sharedCollection.id, events: batch })
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Não foi possível finalizar');
-        if (data.participant?.status !== 'finished') throw new Error('O servidor não confirmou a finalização. Suas bipagens continuam salvas neste aparelho.');
-        await persistEvents([]);
-        scanEventsRef.current = [];
-        setScanEvents([]);
-        onFinished?.();
-      } finally {
-        syncInFlightRef.current = false;
+        const syncData = await readResponse(syncResponse, 'Falha ao enviar bipagens');
+        const received = Number(syncData.received);
+        const accounted = Number(syncData.inserted) + Number(syncData.duplicates);
+        if (received !== batch.length || accounted !== batch.length) {
+          throw new Error(`O servidor confirmou ${Number.isFinite(received) ? received : 0} de ${batch.length} bipagem(ns). Os dados continuam salvos neste aparelho; tente finalizar novamente.`);
+        }
       }
+      setNotice('Bipagens recebidas. Confirmando sua participação…');
+      const response = await fetch('/api/shared/finish', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sharedCollection.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collectionId: sharedCollection.id })
+      });
+      const data = await readResponse(response, 'Falha ao finalizar participação');
+      if (data.participant?.status !== 'finished') throw new Error('O servidor não confirmou a finalização. Suas bipagens continuam salvas neste aparelho.');
+      await persistEvents([]);
+      scanEventsRef.current = [];
+      setScanEvents([]);
+      setNotice('Participação finalizada e confirmada pelo servidor.');
+      onFinished?.();
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Falha ao finalizar participação.');
+      setNotice(error instanceof Error ? error.message : 'Falha ao finalizar participação. Seus dados continuam salvos neste aparelho.');
     } finally {
+      syncInFlightRef.current = false;
       setFinishBusy(false);
     }
   };
@@ -1035,10 +1039,10 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
      {active ? <div className="mapping-panel">
       <div className="mapping-title"><div><strong>{progress?.collection?.title||active.title}</strong></div><span>{progress?.collection?.status==='open'?'COLETA ABERTA':(progress?.collection?.status||'CONECTANDO').toUpperCase()}</span></div>
       {active.accessCode&&<div className="stat-card" style={{margin:'14px 0'}}><span>Código para convidar participantes</span><strong style={{letterSpacing:3}}>{active.accessCode}</strong><small>Compartilhe este código com quem vai participar.</small><button className="secondary-button" style={{marginTop:10}} onClick={()=>{void navigator.clipboard?.writeText(active.accessCode);setNotice('Código copiado.');}}>Copiar código</button></div>}
-      <div className="stats-grid"><div className="stat-card"><span>Usuários na coleta</span><strong>{progress?.participants?.filter((p:any)=>p.role==='user').length??'—'}</strong><small>Entraram usando o código</small></div><div className="stat-card"><span>Finalizados</span><strong>{progress?.participants?`${progress.participants.filter((p:any)=>p.role==='user'&&p.status==='finished').length}/${progress.participants.filter((p:any)=>p.role==='user').length}`:'—'}</strong><small>Contagens enviadas ao concluir</small></div></div>
+      {isOwner&&<div className="stats-grid"><div className="stat-card"><span>Usuários na coleta</span><strong>{progress?.participants?.filter((p:any)=>p.role==='user').length??'—'}</strong><small>Entraram usando o código</small></div><div className="stat-card"><span>Finalizados</span><strong>{progress?.participants?`${progress.participants.filter((p:any)=>p.role==='user'&&p.status==='finished').length}/${progress.participants.filter((p:any)=>p.role==='user').length}`:'—'}</strong><small>Contagens enviadas ao concluir</small></div></div>}
        {isOwner&&<div className="mapping-panel" style={{marginTop:16}}><div className="mapping-title"><strong>Planilha consolidada</strong><span>{sharedTemplate?.mapping?'MAPEAMENTO CONFIRMADO':'AGUARDANDO MAPEAMENTO'}</span></div><p className="mapping-note">{sharedTemplate?.mapping?'O modelo original e as colunas confirmadas estão prontos para gerar o arquivo final.':'Abra a etapa Modelo no coletor, confira as colunas e aperte Continuar para liberar a entrada dos usuários.'}</p>{progress?.collection?.status==='open'&&<><button className="secondary-button" style={{marginBottom:10}} disabled={closeBusy||!progress||(progress?.participants||[]).filter((p:any)=>p.role==='user').length===0||(progress?.participants||[]).some((p:any)=>p.role==='user'&&p.status!=='finished')} onClick={()=>void closeCollection()}>{closeBusy?'Encerrando…':'Encerrar coleta e liberar relatórios'}</button><small style={{display:'block',marginBottom:10}}>{(progress?.participants||[]).filter((p:any)=>p.role==='user').length===0?'Aguardando usuários entrarem pelo código.':(progress?.participants||[]).some((p:any)=>p.role==='user'&&p.status!=='finished')?'Aguardando todos os usuários enviarem suas contagens.':'Todos finalizaram. Encerre a coleta para liberar os dois relatórios.'}</small></>}{progress?.collection?.status==='completed'&&<p className="mapping-note"><strong>Coleta finalizada.</strong> Todos os usuários enviaram suas contagens. Os relatórios estão liberados.</p>}<button className="primary-button" disabled={exportBusy||!sharedTemplate?.mapping||progress?.collection?.status!=='completed'} onClick={()=>void exportConsolidated()}>{exportBusy?'Gerando planilha…':'Baixar planilha coletada'}</button><button className="secondary-button" style={{marginTop:10}} disabled={exportBusy||!sharedTemplate?.mapping||progress?.collection?.status!=='completed'} onClick={()=>void exportUnmatched()}>{exportBusy?'Gerando relatório…':'Baixar códigos não encontrados'}</button><small style={{display:'block',marginTop:7}}>Relatório separado com código, descrição (quando disponível no modelo) e quantidade coletada.</small></div>}
-      <h3 style={{marginTop:22}}>Equipe</h3><div className="product-list">{(progress?.participants||[]).map((p:any)=><div className="product-row" key={p.id}><div className="product-details"><strong>{p.display_name}</strong><span>{p.role==='owner'?'DONO':'USUÁRIO'} · {p.status==='active'?'TRABALHANDO':p.status==='finished'?'FINALIZOU':'BLOQUEADO'} · {p.event_count||0} evento(s) · {Number(p.total_units||0)} unidade(s) · {p.distinct_codes||0} código(s)</span><small>{p.last_scan_at?new Date(p.last_scan_at).toLocaleString('pt-BR'):'Ainda sem bipagens'}</small></div></div>)}{!progress&&<p>Carregando dados da coleta…</p>}</div>
-      <p className="mapping-note">O painel atualiza os participantes e o status de finalização. As bipagens ficam no aparelho de cada usuário e são enviadas somente quando ele finaliza.</p>
+      {isOwner&&<><h3 style={{marginTop:22}}>Equipe</h3><div className="product-list">{(progress?.participants||[]).map((p:any)=><div className="product-row" key={p.id}><div className="product-details"><strong>{p.display_name}</strong><span>{p.role==='owner'?'DONO':'USUÁRIO'} · {p.status==='active'?'TRABALHANDO':p.status==='finished'?'FINALIZOU':'BLOQUEADO'} · {p.event_count||0} evento(s) · {Number(p.total_units||0)} unidade(s) · {p.distinct_codes||0} código(s)</span><small>{p.last_scan_at?new Date(p.last_scan_at).toLocaleString('pt-BR'):'Ainda sem bipagens'}</small></div></div>)}{!progress&&<p>Carregando dados da coleta…</p>}</div>
+<p className="mapping-note">O painel atualiza os participantes e o status de finalização. As bipagens ficam no aparelho de cada usuário e são enviadas somente quando ele finaliza.</p></>}
       <button className="secondary-button" onClick={leave}>Desconectar desta coleta</button>
     </div> : <div className="mapping-grid">
       {isOwner&&<div className="mapping-panel"><div className="mapping-title"><strong>Criar nova coleta</strong><span>DONO</span></div><label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label><label>Planilha original da empresa<input key={templateInputKey} type="file" accept=".xlsx,.xls,.csv" onChange={e=>setTemplateFile(e.target.files?.[0]||null)}/></label>{templateFile&&<div className="mapping-note" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}><span style={{minWidth:0,overflowWrap:'anywhere'}}>{templateFile.name} · {(templateFile.size/1024/1024).toFixed(2)} MB</span><button type="button" className="secondary-button" style={{padding:'7px 10px',flexShrink:0}} disabled={busy} onClick={()=>{setTemplateFile(null);setTemplateInputKey(value=>value+1);}}>Remover planilha</button></div>}<button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()||!templateFile} onClick={()=>void create()}>Criar coleta e compartilhar modelo</button></div>}
