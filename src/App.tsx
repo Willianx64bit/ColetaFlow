@@ -81,7 +81,7 @@ const cellText = (cell: XLSX.CellObject | undefined) => {
 };
 const hasTerm = (value: string, terms: string[]) => terms.some(term => normalize(value).includes(term));
 
-function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { id: string; token: string; userId: string; accountToken?: string; isOwner?: boolean; mappingLocked?: boolean; template?: SharedTemplate; onMappingSaved?: (mapping: SharedMapping) => void }; onFinished?: () => void } = {}) {
+function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollection?: { id: string; token: string; userId: string; accountToken?: string; isOwner?: boolean; mappingLocked?: boolean; template?: SharedTemplate; onMappingSaved?: (mapping: SharedMapping) => void }; onFinished?: () => void; onBack?: () => void } = {}) {
   const sessionKey = sharedCollection ? `shared:${sharedCollection.id}:${sharedCollection.userId}` : 'active';
   const [theme, setTheme] = useState<'light' | 'dark'>(() => { try { return localStorage.getItem('coletaflow.theme') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; } });
   useEffect(() => { document.documentElement.dataset.theme = theme; document.body.dataset.theme = theme; try { localStorage.setItem('coletaflow.theme', theme); } catch { /* armazenamento pode estar indisponível */ } }, [theme]);
@@ -763,6 +763,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
   return (
     <main className="app-shell">
       <header className="topbar">
+        {sharedCollection?.isOwner&&onBack&&<button type="button" className="owner-back-button" onClick={onBack}>← Voltar ao painel</button>}
         <a className="brand" href="#" aria-label="ColetaFlow início">
           <span className="brand-mark" aria-hidden="true"><FileSpreadsheet size={34} strokeWidth={2.2} /><RefreshCw size={17} strokeWidth={2.8} className="brand-sync" /></span>
           <span className="brand-wordmark"><span>Coleta</span><strong>Flow</strong></span>
@@ -1152,7 +1153,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       <div className="product-list">{ownerCollections.length===0?<p>Nenhuma coleta anterior encontrada.</p>:ownerCollections.map((collection:any)=><div className="product-row" key={collection.id}><div className="product-details"><strong>{collection.title}</strong><span>{collection.status==='open'?'ABERTA':collection.status==='completed'?'CONCLUÍDA':collection.status.toUpperCase()} · {collection.participant_count} usuário(s) · {collection.finished_count} finalizado(s) · {collection.event_count} bipagem(ns)</span><small>Código: {collection.access_code} · {collection.last_scan_at?new Date(collection.last_scan_at).toLocaleString('pt-BR'):'Sem bipagens'}</small></div><button className="secondary-button" onClick={()=>activate({collection,participant:{role:'owner'}})}>Abrir</button></div>)}</div>
     </div>}
     {active&&(!isOwner||ownerCollectorEntered)&&<CollectorApp sharedCollection={{id:active.id,token,userId,accountToken:token,isOwner,mappingLocked:(progress?.participants||[]).some((p:any)=>p.role==='user'),template:sharedTemplate||undefined,onMappingSaved:(mapping)=>setSharedTemplate(current=>current?{...current,mapping}:current)}} onFinished={()=>{if(isOwner){setOwnerCollectorEntered(false);setNotice('Sua participação foi finalizada. Volte ao acompanhamento para encerrar a coleta quando todos concluírem.');}else{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');}}}/>}
-    {active&&(!isOwner||ownerPage==='collection')&&<div className="mapping-panel">
+    {active&&(!isOwner||ownerPage==='collection')&&(!isOwner||!ownerCollectorEntered)&&<div className="mapping-panel">
       {isOwner&&<button type="button" className="owner-back-button" onClick={leave}>← Voltar ao painel</button>}
       <div className="mapping-title"><div><strong>{progress?.collection?.title||active.title}</strong></div><span>{progress?.collection?.status==='open'?'PENDENTE':progress?.collection?.status==='completed'?'CONCLUÍDA':(progress?.collection?.status||'CONECTANDO').toUpperCase()}</span></div>
       {active.accessCode&&<div className="stat-card" style={{margin:'14px 0'}}><span>Código para convidar participantes</span><strong style={{letterSpacing:3}}>{active.accessCode}</strong><small>Compartilhe este código com quem vai participar.</small><button className="secondary-button" style={{marginTop:10}} onClick={()=>{void navigator.clipboard?.writeText(active.accessCode);setNotice('Código copiado.');}}>Copiar código</button></div>}
