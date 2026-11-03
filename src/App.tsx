@@ -1170,16 +1170,8 @@ function AccountGate() {
   const [error,setError]=useState('');
   const [user,setUser]=useState<{id:string;name:string;email:string;company:string;role:string;isOwner:boolean}|null>(null);
   const [token,setToken]=useState(()=>{try{return localStorage.getItem('coletaflow.auth.token')||'';}catch{return ''; }});
-  const [localMode,setLocalMode]=useState(false);
   const [theme,setTheme]=useState<'light'|'dark'>(()=>{try{return localStorage.getItem('coletaflow.theme')==='dark'?'dark':'light';}catch{return 'light';}});
   useEffect(()=>{document.documentElement.dataset.theme=theme;document.body.dataset.theme=theme;try{localStorage.setItem('coletaflow.theme',theme);}catch{}},[theme]);
-  const [showOwnerSetup,setShowOwnerSetup]=useState(false);
-  const [setupName,setSetupName]=useState('');
-  const [setupEmail,setSetupEmail]=useState('');
-  const [setupPassword,setSetupPassword]=useState('');
-  const [setupKey,setSetupKey]=useState('');
-  const [setupBusy,setSetupBusy]=useState(false);
-  const [setupError,setSetupError]=useState('');
   useEffect(()=>{
     if(!token)return;
     let alive=true;
@@ -1203,26 +1195,9 @@ function AccountGate() {
     }catch(err){setError(err instanceof Error?err.message:'Erro de conexão');}
     finally{setBusy(false);}
   };
-  const setupOwner=async(e:FormEvent)=>{
-    e.preventDefault();setSetupBusy(true);setSetupError('');
-    try{
-      const response=await fetch('/api/shared/bootstrap-owner',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({setupKey,email:setupEmail,name:setupName,password:setupPassword})});
-      const data=await response.json();
-      if(!response.ok){
-        const diagnostic=data.diagnostic;
-        const details=diagnostic ? ` Diagnóstico: variáveis ausentes: ${diagnostic.missing?.length ? diagnostic.missing.join(', ') : 'nenhuma'}. Hyperdrive disponível: ${diagnostic.hasHyperdrive ? 'sim' : 'não'}.` : '';
-        throw new Error((data.error||'Não foi possível configurar o dono')+details);
-      }
-      localStorage.setItem('coletaflow.auth.token',data.token);
-      setUser({id:data.user.id,name:data.user.display_name,email:data.user.email,company:data.user.company_name,role:'owner',isOwner:true});
-      setToken(data.token);
-    }catch(err){setSetupError(err instanceof Error?err.message:'Falha de conexão');}
-    finally{setSetupBusy(false);}
-  };
-  if(localMode)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow · modo local</strong><span>Funciona sem conta e mantém a coleta neste dispositivo.</span><button onClick={()=>setLocalMode(false)}>Acessar conta</button></header><CollectorApp /></div>;
   if(user)return <div className="account-shell"><header className="account-top"><strong className="account-top-brand"><span className="brand-mark" aria-hidden="true"><FileSpreadsheet size={34} strokeWidth={2.2}/><RefreshCw size={17} strokeWidth={2.8} className="brand-sync"/></span><span className="brand-wordmark"><span>Coleta</span><strong>Flow</strong></span></strong><button type="button" className="theme-toggle account-theme-toggle" onClick={()=>setTheme(value=>value==='light'?'dark':'light')} aria-label={theme==='light'?'Ativar tema escuro':'Ativar tema claro'} title={theme==='light'?'Ativar tema escuro':'Ativar tema claro'}><span>{theme==='light'?<Moon size={17}/>:<Sun size={17}/>}</span><small>{theme==='light'?'Escuro':'Claro'}</small></button><span className="account-user">{user.name} · {user.company}</span><button className="account-logout" onClick={async()=>{try{await fetch('/api/shared/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}});}catch{} try{localStorage.removeItem('coletaflow.auth.token');}catch{} setToken('');setUser(null);}}>Sair</button></header><SharedCollections token={token} isOwner={!!user.isOwner} userId={user.id}/></div>;
   return <main className="account-page"><section className="account-card">
-    <div className="account-brand"><span className="account-mark">CF</span><div><strong>ColetaFlow</strong><small>Coleta colaborativa de inventário</small></div></div>
+    <div className="account-brand"><span className="account-mark">CF</span><div><strong>ColetaFlow</strong><small>Coleta colaborativa de inventário</small></div><button type="button" className="theme-toggle account-login-theme" onClick={()=>setTheme(value=>value==='light'?'dark':'light')} aria-label={theme==='light'?'Ativar tema escuro':'Ativar tema claro'} title={theme==='light'?'Ativar tema escuro':'Ativar tema claro'}><span>{theme==='light'?<Moon size={17}/>:<Sun size={17}/>}</span><small>{theme==='light'?'Escuro':'Claro'}</small></button></div>
     <div className="account-intro"><span>ACESSO SEGURO</span><h1>Entre na sua conta</h1><p>Acesse as coletas liberadas para você.</p></div>
     <form className="account-form" onSubmit={submit}>
       <label>E-mail<input required type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email" placeholder="voce@empresa.com"/></label>
@@ -1230,18 +1205,6 @@ function AccountGate() {
       {error&&<div className="account-error">{error}</div>}
       <button className="primary-button" type="submit" disabled={busy}>{busy?'Aguarde...':'Entrar'}</button>
     </form>
-    {!showOwnerSetup ? <button type="button" className="secondary-button" style={{width:'100%',marginTop:12}} onClick={()=>setShowOwnerSetup(true)}>Primeiro acesso do dono</button> : <form className="account-form" onSubmit={setupOwner} style={{marginTop:18}}>
-      <div className="account-intro"><span>CONFIGURAÇÃO ÚNICA</span><h1>Conta do dono</h1><p>Disponível somente enquanto a conta principal ainda não foi criada.</p></div>
-      <label>Chave de configuração<input required type="password" value={setupKey} onChange={e=>setSetupKey(e.target.value)} autoComplete="off"/></label>
-      <label>Nome<input required value={setupName} onChange={e=>setSetupName(e.target.value)} maxLength={80}/></label>
-      <label>E-mail autorizado<input required type="email" value={setupEmail} onChange={e=>setSetupEmail(e.target.value)} autoComplete="email"/></label>
-      <label>Senha inicial<input required type="password" minLength={10} maxLength={128} value={setupPassword} onChange={e=>setSetupPassword(e.target.value)} autoComplete="new-password"/></label>
-      {setupError&&<div className="account-error">{setupError}</div>}
-      <button className="primary-button" type="submit" disabled={setupBusy}>{setupBusy?'Configurando…':'Criar conta do dono'}</button>
-      <button type="button" className="text-button" onClick={()=>{setShowOwnerSetup(false);setSetupError('');}}>Voltar ao login</button>
-    </form>}
-    <button type="button" className="secondary-button" style={{width:'100%',marginTop:12}} onClick={()=>setLocalMode(true)}>Continuar no modo local (sem conta)</button>
-    <small className="account-security">Suas credenciais são protegidas e a senha não é armazenada em texto aberto.</small>
   </section></main>;
 }
 export default function App() {
