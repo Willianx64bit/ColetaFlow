@@ -599,3 +599,9 @@ body[data-theme="dark"] .owner-status-done{background:#193c32;color:#8ce0b9}
  .owner-collection-open{margin-left:auto;padding:5px 4px}
  .owner-enter-collection{position:sticky;bottom:8px;z-index:2;box-shadow:0 4px 14px #0003}
 }
+
+
+/* Botão de retorno sempre visível nas telas internas do painel do dono */
+.owner-back-button{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:46px;margin:0 0 14px;padding:11px 14px;border:1px solid #cbd8e5;border-radius:11px;background:#f4f8fc;color:#31516d;font-size:14px;font-weight:750;text-align:center;cursor:pointer}
+body[data-theme="dark"] .owner-back-button{background:#17283a;border-color:#3a5069;color:#d9e8f7}
+@media(max-width:520px){.owner-back-button{min-height:50px;margin-bottom:12px;font-size:14px;touch-action:manipulation}}
