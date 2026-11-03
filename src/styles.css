@@ -627,3 +627,18 @@ body[data-theme="dark"] .account-top .brand-sync{background:#f3f6fa;color:#12304
   .account-top .account-top-brand{min-width:max-content;flex:0 0 auto}
   .account-top .account-top-brand .brand-wordmark{white-space:nowrap;flex-shrink:0}
 }
+
+
+/* Ajuste exclusivo do nome ColetaFlow no cabeçalho mobile. */
+@media(max-width:600px){
+  .account-top .account-top-brand .brand-wordmark{
+    max-width:none;
+    overflow:visible;
+    font-size:16px;
+  }
+  .account-top .account-top-brand .brand-wordmark span{
+    max-width:none;
+    overflow:visible;
+    text-overflow:clip;
+  }
+}
