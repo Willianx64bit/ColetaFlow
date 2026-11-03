@@ -1078,11 +1078,12 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       </form>
     </div>}
     {isOwner&&!active&&ownerPage==='home'&&<>
-      <div className="mapping-panel" style={{marginBottom:16}}>
-        <button type="button" className="mapping-title" style={{width:'100%',border:0,background:'transparent',textAlign:'left',cursor:'pointer',padding:0}} aria-expanded={createExpanded} onClick={()=>setCreateExpanded(v=>!v)}>
-          <strong>Criar nova coleta</strong><span>{createExpanded?'FECHAR':'ABRIR +'}</span>
+      <div className="owner-create-entry">
+        <button type="button" className="mapping-panel owner-home-card" aria-expanded={createExpanded} onClick={()=>setCreateExpanded(v=>!v)}>
+          <span className="owner-home-card-main"><strong>Criar nova coleta</strong><small>Prepare uma nova conferência e compartilhe com os participantes.</small></span>
+          <span className="owner-home-card-action">{createExpanded?'Fechar':'Criar coleta'} <b>{createExpanded?'−':'+'}</b></span>
         </button>
-        {createExpanded&&<div className="owner-create-form" style={{marginTop:16}}>
+        {createExpanded&&<div className="mapping-panel owner-create-expanded"><div className="owner-create-form">
           <label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label>
           <label>Planilha original da empresa<input key={templateInputKey} type="file" accept=".xlsx,.xls,.csv" onChange={e=>void loadCreateFile(e.target.files?.[0]||null)}/></label>
           {createWorkbook&&<div className="mapping-panel" style={{marginTop:14}}>
@@ -1100,7 +1101,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
           </div>}
           {templateFile&&<div className="mapping-note" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}><span style={{minWidth:0,overflowWrap:'anywhere'}}>{templateFile.name} · {(templateFile.size/1024/1024).toFixed(2)} MB</span><button type="button" className="secondary-button" style={{padding:'7px 10px',flexShrink:0}} disabled={busy} onClick={()=>{setTemplateFile(null);setTemplateInputKey(value=>value+1);}}>Remover planilha</button></div>}
           <button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()||!templateFile||!createWorkbook||!createSheet||createCodeColumn===createQuantityColumn||createAltCodeColumn===createQuantityColumn} onClick={()=>void create()}>Criar coleta e compartilhar modelo</button>
-        </div>}
+        </div></div>}
       </div>
       <div className="owner-home-actions">
         <button type="button" className="mapping-panel owner-home-card" onClick={()=>setOwnerPage('users')}>
