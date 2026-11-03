@@ -4,6 +4,7 @@ import { configureRuntime } from '../../lib/shared/_db.js';
 const routes = {
   'bootstrap-owner': handlers.bootstrapOwner,
   close: handlers.closeCollection,
+  delete: handlers.deleteCollection,
   collections: handlers.collections,
   create: handlers.createCollection,
   export: handlers.exportCollection,
