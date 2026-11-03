@@ -39,7 +39,10 @@ jobs:
         run: npx cap add android
       - name: Generate launcher and splash resources
         run: |
-          npx --yes @capacitor/assets generate --android
+          mkdir -p assets
+          cp resources/icon.png assets/icon.png
+          cp resources/splash.png assets/splash.png
+          npx capacitor-assets generate --android
       - name: Sync Capacitor
         run: npx cap sync android
       - name: Ensure camera and internet permissions
