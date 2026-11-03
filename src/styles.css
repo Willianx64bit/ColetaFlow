@@ -705,3 +705,48 @@ body[data-theme="dark"] .owner-pending-alert{background:#49371f;color:#f4ce83}
   .owner-create-expanded{padding:14px}
 }
 body[data-theme="dark"] .owner-home-card{border-color:#34485e;box-shadow:0 3px 10px rgba(0,0,0,.14)}
+
+
+/* Tela de login: tema escuro completo e controles acessíveis. */
+.account-page{min-height:100vh;min-height:100dvh}
+.account-brand{align-items:center}
+.account-login-theme{margin-left:auto;flex:0 0 auto}
+body[data-theme="dark"] .account-page{
+  background:radial-gradient(circle at 15% 10%,rgba(27,91,125,.24) 0,transparent 38%),#0b1220;
+}
+body[data-theme="dark"] .account-card{
+  background:#131f2e;
+  border-color:#2b4057;
+  box-shadow:0 22px 70px rgba(0,0,0,.38);
+}
+body[data-theme="dark"] .account-brand strong{color:#edf4fc}
+body[data-theme="dark"] .account-brand small{color:#9aadc2}
+body[data-theme="dark"] .account-mark{background:#173b37;color:#72d5b1}
+body[data-theme="dark"] .account-intro>span{color:#65cce7}
+body[data-theme="dark"] .account-intro h1{color:#f0f6fc}
+body[data-theme="dark"] .account-intro p{color:#a5b5c8}
+body[data-theme="dark"] .account-form label{color:#c5d2e0}
+body[data-theme="dark"] .account-form input{
+  background:#0c1725;
+  border-color:#354b63;
+  color:#f1f6fc;
+}
+body[data-theme="dark"] .account-form input::placeholder{color:#71869d}
+body[data-theme="dark"] .account-form input:focus{
+  border-color:#36a9c8;
+  box-shadow:0 0 0 3px rgba(54,169,200,.18);
+}
+body[data-theme="dark"] .account-form input:-webkit-autofill,
+body[data-theme="dark"] .account-form input:-webkit-autofill:hover,
+body[data-theme="dark"] .account-form input:-webkit-autofill:focus{
+  -webkit-text-fill-color:#f1f6fc;
+  box-shadow:0 0 0 1000px #0c1725 inset;
+  border-color:#354b63;
+}
+body[data-theme="dark"] .account-error{background:#48282d;color:#ffb8bd}
+@media(max-width:520px){
+  .account-page{padding:20px 13px}
+  .account-card{padding:25px 20px;border-radius:18px}
+  .account-brand{gap:10px;margin-bottom:30px}
+  .account-login-theme{margin-left:auto;padding:7px 9px}
+}
