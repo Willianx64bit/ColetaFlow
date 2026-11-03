@@ -930,7 +930,6 @@ type SharedMapping = { sheetName:string; headerRow:number; codeColumns:number[];
 type SharedTemplate = { fileName:string; mimeType:string; sha256:string; base64:string; mapping?:SharedMapping|null };
 function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;userId:string}) {
   const [title,setTitle]=useState('Inventário compartilhado');
-  const [accessCode,setAccessCode]=useState('');
   const [templateFile,setTemplateFile]=useState<File|null>(null);
   const [templateInputKey,setTemplateInputKey]=useState(0);
   const [sharedTemplate,setSharedTemplate]=useState<SharedTemplate|null>(null);
