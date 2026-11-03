@@ -1139,7 +1139,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
           {ownerCollections.length===0?<p className="owner-empty-collections">Nenhuma coleta criada ainda.</p>:ownerCollections.map((collection:any)=><div className="owner-collection-row" key={collection.id}>
             <span className="owner-collection-copy"><strong>{collection.title}</strong><small>{collection.participant_count||0} participante(s) · {collection.finished_count||0} finalizado(s)</small></span>
             <span className={collection.status==='open'?'owner-status-pending':'owner-status-done'}>{collection.status==='open'?'PENDENTE':collection.status==='completed'?'CONCLUÍDA':String(collection.status||'').toUpperCase()}</span>
-            <div className="owner-collection-actions"><button type="button" className="owner-collection-open" onClick={()=>activate({collection,participant:{role:'owner'}})}>Abrir</button><button type="button" className="owner-collection-delete" onClick={()=>setDeleteTarget(collection)}><Trash2 size={14}/> Apagar</button></div>
+            <div className="owner-collection-actions"><button type="button" className="owner-collection-open" onClick={()=>activate({collection,participant:{role:'owner'}})}>Abrir</button><button type="button" className="owner-collection-delete" onClick={()=>setDeleteTarget(collection)}><Trash2 size={14}/> Apagar coleta</button></div>
           </div>)}
         </div>}
       </div>
