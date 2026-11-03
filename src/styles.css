@@ -642,3 +642,33 @@ body[data-theme="dark"] .account-top .brand-sync{background:#f3f6fa;color:#12304
     text-overflow:clip;
   }
 }
+
+
+/* Painel inicial do dono: acessos em cards verticais compactos */
+.owner-home-actions{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.owner-home-card{width:100%;min-height:82px;margin:0;padding:15px 17px;display:flex;align-items:center;justify-content:space-between;gap:14px;text-align:left;cursor:pointer;background:#fff;border:1px solid #e1e8ef;border-radius:13px;box-shadow:0 2px 7px #1d35500a}
+.owner-home-card-main{display:flex;min-width:0;flex:1;flex-direction:column;gap:6px}
+.owner-home-card-main strong{font-size:15px;line-height:1.25;color:#30445b}
+.owner-home-card-main small{font-size:12px;line-height:1.45;font-weight:500;color:#77879a}
+.owner-home-card-action{display:flex;align-items:center;gap:8px;flex:0 0 auto;color:#087fa5;font-size:12px;font-weight:800;white-space:nowrap}
+.owner-home-card-action b,.owner-collections-toggle-right>b{font-size:20px;font-weight:500;line-height:1}
+.owner-create-expanded{margin:0;padding:15px}
+.owner-create-form{display:flex;flex-direction:column;gap:12px}
+.owner-collections-panel{padding:0;overflow:hidden}
+.owner-collections-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px;background:transparent;border:0;text-align:left;cursor:pointer}
+.owner-collections-toggle-right{display:flex;align-items:center;gap:12px;flex:0 0 auto}
+.owner-pending-alert{padding:7px 10px;border-radius:20px;background:#fff0c7;color:#98620b;font-size:10px;font-weight:900;letter-spacing:.35px;white-space:nowrap}
+.owner-collections-toggle-right>b{color:#8292a5}
+.owner-collections-panel .product-list{padding:0 12px 8px}
+body[data-theme="dark"] .owner-home-card{background:#172638;border-color:#2a3b50}
+body[data-theme="dark"] .owner-home-card-main strong{color:#e5eef8}
+body[data-theme="dark"] .owner-home-card-main small{color:#a1b0c1}
+body[data-theme="dark"] .owner-pending-alert{background:#49371f;color:#f4ce83}
+@media(max-width:520px){
+ .owner-home-card{min-height:78px;padding:14px 13px;gap:9px}
+ .owner-home-card-main strong{font-size:14px}
+ .owner-home-card-main small{font-size:11.5px}
+ .owner-home-card-action{font-size:11px}
+ .owner-collections-toggle{padding:14px 13px}
+ .owner-pending-alert{font-size:9px;padding:6px 8px}
+}
