@@ -622,70 +622,8 @@ body[data-theme="dark"] .account-top .brand-sync{background:#f3f6fa;color:#12304
 @media(max-width:600px){.account-top{padding:10px 14px;min-height:68px;gap:8px;flex-wrap:nowrap}.account-top .account-top-brand{gap:5px}.account-top .account-top-brand .brand-mark{width:34px;height:40px;flex-basis:34px}.account-top .account-top-brand .brand-mark>svg:first-child{width:28px;height:28px}.account-top .account-top-brand .brand-wordmark{font-size:18px}.account-top .account-theme-toggle{left:50%;padding:6px 8px}.account-top .account-user{max-width:27%;font-size:9px}.account-top .account-logout{padding:7px 9px;font-size:10px}}
 
 
-/* Correção do cabeçalho no celular: marca inteira, sem sobreposição do tema. */
+/* No celular, manter o cabeçalho original e impedir apenas o corte de ColetaFlow. */
 @media(max-width:600px){
-  .account-top{
-    display:grid;
-    grid-template-columns:minmax(0,1fr) auto;
-    grid-template-areas:"brand theme" "user logout";
-    align-items:center;
-    column-gap:10px;
-    row-gap:9px;
-    min-height:0;
-    padding:12px 14px;
-  }
-  .account-top .account-top-brand{
-    grid-area:brand;
-    min-width:0;
-    width:max-content;
-    max-width:100%;
-    gap:6px;
-    margin:0;
-  }
-  .account-top .account-top-brand .brand-mark{
-    width:34px;
-    height:38px;
-    flex-basis:34px;
-  }
-  .account-top .account-top-brand .brand-mark>svg:first-child{
-    width:27px;
-    height:27px;
-  }
-  .account-top .account-top-brand .brand-wordmark{
-    display:inline-flex;
-    font-size:19px;
-    letter-spacing:-.6px;
-    white-space:nowrap;
-    flex-shrink:0;
-  }
-  .account-top .account-theme-toggle{
-    grid-area:theme;
-    position:static;
-    transform:none;
-    justify-self:end;
-    margin:0;
-    padding:7px 10px;
-    min-height:34px;
-  }
-  .account-top .account-user{
-    grid-area:user;
-    max-width:100%;
-    min-width:0;
-    margin:0;
-    font-size:10px;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-  }
-  .account-top .account-logout{
-    grid-area:logout;
-    justify-self:end;
-    padding:7px 12px;
-    font-size:11px;
-  }
-  body[data-theme="dark"] .account-top .brand-sync{
-    background:#20364a;
-    color:#72d7f1;
-    box-shadow:0 0 0 1px #38536a;
-  }
+  .account-top .account-top-brand{min-width:max-content;flex:0 0 auto}
+  .account-top .account-top-brand .brand-wordmark{white-space:nowrap;flex-shrink:0}
 }
