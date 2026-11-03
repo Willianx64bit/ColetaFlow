@@ -154,24 +154,47 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
     if (!sharedCollection || sharedCollection.isOwner) return;
     if (!navigator.onLine) { setNotice('Conecte-se à internet para sincronizar e finalizar sua participação.'); return; }
     setFinishBusy(true);
+    setNotice('Aguardando o envio de qualquer sincronização em andamento…');
     try {
-      const pending = scanEventsRef.current;
-      if (pending.length > 0) {
-        setNotice(`Enviando ${pending.length} bipagem(ns) antes de finalizar…`);
-        for (let offset=0; offset<pending.length; offset+=500) {
-          const batch=pending.slice(offset,offset+500);
-          const syncResponse=await fetch('/api/shared/sync',{method:'POST',headers:{Authorization:`Bearer ${sharedCollection.token}`,'Content-Type':'application/json'},body:JSON.stringify({collectionId:sharedCollection.id,events:batch})});
-          const syncData=await syncResponse.json();
-          if(!syncResponse.ok)throw new Error(syncData.error||'Não foi possível sincronizar as bipagens');
-        }
-        scanEventsRef.current=[];setScanEvents([]);await persistEvents([]);
+      // Evita que a sincronização automática e a finalização enviem o mesmo lote ao mesmo tempo.
+      while (syncInFlightRef.current) {
+        await new Promise(resolve => window.setTimeout(resolve, 100));
       }
-      const response = await fetch('/api/shared/finish', { method: 'POST', headers: { Authorization: `Bearer ${sharedCollection.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ collectionId: sharedCollection.id }) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Não foi possível finalizar');
-      onFinished?.();
-    } catch (error) { setNotice(error instanceof Error ? error.message : 'Falha ao finalizar participação.'); }
-    finally { setFinishBusy(false); }
+      syncInFlightRef.current = true;
+      try {
+        const pending = scanEventsRef.current;
+        for (let offset = 0; offset < pending.length; offset += 500) {
+          const batch = pending.slice(offset, offset + 500);
+          setNotice(`Enviando bipagens ${Math.min(offset + batch.length, pending.length)} de ${pending.length}…`);
+          const syncResponse = await fetch('/api/shared/sync', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${sharedCollection.token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ collectionId: sharedCollection.id, events: batch })
+          });
+          const syncData = await syncResponse.json();
+          if (!syncResponse.ok) throw new Error(syncData.error || 'Não foi possível sincronizar as bipagens');
+          const sentIds = new Set(batch.map(event => event.eventId));
+          const remaining = scanEventsRef.current.filter(event => !sentIds.has(event.eventId));
+          scanEventsRef.current = remaining;
+          setScanEvents(remaining);
+          await persistEvents(remaining);
+        }
+        const response = await fetch('/api/shared/finish', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${sharedCollection.token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collectionId: sharedCollection.id })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Não foi possível finalizar');
+        onFinished?.();
+      } finally {
+        syncInFlightRef.current = false;
+      }
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Falha ao finalizar participação.');
+    } finally {
+      setFinishBusy(false);
+    }
   };
   const clearCurrentCounts = () => {
     Object.entries(counts).forEach(([code, quantity]) => recordEvent(code, -quantity, 'adjustment'));
