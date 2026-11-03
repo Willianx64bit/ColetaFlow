@@ -101,6 +101,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
     return persistEventsRef.current;
   };
   const [finishBusy, setFinishBusy] = useState(false);
+  const [finishLog, setFinishLog] = useState<string[]>([]);
   const [mappingBusy, setMappingBusy] = useState(false);
   const [scanValue, setScanValue] = useState('');
   const [quantityValue, setQuantityValue] = useState('');
@@ -155,18 +156,24 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
     if (!navigator.onLine) { setNotice('Conecte-se à internet para sincronizar e finalizar sua participação.'); return; }
     syncInFlightRef.current = true;
     setFinishBusy(true);
+    setFinishLog([]);
+    const logFinish = (message: string) => setFinishLog(current => [...current, `${new Date().toLocaleTimeString('pt-BR')} · ${message}`].slice(-20));
+    logFinish(`Início. Eventos locais na memória: ${scanEventsRef.current.length}. Coleta: ${sharedCollection.id}.`);
     setNotice('Preparando as bipagens salvas neste aparelho…');
     const readResponse = async (response: Response, action: string) => {
       const raw = await response.text();
       let data: any;
       try { data = raw ? JSON.parse(raw) : {}; }
       catch { throw new Error(`${action}: servidor respondeu HTTP ${response.status} em formato inesperado.`); }
-      if (!response.ok) throw new Error(data.error || `${action}: erro HTTP ${response.status}.`);
+      if (!response.ok) throw new Error(`${action} (HTTP ${response.status}): ${data.error || raw || 'sem detalhes do servidor'}`);
+      logFinish(`${action}: HTTP ${response.status} · resposta ${raw.slice(0, 500) || '(vazia)'}`);
       return data;
     };
     try {
+      logFinish('Aguardando gravação da fila local…');
       await persistEventsRef.current;
       const pending = [...scanEventsRef.current];
+      logFinish(`Fila local pronta: ${pending.length} evento(s).`);
       for (let offset = 0; offset < pending.length; offset += 500) {
         const batch = pending.slice(offset, offset + 500);
         setNotice(`Enviando bipagens ${Math.min(offset + batch.length, pending.length)} de ${pending.length}…`);
@@ -182,6 +189,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
           throw new Error(`O servidor confirmou ${Number.isFinite(received) ? received : 0} de ${batch.length} bipagem(ns). Os dados continuam salvos neste aparelho; tente finalizar novamente.`);
         }
       }
+      logFinish('Todos os lotes de bipagens foram confirmados.');
       setNotice('Bipagens recebidas. Confirmando sua participação…');
       const response = await fetch('/api/shared/finish', {
         method: 'POST',
@@ -190,13 +198,16 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       });
       const data = await readResponse(response, 'Falha ao finalizar participação');
       if (data.participant?.status !== 'finished') throw new Error('O servidor não confirmou a finalização. Suas bipagens continuam salvas neste aparelho.');
+      logFinish(`Finalização confirmada pelo servidor. Status: ${data.participant.status}.`);
       await persistEvents([]);
       scanEventsRef.current = [];
       setScanEvents([]);
       setNotice('Participação finalizada e confirmada pelo servidor.');
       onFinished?.();
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Falha ao finalizar participação. Seus dados continuam salvos neste aparelho.');
+      const message = error instanceof Error ? error.message : String(error);
+      logFinish(`ERRO: ${message}`);
+      setNotice(`${message} · Os eventos locais foram preservados.`);
     } finally {
       syncInFlightRef.current = false;
       setFinishBusy(false);
@@ -901,6 +912,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       </section>}
       {sharedCollection && !sharedCollection.isOwner && <div className="mapping-note" style={{marginTop:14}}>{scanEvents.length > 0 ? `${scanEvents.length} evento(s) salvos neste aparelho. Serão enviados quando você finalizar.` : navigator.onLine ? 'Bipagens enviadas. Você pode finalizar sua participação.' : 'Sem internet. Suas bipagens permanecem salvas neste aparelho.'}</div>}
       {sharedCollection && !sharedCollection.isOwner && <div className="wizard-navigation"><button className="primary-button" disabled={finishBusy} onClick={() => void finishParticipation()}>{finishBusy ? 'Sincronizando e finalizando…' : 'Finalizar minha participação'}</button></div>}
+      {sharedCollection && !sharedCollection.isOwner && finishLog.length > 0 && <div className="mapping-note" style={{marginTop:10,whiteSpace:'pre-wrap',fontFamily:'monospace',fontSize:12,overflowWrap:'anywhere'}}><strong>Log de sincronização</strong>{'\n'}{finishLog.join('\n')}</div>}
       <footer><span>ColetaFlow <b>•</b> Bipe. Informe. Exporte.</span><span><Smartphone size={14} /> Coleta sem cadastro prévio</span></footer>
     </main>
   );
