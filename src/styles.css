@@ -790,3 +790,23 @@ body[data-theme="dark"] .collection-delete-icon{background:#44262b;color:#ffaaaa
   .owner-collection-actions .owner-collection-open{min-height:38px;padding:8px 12px}
   .owner-collection-actions .owner-collection-delete{min-height:38px;padding:8px 12px;font-size:12px;white-space:nowrap}
 }
+
+/* Coletor mobile: impedir seleção acidental e o menu Copiar/Compartilhar ao tocar e segurar.
+   Campos de entrada continuam selecionáveis/editáveis; os gestos de quantidade e Retirar
+   permanecem controlados pelos handlers de pointer no React. */
+.collector-section,
+.collector-section * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.collector-section input,
+.collector-section textarea,
+.collector-section select,
+.collector-section [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+  -webkit-tap-highlight-color: auto;
+}
