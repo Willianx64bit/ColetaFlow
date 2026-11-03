@@ -905,7 +905,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
           <button className="secondary-button" onClick={() => setCurrentStep(3)}>Voltar</button>
           <button className="primary-button" onClick={exportMatchedWorkbook} disabled={!workbook || getExportGroups().matched.length === 0 || !!pendingCode}><ArrowDownToLine size={18} /> Baixar planilha coletada ({getExportGroups().matched.length})</button>
           <button className="secondary-button not-found-download" onClick={exportNotFoundReport} disabled={getExportGroups().unmatched.length === 0 || !!pendingCode}><ArrowDownToLine size={18} /> Baixar não encontrados ({getExportGroups().unmatched.length})</button>
-          {sharedCollection && <button className="primary-button" disabled={finishBusy || scanEvents.length === 0} onClick={() => void finishParticipation()}>{finishBusy ? 'Sincronizando e finalizando…' : 'Finalizar minha coleta'}</button>}
+          {sharedCollection && <button className="primary-button" disabled={finishBusy} onClick={() => void finishParticipation()}>{finishBusy ? 'Sincronizando e finalizando…' : 'Finalizar minha coleta'}</button>}
         </div>
       </section>}
       {sharedCollection && <div className="mapping-note" style={{marginTop:14}}>{scanEvents.length > 0 ? `${scanEvents.length} evento(s) salvos neste aparelho. Serão enviados quando você finalizar.` : navigator.onLine ? 'Nenhuma bipagem pendente neste aparelho.' : 'Sem internet. Suas bipagens permanecem salvas neste aparelho.'}</div>}
