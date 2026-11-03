@@ -17,8 +17,8 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "pg": "^8.16.3",
     "exceljs": "^4.4.0",
-    "@capacitor/android": "^7.4.3",
-    "@capacitor/core": "^7.4.3",
+    "@capacitor/android": "^7.6.10",
+    "@capacitor/core": "^7.6.10",
     "@capacitor/filesystem": "^7.1.9",
     "@capacitor/share": "^7.0.2"
   },
@@ -30,6 +30,6 @@
     "vite": "^6.0.7",
     "@types/pg": "^8.11.10",
     "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^7.4.3"
+    "@capacitor/cli": "^7.6.10"
   }
 }
