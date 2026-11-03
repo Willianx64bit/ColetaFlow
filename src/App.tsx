@@ -1074,6 +1074,17 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
           <span className="secondary-button" style={{display:'inline-block',marginTop:12}}>Abrir histórico</span>
         </button>
       </div>
+      <div className="mapping-panel owner-collections-panel">
+        <div className="mapping-title"><strong>Minhas coletas</strong><span>{ownerCollections.filter((item:any)=>item.status==='open').length} PENDENTE(S)</span></div>
+        <p className="mapping-note">Acompanhe suas coletas aqui. Toque em uma para abrir os detalhes.</p>
+        <div className="product-list">
+          {ownerCollections.length===0?<p className="owner-empty-collections">Nenhuma coleta criada ainda.</p>:ownerCollections.map((collection:any)=><button type="button" className="owner-collection-row" key={collection.id} onClick={()=>activate({collection,participant:{role:'owner'}})}>
+            <span className="owner-collection-copy"><strong>{collection.title}</strong><small>{collection.participant_count||0} participante(s) · {collection.finished_count||0} finalizado(s)</small></span>
+            <span className={collection.status==='open'?'owner-status-pending':'owner-status-done'}>{collection.status==='open'?'PENDENTE':collection.status==='completed'?'CONCLUÍDA':String(collection.status||'').toUpperCase()}</span>
+            <span className="owner-collection-open">Abrir</span>
+          </button>)}
+        </div>
+      </div>
     </>}
     {isOwner&&!active&&ownerPage==='users'&&<div className="mapping-panel">
       <div className="mapping-title"><strong>Cadastrar usuário</strong><span>CONTROLE DO DONO</span></div>
