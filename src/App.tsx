@@ -475,6 +475,12 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
   };
   const continueFromMapping = async () => {
     if(sharedCollection?.isOwner){
+      // Com participantes vinculados, o mapeamento já está bloqueado.
+      // O dono deve conseguir retomar a coleta sem tentar gravá-lo novamente.
+      if(sharedCollection.mappingLocked && sharedCollection.template?.mapping){
+        setCurrentStep(2);
+        return;
+      }
       if(!sharedCollection.accountToken){setNotice('Sessão do dono inválida. Entre novamente.');return;}
       setMappingBusy(true);
       try{
@@ -502,6 +508,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
           setSheetName(template.mapping.sheetName);
           setHeaderRow(template.mapping.headerRow);
           setColumns({code:template.mapping.codeColumns,quantity:template.mapping.quantityColumn,description:template.mapping.descriptionColumn});
+          setHasProductList(template.mapping.hasProductList !== false);
           // O participante recebe o modelo já configurado pelo dono e começa diretamente na coleta.
           if(!sharedCollection.isOwner)setCurrentStep(2);
         } else if(!sharedCollection.isOwner) {
