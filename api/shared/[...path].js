@@ -7,6 +7,7 @@ const routes = {
   collections: handlers.collections,
   create: handlers.createCollection,
   export: handlers.exportCollection,
+  'export-unmatched': handlers.exportUnmatched,
   finish: handlers.finishParticipant,
   join: handlers.joinCollection,
   login: handlers.login,
