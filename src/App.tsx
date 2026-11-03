@@ -762,11 +762,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
 
   return (
     <main className="app-shell">
-      <header className="topbar">
-        {sharedCollection?.isOwner&&onBack&&<button type="button" className="owner-back-button" onClick={onBack}>← Voltar ao painel</button>}
-        {/* Marca e seletor de tema ficam somente no cabeçalho superior da conta. */}
-
-      </header>
+      {sharedCollection?.isOwner&&onBack&&<header className="topbar"><button type="button" className="owner-back-button" onClick={onBack}>← Voltar ao painel</button></header>}
 
 
       <nav className="wizard-progress" aria-label="Etapas da coleta">{[1,2,3,4].map((step) => <div key={step} className={`wizard-step ${currentStep === step ? "current" : currentStep > step ? "completed" : ""}`}><span>{currentStep > step ? "✓" : step}</span><small>{["Modelo","Coleta","Conferência","Finalizar"][step - 1]}</small></div>)}</nav>
