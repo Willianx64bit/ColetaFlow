@@ -945,7 +945,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
   const [newUser,setNewUser]=useState({name:'',company:'',email:'',password:''});
   const [userBusy,setUserBusy]=useState(false);
   const [userMessage,setUserMessage]=useState('');
-  const [ownerPage,setOwnerPage]=useState<'home'|'users'|'history'>('home');
+  const [ownerPage,setOwnerPage]=useState<'home'|'users'|'history'|'collection'>('home');
   const [createExpanded,setCreateExpanded]=useState(false);
   const [ownerCollectorEntered,setOwnerCollectorEntered]=useState(false);
   useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem('coletaflow.shared.active')||'null');if(saved&&saved.userId!==userId)localStorage.removeItem('coletaflow.shared.active');}catch{try{localStorage.removeItem('coletaflow.shared.active');}catch{}}},[userId]);
