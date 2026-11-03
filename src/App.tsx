@@ -769,7 +769,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
           <span className="brand-wordmark"><span>Coleta</span><strong>Flow</strong></span>
         </a>
         <button type="button" className="theme-toggle" onClick={() => setTheme(value => value === "light" ? "dark" : "light")} aria-label={theme === "light" ? "Ativar tema escuro" : "Ativar tema claro"} title={theme === "light" ? "Ativar tema escuro" : "Ativar tema claro"}><span>{theme === "light" ? <Moon size={17} /> : <Sun size={17} />}</span><small>{theme === "light" ? "Escuro" : "Claro"}</small></button>
-        <div className="topbar-right"><span className="offline-pill"><span /> CONTAGEM LOCAL</span><span className="version">MVP 0.2</span></div>
+
       </header>
 
 
@@ -1223,7 +1223,7 @@ function AccountGate() {
     finally{setSetupBusy(false);}
   };
   if(localMode)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow · modo local</strong><span>Funciona sem conta e mantém a coleta neste dispositivo.</span><button onClick={()=>setLocalMode(false)}>Acessar conta</button></header><CollectorApp /></div>;
-  if(user)return <div className="account-shell"><header className="account-top"><strong>ColetaFlow</strong><span>{user.name} · {user.company}</span><button onClick={async()=>{try{await fetch('/api/shared/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}});}catch{} try{localStorage.removeItem('coletaflow.auth.token');}catch{} setToken('');setUser(null);}}>Sair</button></header><SharedCollections token={token} isOwner={!!user.isOwner} userId={user.id}/></div>;
+  if(user)return <div className="account-shell"><header className="account-top"><strong className="account-top-brand"><span className="brand-mark"><FileSpreadsheet size={27}/><RefreshCw size={13} className="brand-sync"/></span>ColetaFlow</strong><span>{user.name} · {user.company}</span><button type="button" className="theme-toggle" onClick={()=>{document.documentElement.dataset.theme=document.documentElement.dataset.theme==="dark"?"light":"dark";document.body.dataset.theme=document.documentElement.dataset.theme;try{localStorage.setItem("coletaflow.theme",document.documentElement.dataset.theme);}catch{}}} aria-label="Alternar tema">{document.documentElement.dataset.theme==="dark"?<Sun size={17}/>:<Moon size={17}/>}</button><button onClick={async()=>{try{await fetch('/api/shared/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}});}catch{} try{localStorage.removeItem('coletaflow.auth.token');}catch{} setToken('');setUser(null);}}>Sair</button></header><SharedCollections token={token} isOwner={!!user.isOwner} userId={user.id}/></div>;
   return <main className="account-page"><section className="account-card">
     <div className="account-brand"><span className="account-mark">CF</span><div><strong>ColetaFlow</strong><small>Coleta colaborativa de inventário</small></div></div>
     <div className="account-intro"><span>ACESSO SEGURO</span><h1>Entre na sua conta</h1><p>Acesse as coletas liberadas para você.</p></div>
