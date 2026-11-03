@@ -905,10 +905,10 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
           <button className="secondary-button" onClick={() => setCurrentStep(3)}>Voltar</button>
           <button className="primary-button" onClick={exportMatchedWorkbook} disabled={!workbook || getExportGroups().matched.length === 0 || !!pendingCode}><ArrowDownToLine size={18} /> Baixar planilha coletada ({getExportGroups().matched.length})</button>
           <button className="secondary-button not-found-download" onClick={exportNotFoundReport} disabled={getExportGroups().unmatched.length === 0 || !!pendingCode}><ArrowDownToLine size={18} /> Baixar não encontrados ({getExportGroups().unmatched.length})</button>
+          {sharedCollection && !sharedCollection.isOwner && <button className="primary-button" disabled={finishBusy} onClick={() => void finishParticipation()}>{finishBusy ? 'Sincronizando e finalizando…' : 'Finalizar minha participação'}</button>}
         </div>
       </section>}
       {sharedCollection && !sharedCollection.isOwner && <div className="mapping-note" style={{marginTop:14}}>{scanEvents.length > 0 ? `${scanEvents.length} evento(s) salvos neste aparelho. Serão enviados quando você finalizar.` : navigator.onLine ? 'Bipagens enviadas. Você pode finalizar sua participação.' : 'Sem internet. Suas bipagens permanecem salvas neste aparelho.'}</div>}
-      {sharedCollection && !sharedCollection.isOwner && <div className="wizard-navigation"><button className="primary-button" disabled={finishBusy} onClick={() => void finishParticipation()}>{finishBusy ? 'Sincronizando e finalizando…' : 'Finalizar minha participação'}</button></div>}
       {sharedCollection && !sharedCollection.isOwner && finishLog.length > 0 && <div className="mapping-note" style={{marginTop:10,whiteSpace:'pre-wrap',fontFamily:'monospace',fontSize:12,overflowWrap:'anywhere'}}><strong>Log de sincronização</strong>{'\n'}{finishLog.join('\n')}</div>}
       <footer><span>ColetaFlow <b>•</b> Bipe. Informe. Exporte.</span><span><Smartphone size={14} /> Coleta sem cadastro prévio</span></footer>
     </main>
