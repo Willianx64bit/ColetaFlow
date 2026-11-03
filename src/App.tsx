@@ -165,7 +165,13 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
       let data: any;
       try { data = raw ? JSON.parse(raw) : {}; }
       catch { throw new Error(`${action}: servidor respondeu HTTP ${response.status} em formato inesperado.`); }
-      if (!response.ok) throw new Error(`${action} (HTTP ${response.status}): ${data.error || raw || 'sem detalhes do servidor'}`);
+      if (!response.ok) {
+        const diagnostic = data.diagnostic && typeof data.diagnostic === 'object'
+          ? ` · diagnóstico: etapa=${data.diagnostic.stage || 'não informada'}; código=${data.diagnostic.code || 'não informado'}; detalhe=${data.diagnostic.message || 'não informado'}`
+          : '';
+        logFinish(`${action}: HTTP ${response.status} · resposta ${raw.slice(0, 900) || '(vazia)'}`);
+        throw new Error(`${action} (HTTP ${response.status}): ${data.error || raw || 'sem detalhes do servidor'}${diagnostic}`);
+      }
       logFinish(`${action}: HTTP ${response.status} · resposta ${raw.slice(0, 500) || '(vazia)'}`);
       return data;
     };
