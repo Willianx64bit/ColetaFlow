@@ -780,3 +780,13 @@ body[data-theme="dark"] .collection-delete-icon{background:#44262b;color:#ffaaaa
  .collection-delete-dialog{padding:21px;border-radius:16px}
  .collection-delete-actions{flex-direction:column-reverse}
 }
+
+
+/* Garante que as ações de cada coleta fiquem visíveis no painel do dono em celulares. */
+@media(max-width:520px){
+  .owner-collection-row{align-items:flex-start}
+  .owner-collection-copy{flex:1 1 100%;width:100%}
+  .owner-collection-actions{display:flex!important;align-items:center;justify-content:flex-end;gap:10px;flex:1 1 100%;width:100%;margin-top:5px}
+  .owner-collection-actions .owner-collection-open{min-height:38px;padding:8px 12px}
+  .owner-collection-actions .owner-collection-delete{min-height:38px;padding:8px 12px;font-size:12px;white-space:nowrap}
+}
