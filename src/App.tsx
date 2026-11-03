@@ -969,11 +969,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       setTemplateFile(null);activate({...d,participant:{role:'owner'}});
     }catch(e){setError(e instanceof Error?e.message:'Erro de conexão');}finally{setBusy(false);}
   };
-  const join=async()=>{
-    setBusy(true);setError('');setNotice('');
-    try{const r=await fetch('/api/shared/join',{method:'POST',headers:auth,body:JSON.stringify({accessCode})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao entrar na coleta');activate(d);}
-    catch(e){setError(e instanceof Error?e.message:'Erro de conexão');}finally{setBusy(false);}
-  };
+
   useEffect(()=>{if(!isOwner)return;let alive=true;const loadUsers=async()=>{try{const r=await fetch('/api/shared/users',{headers:auth,cache:'no-store'});const d=await r.json();if(r.ok&&alive)setUsers(d.users||[]);}catch{}};void loadUsers();return()=>{alive=false;};},[token,isOwner]);
   const loadOwnerCollections=async()=>{
     if(!isOwner)return;
