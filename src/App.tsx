@@ -1059,7 +1059,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
         <button type="button" className="mapping-title" style={{width:'100%',border:0,background:'transparent',textAlign:'left',cursor:'pointer',padding:0}} aria-expanded={createExpanded} onClick={()=>setCreateExpanded(v=>!v)}>
           <strong>Criar nova coleta</strong><span>{createExpanded?'FECHAR':'ABRIR +'}</span>
         </button>
-        {createExpanded&&<div style={{marginTop:16}}>
+        {createExpanded&&<div className="owner-create-form" style={{marginTop:16}}>
           <label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label>
           <label>Planilha original da empresa<input key={templateInputKey} type="file" accept=".xlsx,.xls,.csv" onChange={e=>setTemplateFile(e.target.files?.[0]||null)}/></label>
           {templateFile&&<div className="mapping-note" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}><span style={{minWidth:0,overflowWrap:'anywhere'}}>{templateFile.name} · {(templateFile.size/1024/1024).toFixed(2)} MB</span><button type="button" className="secondary-button" style={{padding:'7px 10px',flexShrink:0}} disabled={busy} onClick={()=>{setTemplateFile(null);setTemplateInputKey(value=>value+1);}}>Remover planilha</button></div>}
@@ -1077,11 +1077,6 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
           <p className="mapping-note" style={{marginBottom:0}}>Consultar e abrir coletas já criadas.</p>
           <span className="secondary-button" style={{display:'inline-block',marginTop:12}}>Abrir histórico</span>
         </button>
-      </div>
-      <div className="mapping-panel">
-        <div className="mapping-title"><strong>Entrar em uma coleta</strong><span>PARTICIPANTE</span></div>
-        <label>Código de acesso<input value={accessCode} onChange={e=>setAccessCode(e.target.value.toUpperCase().replace(/[^A-F0-9]/g,'').slice(0,8))} placeholder="Ex.: A1B2C3D4" maxLength={8}/></label>
-        <button className="secondary-button" style={{marginTop:14}} disabled={busy||accessCode.length!==8} onClick={()=>void join()}>Entrar na coleta</button>
       </div>
     </>}
     {isOwner&&!active&&ownerPage==='users'&&<div className="mapping-panel">
