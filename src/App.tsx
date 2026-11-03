@@ -764,11 +764,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
     <main className="app-shell">
       <header className="topbar">
         {sharedCollection?.isOwner&&onBack&&<button type="button" className="owner-back-button" onClick={onBack}>← Voltar ao painel</button>}
-        <a className="brand" href="#" aria-label="ColetaFlow início">
-          <span className="brand-mark" aria-hidden="true"><FileSpreadsheet size={34} strokeWidth={2.2} /><RefreshCw size={17} strokeWidth={2.8} className="brand-sync" /></span>
-          <span className="brand-wordmark"><span>Coleta</span><strong>Flow</strong></span>
-        </a>
-        <button type="button" className="theme-toggle" onClick={() => setTheme(value => value === "light" ? "dark" : "light")} aria-label={theme === "light" ? "Ativar tema escuro" : "Ativar tema claro"} title={theme === "light" ? "Ativar tema escuro" : "Ativar tema claro"}><span>{theme === "light" ? <Moon size={17} /> : <Sun size={17} />}</span><small>{theme === "light" ? "Escuro" : "Claro"}</small></button>
+        {/* Marca e seletor de tema ficam somente no cabeçalho superior da conta. */}
 
       </header>
 
