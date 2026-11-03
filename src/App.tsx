@@ -947,11 +947,12 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
   const [userMessage,setUserMessage]=useState('');
   const [ownerPage,setOwnerPage]=useState<'home'|'users'|'history'>('home');
   const [createExpanded,setCreateExpanded]=useState(false);
+  const [ownerCollectorEntered,setOwnerCollectorEntered]=useState(false);
   useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem('coletaflow.shared.active')||'null');if(saved&&saved.userId!==userId)localStorage.removeItem('coletaflow.shared.active');}catch{try{localStorage.removeItem('coletaflow.shared.active');}catch{}}},[userId]);
   const auth={Authorization:`Bearer ${token}`,'Content-Type':'application/json'};
   const activate=(data:any)=>{
     const next={id:data.collection.id,title:data.collection.title,accessCode:data.collection.access_code||'',role:data.participant?.role||'owner',userId};
-    localStorage.setItem('coletaflow.shared.active',JSON.stringify(next));setActive(next);setProgress(null);setSharedTemplate(null);setError('');setNotice('Você entrou na coleta. O código pode ser compartilhado com os demais participantes.');
+    localStorage.setItem('coletaflow.shared.active',JSON.stringify(next));setActive(next);setProgress(null);setSharedTemplate(null);setError('');setOwnerCollectorEntered(false);if(isOwner)setOwnerPage('collection');setNotice(isOwner?'Acompanhamento da coleta aberto.':'Você entrou na coleta. O código pode ser compartilhado com os demais participantes.');
   };
   const create=async()=>{
     if(!templateFile){setError('Selecione a planilha original antes de criar a coleta.');return;}
@@ -965,7 +966,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       const payload={title,templateFileName:templateFile.name,templateMimeType:templateFile.type||'application/octet-stream',templateBase64};
       const r=await fetch('/api/shared/create',{method:'POST',headers:auth,body:JSON.stringify(payload)});
       const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao criar coleta');
-      setTemplateFile(null);activate({...d,participant:{role:'owner'}});
+      setTemplateFile(null);setCreateExpanded(false);setOwnerPage('home');setOwnerCollections(current=>[d.collection,...current.filter((item:any)=>item.id!==d.collection.id)]);void loadOwnerCollections();setNotice('Coleta criada. Ela está pendente no painel; abra para acompanhar os participantes.');
     }catch(e){setError(e instanceof Error?e.message:'Erro de conexão');}finally{setBusy(false);}
   };
 
@@ -999,7 +1000,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
     void load();const timer=window.setInterval(load,3000);
     return()=>{alive=false;window.clearInterval(timer);};
   },[active?.id,token]);
-  const leave=()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setError('');setNotice('Coleta desconectada deste dispositivo.');};
+  const leave=()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setOwnerCollectorEntered(false);if(isOwner)setOwnerPage('home');setError('');setNotice(isOwner?'Você voltou ao painel do dono.':'Coleta desconectada deste dispositivo.');};
   const closeCollection=async()=>{
     if(!active)return;
     const activeUsers=(progress?.participants||[]).filter((p:any)=>p.role==='user'&&p.status==='active').length;
@@ -1009,7 +1010,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       const r=await fetch('/api/shared/close',{method:'POST',headers:auth,body:JSON.stringify({collectionId:active.id})});
       const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível encerrar');
       setProgress((current:any)=>current?{...current,collection:{...current.collection,...d.collection}}:current);
-      setNotice('Coleta encerrada. Agora você pode baixar a planilha consolidada.');
+      localStorage.removeItem('coletaflow.shared.active');setActive(null);setOwnerCollectorEntered(false);setOwnerPage('home');void loadOwnerCollections();setNotice('Coleta concluída e fechada. Ela não aparece mais como pendente. Os relatórios ficam disponíveis no histórico.');
     }catch(e){setError(e instanceof Error?e.message:'Falha ao encerrar a coleta.');}
     finally{setCloseBusy(false);}
   };
@@ -1091,14 +1092,14 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       <div className="mapping-title"><strong>Coletas anteriores</strong><span>{ownerCollections.length} REGISTRO(S)</span></div>
       <div className="product-list">{ownerCollections.length===0?<p>Nenhuma coleta anterior encontrada.</p>:ownerCollections.map((collection:any)=><div className="product-row" key={collection.id}><div className="product-details"><strong>{collection.title}</strong><span>{collection.status==='open'?'ABERTA':collection.status==='completed'?'CONCLUÍDA':collection.status.toUpperCase()} · {collection.participant_count} usuário(s) · {collection.finished_count} finalizado(s) · {collection.event_count} bipagem(ns)</span><small>Código: {collection.access_code} · {collection.last_scan_at?new Date(collection.last_scan_at).toLocaleString('pt-BR'):'Sem bipagens'}</small></div><button className="secondary-button" onClick={()=>activate({collection,participant:{role:'owner'}})}>Abrir</button></div>)}</div>
     </div>}
-    {active&&<CollectorApp sharedCollection={{id:active.id,token,userId,accountToken:token,isOwner,mappingLocked:(progress?.participants||[]).some((p:any)=>p.role==='user'),template:sharedTemplate||undefined,onMappingSaved:(mapping)=>setSharedTemplate(current=>current?{...current,mapping}:current)}} onFinished={()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');}}/>}
-    {active&&<div className="mapping-panel">
+    {active&&(!isOwner||ownerCollectorEntered)&&<CollectorApp sharedCollection={{id:active.id,token,userId,accountToken:token,isOwner,mappingLocked:(progress?.participants||[]).some((p:any)=>p.role==='user'),template:sharedTemplate||undefined,onMappingSaved:(mapping)=>setSharedTemplate(current=>current?{...current,mapping}:current)}} onFinished={()=>{if(isOwner){setOwnerCollectorEntered(false);setNotice('Sua participação foi finalizada. Volte ao acompanhamento para encerrar a coleta quando todos concluírem.');}else{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');}}}/>}
+    {active&&(!isOwner||ownerPage==='collection')&&<div className="mapping-panel">
       <div className="mapping-title"><div><strong>{progress?.collection?.title||active.title}</strong></div><span>{progress?.collection?.status==='open'?'COLETA ABERTA':(progress?.collection?.status||'CONECTANDO').toUpperCase()}</span></div>
       {active.accessCode&&<div className="stat-card" style={{margin:'14px 0'}}><span>Código para convidar participantes</span><strong style={{letterSpacing:3}}>{active.accessCode}</strong><small>Compartilhe este código com quem vai participar.</small><button className="secondary-button" style={{marginTop:10}} onClick={()=>{void navigator.clipboard?.writeText(active.accessCode);setNotice('Código copiado.');}}>Copiar código</button></div>}
       {isOwner&&<div className="stats-grid"><div className="stat-card"><span>Usuários na coleta</span><strong>{progress?.participants?.filter((p:any)=>p.role==='user').length??'—'}</strong><small>Entraram usando o código</small></div><div className="stat-card"><span>Finalizados</span><strong>{progress?.participants?`${progress.participants.filter((p:any)=>p.role==='user'&&p.status==='finished').length}/${progress.participants.filter((p:any)=>p.role==='user').length}`:'—'}</strong><small>Contagens enviadas ao concluir</small></div></div>}
       {isOwner&&<div className="mapping-panel" style={{marginTop:16}}><div className="mapping-title"><strong>Planilha consolidada</strong><span>{sharedTemplate?.mapping?'MAPEAMENTO CONFIRMADO':'AGUARDANDO MAPEAMENTO'}</span></div><p className="mapping-note">{sharedTemplate?.mapping?'O modelo original e as colunas confirmadas estão prontos para gerar o arquivo final.':'Abra a etapa Modelo no coletor, confira as colunas e aperte Continuar para liberar a entrada dos usuários.'}</p>{progress?.collection?.status==='open'&&<><button className="secondary-button" style={{marginBottom:10}} disabled={closeBusy||!progress||(progress?.participants||[]).filter((p:any)=>p.role==='user').length===0||(progress?.participants||[]).some((p:any)=>p.role==='user'&&p.status!=='finished')} onClick={()=>void closeCollection()}>{closeBusy?'Encerrando…':'Encerrar coleta e liberar relatórios'}</button><small style={{display:'block',marginBottom:10}}>{(progress?.participants||[]).filter((p:any)=>p.role==='user').length===0?'Aguardando usuários entrarem pelo código.':(progress?.participants||[]).some((p:any)=>p.role==='user'&&p.status!=='finished')?'Aguardando todos os usuários enviarem suas contagens.':'Todos finalizaram. Encerre a coleta para liberar os dois relatórios.'}</small></>}{progress?.collection?.status==='completed'&&<p className="mapping-note"><strong>Coleta finalizada.</strong> Todos os usuários enviaram suas contagens. Os relatórios estão liberados.</p>}<button className="primary-button" disabled={exportBusy||!sharedTemplate?.mapping||progress?.collection?.status!=='completed'} onClick={()=>void exportConsolidated()}>{exportBusy?'Gerando planilha…':'Baixar planilha coletada'}</button><button className="secondary-button" style={{marginTop:10}} disabled={exportBusy||!sharedTemplate?.mapping||progress?.collection?.status!=='completed'} onClick={()=>void exportUnmatched()}>{exportBusy?'Gerando relatório…':'Baixar códigos não encontrados'}</button><small style={{display:'block',marginTop:7}}>Relatório separado com código, descrição (quando disponível no modelo) e quantidade coletada.</small></div>}
       {isOwner&&<><h3 style={{marginTop:22}}>Equipe</h3><div className="product-list">{(progress?.participants||[]).map((p:any)=><div className="product-row" key={p.id}><div className="product-details"><strong>{p.display_name}</strong><span>{p.role==='owner'?'DONO':'USUÁRIO'} · {p.status==='active'?'TRABALHANDO':p.status==='finished'?'FINALIZOU':'BLOQUEADO'} · {p.event_count||0} evento(s) · {Number(p.total_units||0)} unidade(s) · {p.distinct_codes||0} código(s)</span><small>{p.last_scan_at?new Date(p.last_scan_at).toLocaleString('pt-BR'):'Ainda sem bipagens'}</small></div></div>)}{!progress&&<p>Carregando dados da coleta…</p>}</div><p className="mapping-note">O painel atualiza os participantes e o status de finalização. As bipagens ficam no aparelho de cada usuário e são enviadas somente quando ele finaliza.</p></>}
-      <button className="secondary-button" onClick={leave}>Desconectar desta coleta</button>
+      {isOwner?<button className="primary-button owner-enter-collection" onClick={()=>setOwnerCollectorEntered(value=>!value)}>{ownerCollectorEntered?'Voltar ao acompanhamento':'Entrar na coleta'}</button>:<button className="secondary-button" onClick={leave}>Desconectar desta coleta</button>}
     </div>}
     {busy&&<p>Aguarde…</p>}{error&&<div className="account-error">{error}</div>}{notice&&<p className="mapping-note">{notice}</p>}
   </section>;
