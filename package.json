@@ -20,7 +20,8 @@
     "@capacitor/android": "^7.6.10",
     "@capacitor/core": "^7.6.10",
     "@capacitor/filesystem": "^7.1.9",
-    "@capacitor/share": "^7.0.2"
+    "@capacitor/share": "^7.0.2",
+    "@capacitor/splash-screen": "^7.0.5"
   },
   "devDependencies": {
     "@types/react": "^18.3.18",
