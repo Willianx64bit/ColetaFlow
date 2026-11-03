@@ -958,6 +958,8 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
   const [ownerPage,setOwnerPage]=useState<'home'|'users'|'history'|'collection'>('home');
   const [createExpanded,setCreateExpanded]=useState(false);
   const [ownerCollectorEntered,setOwnerCollectorEntered]=useState(false);
+  const [joinCode,setJoinCode]=useState('');
+  const [joinBusy,setJoinBusy]=useState(false);
   useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem('coletaflow.shared.active')||'null');if(saved&&saved.userId!==userId)localStorage.removeItem('coletaflow.shared.active');}catch{try{localStorage.removeItem('coletaflow.shared.active');}catch{}}},[userId]);
   const auth={Authorization:`Bearer ${token}`,'Content-Type':'application/json'};
   const activate=(data:any)=>{
@@ -1011,6 +1013,20 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
     void load();const timer=window.setInterval(load,3000);
     return()=>{alive=false;window.clearInterval(timer);};
   },[active?.id,token]);
+  const joinByCode=async(e:FormEvent)=>{
+    e.preventDefault();
+    const accessCode=joinCode.trim().toUpperCase();
+    if(!/^[A-F0-9]{8}$/.test(accessCode)){setError('Digite o código de 8 caracteres recebido do dono.');return;}
+    setJoinBusy(true);setError('');setNotice('');
+    try{
+      const r=await fetch('/api/shared/join',{method:'POST',headers:auth,body:JSON.stringify({accessCode})});
+      const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível entrar na coleta.');
+      localStorage.setItem('coletaflow.shared.active',JSON.stringify({id:d.collection.id,title:d.collection.title,accessCode:d.collection.access_code||accessCode,role:d.participant?.role||'user',userId}));
+      setActive({id:d.collection.id,title:d.collection.title,accessCode:d.collection.access_code||accessCode,role:d.participant?.role||'user',userId});
+      setProgress(null);setSharedTemplate(null);setJoinCode('');setError('');setNotice('Você entrou na coleta.');
+    }catch(e){setError(e instanceof Error?e.message:'Falha de conexão ao entrar na coleta.');}
+    finally{setJoinBusy(false);}
+  };
   const leave=()=>{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setOwnerCollectorEntered(false);if(isOwner)setOwnerPage('home');setError('');setNotice(isOwner?'Você voltou ao painel do dono.':'Coleta desconectada deste dispositivo.');};
   const closeCollection=async()=>{
     if(!active)return;
@@ -1061,6 +1077,14 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
 
   return <section className="workspace" style={{maxWidth:980,margin:'10px auto'}}>
     {isOwner&&!active&&ownerPage!=='home'&&<button className="secondary-button" style={{marginBottom:14}} onClick={()=>setOwnerPage('home')}>← Voltar ao painel</button>}
+    {!isOwner&&!active&&<div className="mapping-panel" style={{maxWidth:560,margin:'0 auto 16px'}}>
+      <div className="mapping-title"><strong>Entrar em uma coleta</strong><span>PARTICIPANTE</span></div>
+      <p className="mapping-note">Digite o código de 8 caracteres fornecido pelo dono para acessar a coleta.</p>
+      <form className="account-form" onSubmit={joinByCode}>
+        <label>Código da coleta<input value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase().replace(/[^A-F0-9]/g,'').slice(0,8))} placeholder="Ex.: 4A8F21BC" autoComplete="off" inputMode="text" maxLength={8} required /></label>
+        <button className="primary-button" type="submit" disabled={joinBusy||joinCode.length!==8}>{joinBusy?'Entrando…':'Entrar na coleta'}</button>
+      </form>
+    </div>}
     {isOwner&&!active&&ownerPage==='home'&&<>
       <div className="mapping-panel" style={{marginBottom:16}}>
         <button type="button" className="mapping-title" style={{width:'100%',border:0,background:'transparent',textAlign:'left',cursor:'pointer',padding:0}} aria-expanded={createExpanded} onClick={()=>setCreateExpanded(v=>!v)}>
