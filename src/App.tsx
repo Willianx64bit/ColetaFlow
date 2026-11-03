@@ -948,6 +948,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
   const [userMessage,setUserMessage]=useState('');
   const [ownerPage,setOwnerPage]=useState<'home'|'users'|'history'|'collection'>('home');
   const [createExpanded,setCreateExpanded]=useState(false);
+  const [myCollectionsExpanded,setMyCollectionsExpanded]=useState(false);
   const [ownerCollectorEntered,setOwnerCollectorEntered]=useState(false);
   const [joinCode,setJoinCode]=useState('');
   const [joinBusy,setJoinBusy]=useState(false);
@@ -1101,28 +1102,56 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
           <button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()||!templateFile||!createWorkbook||!createSheet||createCodeColumn===createQuantityColumn||createAltCodeColumn===createQuantityColumn} onClick={()=>void create()}>Criar coleta e compartilhar modelo</button>
         </div>}
       </div>
-      <div className="mapping-grid" style={{marginBottom:16}}>
-        <button type="button" className="mapping-panel" style={{textAlign:'left',cursor:'pointer'}} onClick={()=>setOwnerPage('users')}>
-          <div className="mapping-title"><strong>Usuários cadastrados</strong><span>{users.length} USUÁRIO(S)</span></div>
-          <p className="mapping-note" style={{marginBottom:0}}>Cadastrar novos usuários e bloquear ou liberar acessos.</p>
-          <span className="secondary-button" style={{display:'inline-block',marginTop:12}}>Abrir usuários</span>
+      <div className="owner-home-actions">
+        <button type="button" className="mapping-panel owner-home-card owner-home-card-create" onClick={()=>setCreateExpanded(v=>!v)} aria-expanded={createExpanded}>
+          <span className="owner-home-card-main"><strong>Criar nova coleta</strong><small>Prepare uma nova conferência e compartilhe com os participantes.</small></span>
+          <span className="owner-home-card-action">{createExpanded?'Fechar':'Criar coleta'} <b>{createExpanded?'−':'+'}</b></span>
         </button>
-        <button type="button" className="mapping-panel" style={{textAlign:'left',cursor:'pointer'}} onClick={()=>setOwnerPage('history')}>
-          <div className="mapping-title"><strong>Coletas anteriores</strong><span>{ownerCollections.length} REGISTRO(S)</span></div>
-          <p className="mapping-note" style={{marginBottom:0}}>Consultar e abrir coletas já criadas.</p>
-          <span className="secondary-button" style={{display:'inline-block',marginTop:12}}>Abrir histórico</span>
+        {createExpanded&&<div className="mapping-panel owner-create-expanded">
+          <div className="owner-create-form">
+            <label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label>
+            <label>Planilha original da empresa<input key={templateInputKey} type="file" accept=".xlsx,.xls,.csv" onChange={e=>void loadCreateFile(e.target.files?.[0]||null)}/></label>
+            {createWorkbook&&<div className="mapping-panel" style={{marginTop:14}}>
+              <div className="mapping-title"><div><ShieldCheck size={18}/><strong>Configurar colunas da planilha</strong></div><span>ANTES DE CRIAR</span></div>
+              <div className="mapping-grid">
+                <label>Cadastro de produtos<select value={createHasProductList?'yes':'no'} onChange={e=>setCreateHasProductList(e.target.value==='yes')}><option value="yes">Planilha contém produtos cadastrados</option><option value="no">Planilha sem cadastro de produtos</option></select></label>
+                <label>Aba<select value={createSheet} onChange={e=>{setCreateSheet(e.target.value);setCreateHeaderRow(0);}}>{createWorkbook.SheetNames.map(n=><option key={n} value={n}>{n}</option>)}</select></label>
+                <label>Linha do cabeçalho<input type="number" min="1" value={createHeaderRow+1} onChange={e=>setCreateHeaderRow(Math.max(0,Number(e.target.value)-1))}/></label>
+                <label>Código principal<select value={createCodeColumn} onChange={e=>setCreateCodeColumn(Number(e.target.value))}>{createHeaders.map((h,i)=><option key={i} value={i}>{h}</option>)}</select></label>
+                <label>Código alternativo (opcional)<select value={createAltCodeColumn} onChange={e=>setCreateAltCodeColumn(Number(e.target.value))}><option value={-1}>Não usar</option>{createHeaders.map((h,i)=><option key={i} value={i} disabled={i===createCodeColumn}>{h}</option>)}</select></label>
+                <label>Coluna da quantidade<select value={createQuantityColumn} onChange={e=>setCreateQuantityColumn(Number(e.target.value))}>{createHeaders.map((h,i)=><option key={i} value={i}>{h}</option>)}</select></label>
+                <label>Coluna da descrição<select value={createDescriptionColumn} onChange={e=>setCreateDescriptionColumn(Number(e.target.value))}><option value={-1}>Não possui descrição</option>{createHeaders.map((h,i)=><option key={i} value={i}>{h}</option>)}</select></label>
+              </div>
+              <p className="mapping-note">Ajuste as colunas aqui. Essa configuração será salva junto com a coleta e reaproveitada quando você entrar nela.</p>
+            </div>}
+            {templateFile&&<div className="mapping-note" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}><span style={{minWidth:0,overflowWrap:'anywhere'}}>{templateFile.name} · {(templateFile.size/1024/1024).toFixed(2)} MB</span><button type="button" className="secondary-button" style={{padding:'7px 10px',flexShrink:0}} disabled={busy} onClick={()=>{setTemplateFile(null);setTemplateInputKey(value=>value+1);}}>Remover planilha</button></div>}
+            <button className="primary-button" style={{marginTop:14}} disabled={busy||!title.trim()||!templateFile||!createWorkbook||!createSheet||createCodeColumn===createQuantityColumn||createAltCodeColumn===createQuantityColumn} onClick={()=>void create()}>Criar coleta e compartilhar modelo</button>
+          </div>
+        </div>}
+        <button type="button" className="mapping-panel owner-home-card" onClick={()=>setOwnerPage('users')}>
+          <span className="owner-home-card-main"><strong>Usuários cadastrados</strong><small>Cadastrar novos usuários e bloquear ou liberar acessos.</small></span>
+          <span className="owner-home-card-action">Abrir usuários <b>›</b></span>
+        </button>
+        <button type="button" className="mapping-panel owner-home-card" onClick={()=>setOwnerPage('history')}>
+          <span className="owner-home-card-main"><strong>Coletas anteriores</strong><small>Consultar e abrir coletas já criadas.</small></span>
+          <span className="owner-home-card-action">Abrir histórico <b>›</b></span>
         </button>
       </div>
       <div className="mapping-panel owner-collections-panel">
-        <div className="mapping-title"><strong>Minhas coletas</strong><span>{ownerCollections.filter((item:any)=>item.status==='open').length} PENDENTE(S)</span></div>
-        <p className="mapping-note">Acompanhe suas coletas aqui. Toque em uma para abrir os detalhes.</p>
-        <div className="product-list">
+        <button type="button" className="owner-collections-toggle" aria-expanded={myCollectionsExpanded} onClick={()=>setMyCollectionsExpanded(v=>!v)}>
+          <span className="owner-home-card-main"><strong>Minhas coletas</strong><small>Acompanhe suas coletas aqui. Toque em uma para abrir os detalhes.</small></span>
+          <span className="owner-collections-toggle-right">
+            {ownerCollections.some((item:any)=>item.status==='open')&&<span className="owner-pending-alert">{ownerCollections.filter((item:any)=>item.status==='open').length} PENDENTE(S)</span>}
+            <b>{myCollectionsExpanded?'−':'+'}</b>
+          </span>
+        </button>
+        {myCollectionsExpanded&&<div className="product-list">
           {ownerCollections.length===0?<p className="owner-empty-collections">Nenhuma coleta criada ainda.</p>:ownerCollections.map((collection:any)=><button type="button" className="owner-collection-row" key={collection.id} onClick={()=>activate({collection,participant:{role:'owner'}})}>
             <span className="owner-collection-copy"><strong>{collection.title}</strong><small>{collection.participant_count||0} participante(s) · {collection.finished_count||0} finalizado(s)</small></span>
             <span className={collection.status==='open'?'owner-status-pending':'owner-status-done'}>{collection.status==='open'?'PENDENTE':collection.status==='completed'?'CONCLUÍDA':String(collection.status||'').toUpperCase()}</span>
             <span className="owner-collection-open">Abrir</span>
           </button>)}
-        </div>
+        </div>}
       </div>
     </>}
     {isOwner&&!active&&ownerPage==='users'&&<div className="mapping-panel">
