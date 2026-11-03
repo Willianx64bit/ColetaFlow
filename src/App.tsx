@@ -83,8 +83,6 @@ const hasTerm = (value: string, terms: string[]) => terms.some(term => normalize
 
 function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollection?: { id: string; token: string; userId: string; accountToken?: string; isOwner?: boolean; mappingLocked?: boolean; template?: SharedTemplate; onMappingSaved?: (mapping: SharedMapping) => void }; onFinished?: () => void; onBack?: () => void } = {}) {
   const sessionKey = sharedCollection ? `shared:${sharedCollection.id}:${sharedCollection.userId}` : 'active';
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => { try { return localStorage.getItem('coletaflow.theme') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; } });
-  useEffect(() => { document.documentElement.dataset.theme = theme; document.body.dataset.theme = theme; try { localStorage.setItem('coletaflow.theme', theme); } catch { /* armazenamento pode estar indisponível */ } }, [theme]);
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [fileName, setFileName] = useState('');
   const [sheetName, setSheetName] = useState('');
