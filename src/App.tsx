@@ -154,15 +154,13 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
     if (!sharedCollection || sharedCollection.isOwner) return;
     if (!navigator.onLine) { setNotice('Conecte-se à internet para sincronizar e finalizar sua participação.'); return; }
     setFinishBusy(true);
-    setNotice('Aguardando o envio de qualquer sincronização em andamento…');
+    setNotice('Preparando as bipagens salvas neste aparelho…');
     try {
-      // Evita que a sincronização automática e a finalização enviem o mesmo lote ao mesmo tempo.
-      while (syncInFlightRef.current) {
-        await new Promise(resolve => window.setTimeout(resolve, 100));
-      }
+      // Aguarda a gravação local terminar antes de montar o pacote final.
+      await persistEventsRef.current;
       syncInFlightRef.current = true;
       try {
-        const pending = scanEventsRef.current;
+        const pending = [...scanEventsRef.current];
         for (let offset = 0; offset < pending.length; offset += 500) {
           const batch = pending.slice(offset, offset + 500);
           setNotice(`Enviando bipagens ${Math.min(offset + batch.length, pending.length)} de ${pending.length}…`);
@@ -186,6 +184,10 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Não foi possível finalizar');
+        if (data.participant?.status !== 'finished') throw new Error('O servidor não confirmou a finalização. Suas bipagens continuam salvas neste aparelho.');
+        await persistEvents([]);
+        scanEventsRef.current = [];
+        setScanEvents([]);
         onFinished?.();
       } finally {
         syncInFlightRef.current = false;
@@ -893,7 +895,7 @@ function CollectorApp({ sharedCollection, onFinished }: { sharedCollection?: { i
           <button className="secondary-button not-found-download" onClick={exportNotFoundReport} disabled={getExportGroups().unmatched.length === 0 || !!pendingCode}><ArrowDownToLine size={18} /> Baixar não encontrados ({getExportGroups().unmatched.length})</button>
         </div>
       </section>}
-      {sharedCollection && <div className="mapping-note" style={{marginTop:14}}>{scanEvents.length > 0 ? `${scanEvents.length} evento(s) aguardando sincronização. Mantenha esta tela aberta até o envio concluir.` : navigator.onLine ? 'Todas as bipagens desta coleta estão sincronizadas.' : 'Sem internet. As próximas bipagens ficarão salvas neste dispositivo.'}</div>}
+      {sharedCollection && !sharedCollection.isOwner && <div className="mapping-note" style={{marginTop:14}}>{scanEvents.length > 0 ? `${scanEvents.length} evento(s) salvos neste aparelho. Serão enviados quando você finalizar.` : navigator.onLine ? 'Bipagens enviadas. Você pode finalizar sua participação.' : 'Sem internet. Suas bipagens permanecem salvas neste aparelho.'}</div>}
       {sharedCollection && !sharedCollection.isOwner && <div className="wizard-navigation"><button className="primary-button" disabled={finishBusy} onClick={() => void finishParticipation()}>{finishBusy ? 'Sincronizando e finalizando…' : 'Finalizar minha participação'}</button></div>}
       <footer><span>ColetaFlow <b>•</b> Bipe. Informe. Exporte.</span><span><Smartphone size={14} /> Coleta sem cadastro prévio</span></footer>
     </main>
