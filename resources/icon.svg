@@ -1,9 +1,41 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-<defs><linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0757ef"/><stop offset="1" stop-color="#19a7ff"/></linearGradient><linearGradient id="beam" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#12c8ff" stop-opacity=".2"/><stop offset=".5" stop-color="#12c8ff"/><stop offset="1" stop-color="#12c8ff" stop-opacity=".2"/></linearGradient></defs>
-<rect width="1024" height="1024" rx="220" fill="#fff"/><path d="M0 230V220Q0 0 220 0h584Q1024 0 1024 220v584q0 220-220 220H220Q0 1024 0 804Z" fill="url(#blue)" opacity=".08"/>
-<g fill="none" stroke="url(#blue)" stroke-width="34" stroke-linecap="round"><path d="M220 210h-42q-52 0-52 52v42M804 210h42q52 0 52 52v42M220 640h-42q-52 0-52-52v-42M804 640h42q52 0 52-52v-42"/></g>
-<g fill="#101b35"><rect x="245" y="280" width="28" height="285" rx="5"/><rect x="295" y="280" width="16" height="285" rx="4"/><rect x="330" y="280" width="35" height="285" rx="5"/><rect x="390" y="280" width="18" height="285" rx="4"/><rect x="430" y="280" width="42" height="285" rx="5"/><rect x="495" y="280" width="20" height="285" rx="4"/><rect x="540" y="280" width="30" height="285" rx="5"/><rect x="590" y="280" width="17" height="285" rx="4"/><rect x="630" y="280" width="39" height="285" rx="5"/></g>
-<path d="M160 430h690" stroke="url(#beam)" stroke-width="26" stroke-linecap="round"/>
-<g transform="translate(590 350) rotate(-12)"><path d="M55 30Q55 0 100 0h190q75 0 75 68v58q0 52-55 52H220v210q0 35-34 35h-60q-35 0-35-35V178H55q-55 0-55-52V85q0-55 55-55Z" fill="#111b32" stroke="#071126" stroke-width="16"/><rect x="72" y="44" width="210" height="68" rx="30" fill="#172b50"/><path d="M95 80h145" stroke="#14b9ff" stroke-width="16" stroke-linecap="round"/></g>
-<circle cx="512" cy="690" r="82" fill="url(#blue)"/><path d="m470 690 29 30 61-69" fill="none" stroke="#fff" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+<defs>
+ <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0757ef"/><stop offset=".55" stop-color="#0878ff"/><stop offset="1" stop-color="#0037c9"/></linearGradient>
+ <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0045e9"/><stop offset="1" stop-color="#168cff"/></linearGradient>
+ <linearGradient id="scanner" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#34496d"/><stop offset=".38" stop-color="#111d37"/><stop offset="1" stop-color="#030914"/></linearGradient>
+ <linearGradient id="laser" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#00bfff" stop-opacity="0"/><stop offset=".45" stop-color="#00d9ff"/><stop offset="1" stop-color="#00bfff" stop-opacity="0"/></linearGradient>
+ <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="12"/></filter>
+ <clipPath id="round"><rect x="0" y="0" width="1024" height="1024" rx="205"/></clipPath>
+</defs>
+<g clip-path="url(#round)">
+ <rect width="1024" height="1024" fill="#fff"/>
+ <path d="M-30 250V180Q-30 -30 190 -30h210Q125 30 80 210L-30 360Z" fill="url(#edge)"/>
+ <path d="M1024 760v100q0 190-190 190H600q310-60 360-290Z" fill="url(#edge)"/>
+ <path d="M60 65Q115 10 225 10h650Q1000 10 1014 140" fill="none" stroke="#eef4ff" stroke-width="10"/>
+ <g fill="none" stroke="#0757ef" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M235 180h-52q-52 0-52 52v52"/><path d="M790 180h52q52 0 52 52v52"/>
+  <path d="M235 570h-52q-52 0-52-52v-52"/><path d="M790 570h52q52 0 52-52v-52"/>
+ </g>
+ <g fill="#101a32">
+  <rect x="245" y="235" width="27" height="275" rx="3"/><rect x="291" y="235" width="15" height="275" rx="3"/>
+  <rect x="324" y="235" width="34" height="275" rx="3"/><rect x="377" y="235" width="18" height="275" rx="3"/>
+  <rect x="414" y="235" width="39" height="275" rx="3"/><rect x="474" y="235" width="17" height="275" rx="3"/>
+  <rect x="512" y="235" width="31" height="275" rx="3"/><rect x="560" y="235" width="17" height="275" rx="3"/>
+  <rect x="596" y="235" width="37" height="275" rx="3"/><rect x="652" y="235" width="17" height="275" rx="3"/>
+ </g>
+ <path d="M180 385h670" stroke="url(#laser)" stroke-width="23" stroke-linecap="round"/>
+ <path d="M180 394h670" stroke="#13c9ff" stroke-width="5" opacity=".6"/>
+ <ellipse cx="757" cy="573" rx="175" ry="22" fill="#6e8dbd" opacity=".25" filter="url(#shadow)"/>
+ <g transform="translate(570 270) rotate(-12 175 190)">
+  <path d="M66 22Q66 -8 112 -8h190q78 0 78 72v48q0 58-62 58h-54v211q0 42-42 42h-55q-43 0-43-42V170H66q-60 0-60-58V82q0-60 60-60Z" fill="url(#scanner)" stroke="#071126" stroke-width="15"/>
+  <path d="M90 28h205q48 0 48 44v29H90q-33 0-33-33v-7q0-33 33-33Z" fill="#23385f" stroke="#516a91" stroke-width="5"/>
+  <path d="M105 69h150" stroke="#12caff" stroke-width="18" stroke-linecap="round"/>
+  <path d="M105 69h150" stroke="#9cf3ff" stroke-width="5" stroke-linecap="round" opacity=".85"/>
+  <path d="M244 177h36v44h-36Z" fill="#0757ef"/>
+ </g>
+ <circle cx="512" cy="605" r="72" fill="url(#blue)" stroke="#fff" stroke-width="8"/>
+ <path d="m476 604 25 26 51-58" fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+ <text x="512" y="790" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="126" font-weight="900" font-style="italic" letter-spacing="-8" fill="#07101f">Coleta<tspan fill="#0757ef">Flow</tspan></text>
+ <path d="M170 845Q500 770 914 824Q550 802 170 902Q220 860 170 845Z" fill="url(#blue)"/>
+</g>
 </svg>
