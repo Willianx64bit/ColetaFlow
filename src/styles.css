@@ -750,3 +750,33 @@ body[data-theme="dark"] .account-error{background:#48282d;color:#ffb8bd}
   .account-brand{gap:10px;margin-bottom:30px}
   .account-login-theme{margin-left:auto;padding:7px 9px}
 }
+
+
+/* Ações e confirmação de exclusão das coletas */
+.owner-collection-actions{display:flex;align-items:center;gap:12px;flex:0 0 auto}
+.owner-collection-actions button{border:0;background:transparent;cursor:pointer}
+.owner-collection-open{padding:7px 3px}
+.owner-collection-delete{display:inline-flex;align-items:center;gap:5px;padding:7px 9px;border:1px solid #f0caca!important;border-radius:9px;background:#fff7f7!important;color:#b42318;font-size:11px;font-weight:750}
+.owner-collection-delete:disabled{opacity:.55}
+.collection-delete-backdrop{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,18,30,.62);backdrop-filter:blur(4px)}
+.collection-delete-dialog{width:min(100%,420px);padding:24px;border:1px solid #e4e9ef;border-radius:18px;background:#fff;color:#243449;box-shadow:0 24px 80px rgba(0,0,0,.28)}
+.collection-delete-icon{display:grid;place-items:center;width:46px;height:46px;margin-bottom:15px;border-radius:13px;background:#fff0f0;color:#c12b25}
+.collection-delete-dialog h2{margin:0 0 12px;font-size:20px;letter-spacing:-.3px}
+.collection-delete-dialog p{margin:8px 0;color:#617185;font-size:13px;line-height:1.55}
+.collection-delete-dialog p strong{color:#27384c;overflow-wrap:anywhere}
+.collection-delete-actions{display:flex;gap:10px;margin-top:22px}
+.collection-delete-actions button{flex:1;min-height:44px}
+.collection-delete-confirm{border:0;border-radius:10px;background:#c62828;color:white;font-size:13px;font-weight:800;cursor:pointer}
+.collection-delete-confirm:disabled{opacity:.6;cursor:wait}
+body[data-theme="dark"] .owner-collection-delete{border-color:#653b3b!important;background:#351f24!important;color:#ffaaaa}
+body[data-theme="dark"] .collection-delete-dialog{border-color:#34465c;background:#172536;color:#e7eef7}
+body[data-theme="dark"] .collection-delete-dialog p{color:#aab9ca}
+body[data-theme="dark"] .collection-delete-dialog p strong{color:#f0f5fb}
+body[data-theme="dark"] .collection-delete-icon{background:#44262b;color:#ffaaaa}
+@media(max-width:520px){
+ .owner-collection-row{gap:8px}
+ .owner-collection-actions{width:100%;justify-content:flex-end;margin-top:2px}
+ .owner-collection-delete{min-height:34px}
+ .collection-delete-dialog{padding:21px;border-radius:16px}
+ .collection-delete-actions{flex-direction:column-reverse}
+}
