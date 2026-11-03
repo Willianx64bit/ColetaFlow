@@ -573,3 +573,29 @@ body[data-theme="dark"] .brand-wordmark span{color:#e5edf7}
  .owner-create-form input[type="file"]::file-selector-button{display:block;width:100%;margin:0 0 8px;padding:10px}
  .owner-create-form .primary-button{min-height:50px;font-size:13px}
 }
+
+
+/* Painel mobile-first de coletas do dono */
+.owner-collections-panel{margin-top:16px}
+.owner-empty-collections{padding:12px;margin:0;color:#8191a3;font-size:12px}
+.owner-collection-row{width:100%;display:flex;align-items:center;gap:10px;padding:13px 12px;border:0;border-bottom:1px solid #edf1f5;background:transparent;text-align:left}
+.owner-collection-row:last-child{border-bottom:0}
+.owner-collection-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:5px}
+.owner-collection-copy strong{font-size:13px;color:#34465d;overflow-wrap:anywhere}
+.owner-collection-copy small{font-size:10px;color:#8796a7}
+.owner-status-pending,.owner-status-done{flex:0 0 auto;border-radius:20px;padding:6px 8px;font-size:9px;font-weight:800;letter-spacing:.4px}
+.owner-status-pending{background:#fff3df;color:#a66b1e}
+.owner-status-done{background:#e4f6ed;color:#25815f}
+.owner-collection-open{flex:0 0 auto;color:#087fa5;font-size:11px;font-weight:800}
+.owner-enter-collection{width:100%;min-height:48px;margin-top:16px;font-size:14px}
+body[data-theme="dark"] .owner-collection-row{border-color:#2a3b50}
+body[data-theme="dark"] .owner-collection-copy strong{color:#e5eef8}
+body[data-theme="dark"] .owner-status-pending{background:#49371f;color:#f1c47d}
+body[data-theme="dark"] .owner-status-done{background:#193c32;color:#8ce0b9}
+@media(max-width:520px){
+ .owner-collection-row{align-items:flex-start;flex-wrap:wrap;padding:14px 10px}
+ .owner-collection-copy{flex:1 1 calc(100% - 4px)}
+ .owner-status-pending,.owner-status-done{margin-left:0}
+ .owner-collection-open{margin-left:auto;padding:5px 4px}
+ .owner-enter-collection{position:sticky;bottom:8px;z-index:2;box-shadow:0 4px 14px #0003}
+}
