@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
+import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import * as XLSX from 'xlsx';
 import {
   ArrowDownToLine, Camera, Check, FileSpreadsheet, FolderUp,
@@ -469,7 +470,19 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
     const video = videoRef.current;
     setCameraStatus('Solicitando câmera traseira…');
 
-    const reader = new BrowserMultiFormatReader();
+    const cameraHints = new Map<DecodeHintType, any>([
+      [DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E,
+        BarcodeFormat.ITF
+      ]]
+    ]);
+    const reader = new BrowserMultiFormatReader(cameraHints, {
+      delayBetweenScanSuccess: 250,
+      delayBetweenScanAttempts: 180
+    });
     reader.decodeFromConstraints({
       audio: false,
       video: {
