@@ -371,8 +371,8 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
         setCameraOpen(false);
         setCameraForSearch(false);
       } else {
-        receiveCode(code, true);
-        if (!quickCollectEnabled) setCameraOpen(false);
+        const requiresManualInput = receiveCode(code, true);
+        if (!quickCollectEnabled || requiresManualInput) setCameraOpen(false);
       }
     }).then(activeControls => {
       controls = activeControls;
@@ -569,12 +569,12 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
     } catch { /* áudio pode estar bloqueado pelo navegador */ }
   };
 
-  const receiveCode = (raw: string, fromCamera = false) => {
+  const receiveCode = (raw: string, fromCamera = false): boolean => {
     const code = raw.trim();
-    if (!code) return;
+    if (!code) return false;
     if (fromCamera) {
       const last = lastCameraScan.current;
-      if (last?.code === code && Date.now() - last.at < 1600) return;
+      if (last?.code === code && Date.now() - last.at < 1600) return false;
       lastCameraScan.current = { code, at: Date.now() };
     }
     const knownProduct = findProductRow(code) >= 0;
@@ -586,7 +586,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
       setScanValue('');
       setNotice(`Coleta relâmpago: código ${code} · +${quickCollectQuantity} unidade(s). Próxima leitura...`);
       setCameraStatus('Coleta registrada · aponte para o próximo código');
-      return;
+      return false;
     }
     const productDescription = findProductDescription(code);
     setPendingDescription(needsDescription ? '' : productDescription);
@@ -604,6 +604,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
         ? `Produto não encontrado. Informe a descrição para continuar.`
         : `Código ${code} lido. Informe a quantidade.`);
     requestAnimationFrame(() => quantityRef.current?.focus());
+    return true;
   };
 
   const confirmCount = (shortcutQuantity?: number) => {
@@ -636,7 +637,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
     setPendingDescription('');
     setQuantityValue('');
     setScanValue('');
-    if (autoReopenCamera && cameraUsed) {
+    if ((autoReopenCamera || quickCollectEnabled) && cameraUsed) {
       setFlashEnabled(false);
       setCameraStatus('Preparando próxima leitura…');
       setCameraOpen(true);
