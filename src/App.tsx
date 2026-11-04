@@ -262,6 +262,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
       if (data.participant?.status !== 'finished') throw new Error('O servidor não confirmou a finalização. Suas bipagens continuam salvas neste aparelho.');
       logFinish(`Finalização confirmada pelo servidor. Status: ${data.participant.status}.`);
       await persistEvents([]);
+      await writePendingEventIds([], sessionKey);
       scanEventsRef.current = [];
       setScanEvents([]);
       setNotice('Participação finalizada e confirmada pelo servidor.');
