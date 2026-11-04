@@ -73,6 +73,18 @@ const writeSavedEvents = async (events: ScanEvent[], sessionKey: string) => {
     transaction.onabort = () => { db.close(); reject(transaction.error); };
   });
 };
+const getDeviceId = () => {
+  try {
+    let id = localStorage.getItem('coletaflow.device-id');
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem('coletaflow.device-id', id);
+    }
+    return id;
+  } catch {
+    return 'device-unknown';
+  }
+};
 const countsFromEvents = (events: ScanEvent[]) => {
   const next: Record<string, number> = {};
   for (const event of events) next[event.barcode] = (next[event.barcode] || 0) + Number(event.quantity || 0);
@@ -155,11 +167,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
   };
   const recordEvent = (barcode: string, quantity: number, eventType: 'scan' | 'adjustment' = 'scan', description = '') => {
     if (!sharedCollection || !barcode || !Number.isFinite(quantity) || quantity === 0) return;
-    let deviceId = 'device-unknown';
-    try {
-      deviceId = localStorage.getItem('coletaflow.device-id') || crypto.randomUUID();
-      localStorage.setItem('coletaflow.device-id', deviceId);
-    } catch { /* o identificador do dispositivo é apenas auxiliar */ }
+    const deviceId = getDeviceId();
     const event={ eventId: crypto.randomUUID(), barcode, quantity, eventType, scannedAt: new Date().toISOString(), deviceId, ...(description.trim()?{description:description.trim()}: {}) };
     const next=[...scanEventsRef.current,event];
     scanEventsRef.current=next;
@@ -237,7 +245,12 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
     }
   };
   const clearCurrentCounts = () => {
-    Object.entries(counts).forEach(([code, quantity]) => recordEvent(code, -quantity, 'adjustment'));
+    // Each device may restore the account's remote events, but clearing a
+    // local sheet must only reverse quantities created on this device.
+    const localCounts = countsFromEvents(scanEventsRef.current.filter(event => event.deviceId === getDeviceId()));
+    Object.entries(localCounts).forEach(([code, quantity]) => {
+      if (quantity > 0) recordEvent(code, -quantity, 'adjustment');
+    });
     setCounts({});
   };
   const sheet = workbook && sheetName ? workbook.Sheets[sheetName] : null;
@@ -355,7 +368,11 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
         const restored = [...merged.values()].sort((a,b) => a.scannedAt.localeCompare(b.scannedAt));
         scanEventsRef.current = restored;
         setScanEvents(restored);
-        setCounts(countsFromEvents(restored));
+        // Keep the review/edit controls scoped to this physical device.
+        // Events from other devices remain in the shared event queue and are
+        // included by the server's consolidated totals, but are never locally
+        // cleared or adjusted from this device.
+        setCounts(countsFromEvents(restored.filter(event => event.deviceId === getDeviceId())));
         await persistEvents(restored);
         await backupEvents(restored);
         if (active && data.events.length) setNotice(`Coleta recuperada: ${restored.length} bipagem(ns) disponíveis neste usuário.`);
