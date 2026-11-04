@@ -4,11 +4,13 @@ const config: CapacitorConfig = {
   appId: 'com.coletaflow.app',
   appName: 'ColetaFlow',
   webDir: 'dist',
-  server: {
-    url: 'https://coletaflow-two.vercel.app',
-    cleartext: false,
-    allowNavigation: ['coletaflow-two.vercel.app']
-  },
+  ...(process.env.CF_ANDROID_LOCAL === 'true' ? {} : {
+    server: {
+      url: 'https://coletaflow-two.vercel.app',
+      cleartext: false,
+      allowNavigation: ['coletaflow-two.vercel.app']
+    }
+  }),
   android: {
     allowMixedContent: false
   },
