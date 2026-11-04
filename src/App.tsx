@@ -644,7 +644,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
       stream?.getTracks().forEach(track => track.stop());
       video.srcObject = null;
     };
-  }, [cameraOpen, pendingCode, quickCollectEnabled, quickCollectQuantity, cameraForSearch, cameraZoom]);
+  }, [cameraOpen, pendingCode, quickCollectEnabled, quickCollectQuantity, cameraForSearch]);
 
   useEffect(() => {
     if (!cameraOpen) return;
