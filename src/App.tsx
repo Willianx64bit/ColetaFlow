@@ -945,7 +945,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [users,setUsers]=useState<any[]>([]);
-  const [newUser,setNewUser]=useState({name:'',company:'',email:'',password:''});
+  const [newUser,setNewUser]=useState({name:'',username:'',password:''});
   const [userBusy,setUserBusy]=useState(false);
   const [userMessage,setUserMessage]=useState('');
   const [ownerPage,setOwnerPage]=useState<'home'|'users'|'history'|'collection'>('home');
@@ -985,7 +985,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
   };
   useEffect(()=>{if(isOwner)void loadOwnerCollections();},[token,isOwner]);
 
-  const addUser=async()=>{setUserBusy(true);setUserMessage('');try{const r=await fetch('/api/shared/users',{method:'POST',headers:auth,body:JSON.stringify(newUser)});const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível cadastrar');setUsers(v=>[d.user,...v]);setNewUser({name:'',company:'',email:'',password:''});setUserMessage('Usuário cadastrado.');}catch(e){setUserMessage(e instanceof Error?e.message:'Erro de conexão');}finally{setUserBusy(false);}};
+  const addUser=async()=>{setUserBusy(true);setUserMessage('');try{const r=await fetch('/api/shared/users',{method:'POST',headers:auth,body:JSON.stringify(newUser)});const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível cadastrar');setUsers(v=>[d.user,...v]);setNewUser({name:'',username:'',password:''});setUserMessage('Usuário cadastrado.');}catch(e){setUserMessage(e instanceof Error?e.message:'Erro de conexão');}finally{setUserBusy(false);}};
   useEffect(()=>{
     if(!active){setSharedTemplate(null);return;}
     let alive=true;
@@ -1148,14 +1148,13 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       <div className="mapping-title"><strong>Cadastrar usuário</strong><span>CONTROLE DO DONO</span></div>
       <div className="mapping-grid">
         <label>Nome<input value={newUser.name} onChange={e=>setNewUser(v=>({...v,name:e.target.value}))}/></label>
-        <label>Empresa<input value={newUser.company} onChange={e=>setNewUser(v=>({...v,company:e.target.value}))}/></label>
-        <label>E-mail<input type="email" value={newUser.email} onChange={e=>setNewUser(v=>({...v,email:e.target.value}))}/></label>
+        <label>Usuário<input value={newUser.username} onChange={e=>setNewUser(v=>({...v,username:e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g,'')}))} autoCapitalize="none" autoCorrect="off" placeholder="ex.: joao.pedro"/></label>
         <label>Senha inicial<input type="password" minLength={8} value={newUser.password} onChange={e=>setNewUser(v=>({...v,password:e.target.value}))}/></label>
       </div>
-      <button className="primary-button" style={{marginTop:12}} disabled={userBusy||!newUser.name||!newUser.company||!newUser.email||newUser.password.length<8} onClick={()=>void addUser()}>{userBusy?'Salvando…':'Cadastrar usuário'}</button>
+      <button className="primary-button" style={{marginTop:12}} disabled={userBusy||!newUser.name||!newUser.username||newUser.password.length<8} onClick={()=>void addUser()}>{userBusy?'Salvando…':'Cadastrar usuário'}</button>
       {userMessage&&<p className="mapping-note">{userMessage}</p>}
       <h3>Usuários cadastrados</h3>
-      <div className="product-list">{users.map(u=><div className="product-row" key={u.id}><div className="product-details"><strong>{u.display_name}</strong><span>{u.email} · {u.company_name} · {u.status==='active'?'ATIVO':'BLOQUEADO'}</span></div><button className="secondary-button" onClick={async()=>{const status=u.status==='active'?'disabled':'active';const r=await fetch('/api/shared/users',{method:'PATCH',headers:auth,body:JSON.stringify({id:u.id,status})});if(r.ok)setUsers(v=>v.map(x=>x.id===u.id?{...x,status}:x));}}>{u.status==='active'?'Bloquear':'Liberar'}</button></div>)}</div>
+      <div className="product-list">{users.map(u=><div className="product-row" key={u.id}><div className="product-details"><strong>{u.display_name}</strong><span>{u.username||u.email} · {u.status==='active'?'ATIVO':'BLOQUEADO'}</span></div><button className="secondary-button" onClick={async()=>{const status=u.status==='active'?'disabled':'active';const r=await fetch('/api/shared/users',{method:'PATCH',headers:auth,body:JSON.stringify({id:u.id,status})});if(r.ok)setUsers(v=>v.map(x=>x.id===u.id?{...x,status}:x));}}>{u.status==='active'?'Bloquear':'Liberar'}</button></div>)}</div>
     </div>}
     {isOwner&&!active&&ownerPage==='history'&&<div className="mapping-panel">
       <div className="mapping-title"><strong>Coletas anteriores</strong><span>{ownerCollections.length} REGISTRO(S)</span></div>
@@ -1179,7 +1178,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
 
 function AccountGate() {
 
-  const [email,setEmail]=useState('');
+  const [login,setLogin]=useState('');
   const [password,setPassword]=useState('');
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
@@ -1200,7 +1199,7 @@ function AccountGate() {
     e.preventDefault();setBusy(true);setError('');
     try{
       const endpoint='/api/shared/login';
-      const payload={email,password};
+      const payload={login,password};
       const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       const data=await response.json();
       if(!response.ok)throw new Error(data.error||'Não foi possível continuar');
@@ -1210,12 +1209,12 @@ function AccountGate() {
     }catch(err){setError(err instanceof Error?err.message:'Erro de conexão');}
     finally{setBusy(false);}
   };
-  if(user)return <div className="account-shell"><header className="account-top"><strong className="account-top-brand"><span className="brand-mark" aria-hidden="true"><FileSpreadsheet size={34} strokeWidth={2.2}/><RefreshCw size={17} strokeWidth={2.8} className="brand-sync"/></span><span className="brand-wordmark"><span>Coleta</span><strong>Flow</strong></span></strong><button type="button" className="theme-toggle account-theme-toggle" onClick={()=>setTheme(value=>value==='light'?'dark':'light')} aria-label={theme==='light'?'Ativar tema escuro':'Ativar tema claro'} title={theme==='light'?'Ativar tema escuro':'Ativar tema claro'}><span>{theme==='light'?<Moon size={17}/>:<Sun size={17}/>}</span><small>{theme==='light'?'Escuro':'Claro'}</small></button><span className="account-user">{user.name} · {user.company}</span><button className="account-logout" onClick={async()=>{try{await fetch('/api/shared/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}});}catch{} try{localStorage.removeItem('coletaflow.auth.token');}catch{} setToken('');setUser(null);}}>Sair</button></header><SharedCollections token={token} isOwner={!!user.isOwner} userId={user.id}/></div>;
+  if(user)return <div className="account-shell"><header className="account-top"><strong className="account-top-brand"><span className="brand-mark" aria-hidden="true"><FileSpreadsheet size={34} strokeWidth={2.2}/><RefreshCw size={17} strokeWidth={2.8} className="brand-sync"/></span><span className="brand-wordmark"><span>Coleta</span><strong>Flow</strong></span></strong><button type="button" className="theme-toggle account-theme-toggle" onClick={()=>setTheme(value=>value==='light'?'dark':'light')} aria-label={theme==='light'?'Ativar tema escuro':'Ativar tema claro'} title={theme==='light'?'Ativar tema escuro':'Ativar tema claro'}><span>{theme==='light'?<Moon size={17}/>:<Sun size={17}/>}</span><small>{theme==='light'?'Escuro':'Claro'}</small></button><span className="account-user">{user.name}</span><button className="account-logout" onClick={async()=>{try{await fetch('/api/shared/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}});}catch{} try{localStorage.removeItem('coletaflow.auth.token');}catch{} setToken('');setUser(null);}}>Sair</button></header><SharedCollections token={token} isOwner={!!user.isOwner} userId={user.id}/></div>;
   return <main className="account-page"><section className="account-card">
     <div className="account-brand"><span className="account-mark">CF</span><div><strong>ColetaFlow</strong><small>Coleta colaborativa de inventário</small></div><button type="button" className="theme-toggle account-login-theme" onClick={()=>setTheme(value=>value==='light'?'dark':'light')} aria-label={theme==='light'?'Ativar tema escuro':'Ativar tema claro'} title={theme==='light'?'Ativar tema escuro':'Ativar tema claro'}><span>{theme==='light'?<Moon size={17}/>:<Sun size={17}/>}</span><small>{theme==='light'?'Escuro':'Claro'}</small></button></div>
     <div className="account-intro"><span>ACESSO SEGURO</span><h1>Entre na sua conta</h1><p>Acesse as coletas liberadas para você.</p></div>
     <form className="account-form" onSubmit={submit}>
-      <label>E-mail<input required type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email" placeholder="voce@empresa.com"/></label>
+      <label>Usuário ou e-mail<input required type="text" value={login} onChange={e=>setLogin(e.target.value)} autoCapitalize="none" autoCorrect="off" autoComplete="username" placeholder="joao.pedro ou e-mail do dono"/></label>
       <label>Senha<input required type="password" minLength={8} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password" placeholder="Mínimo de 8 caracteres"/></label>
       {error&&<div className="account-error">{error}</div>}
       <button className="primary-button" type="submit" disabled={busy}>{busy?'Aguarde...':'Entrar'}</button>
