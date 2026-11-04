@@ -57,6 +57,74 @@ jobs:
               s=s[:i]+'\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.INTERNET" />'+s[i:]
           p.write_text(s)
           PY
+      - name: Configure native Android downloads
+        run: |
+          mkdir -p android/app/src/main/java/com/coletaflow/app
+          cat > android/app/src/main/java/com/coletaflow/app/MainActivity.java <<'JAVA'
+          package com.coletaflow.app;
+
+          import android.content.ContentValues;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.os.Environment;
+          import android.os.Handler;
+          import android.os.Looper;
+          import android.provider.MediaStore;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.WebView;
+          import android.widget.Toast;
+          import com.getcapacitor.BridgeActivity;
+          import java.io.OutputStream;
+          import java.util.Base64;
+
+          public class MainActivity extends BridgeActivity {
+              private final Handler downloadHandler = new Handler(Looper.getMainLooper());
+              private final Runnable installDownloadHandler = new Runnable() {
+                  @Override public void run() {
+                      try {
+                          WebView webView = getBridge() == null ? null : getBridge().getWebView();
+                          if (webView != null) {
+                              webView.addJavascriptInterface(new DownloadBridge(), "ColetaFlowDownloads");
+                              webView.evaluateJavascript("(function(){if(window.__coletaflowNativeDownloadInstalled)return;window.__coletaflowNativeDownloadInstalled=true;document.addEventListener('click',function(event){var link=event.target&&event.target.closest?event.target.closest('a[download]'):null;if(!link||!link.href||(!link.href.startsWith('blob:')&&!link.href.startsWith('data:')))return;event.preventDefault();event.stopImmediatePropagation();var name=link.getAttribute('download')||'coletaflow.xlsx';fetch(link.href).then(function(response){return response.blob()}).then(function(blob){return new Promise(function(resolve,reject){var reader=new FileReader();reader.onloadend=function(){resolve(String(reader.result).split(',')[1]||'')};reader.onerror=reject;reader.readAsDataURL(blob)}) .then(function(base64){if(window.ColetaFlowDownloads)window.ColetaFlowDownloads.saveFile(base64,name,blob.type||'application/octet-stream')})}).catch(function(){alert('Não foi possível salvar o arquivo. Tente novamente.')})},true)})();", null);
+                          }
+                      } catch (ignored) { }
+                      downloadHandler.postDelayed(this, 1000);
+                  }
+              };
+
+              @Override public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  downloadHandler.post(installDownloadHandler);
+              }
+
+              private class DownloadBridge {
+                  @JavascriptInterface public void saveFile(String base64, String fileName, String mimeType) {
+                      try {
+                          if (Build.VERSION.SDK_INT < 29) throw new IllegalStateException("Android não compatível com salvamento direto");
+                          String safeName = fileName == null ? "coletaflow.xlsx" : fileName.replaceAll("[\\\\/:*?\"<>|]", "_");
+                          ContentValues values = new ContentValues();
+                          values.put(MediaStore.Downloads.DISPLAY_NAME, safeName);
+                          values.put(MediaStore.Downloads.MIME_TYPE, mimeType == null || mimeType.isEmpty() ? "application/octet-stream" : mimeType);
+                          values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/ColetaFlow");
+                          values.put(MediaStore.Downloads.IS_PENDING, 1);
+                          Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                          if (uri == null) throw new IllegalStateException("Não foi possível criar o arquivo");
+                          try (OutputStream output = getContentResolver().openOutputStream(uri)) {
+                              if (output == null) throw new IllegalStateException("Não foi possível gravar o arquivo");
+                              output.write(Base64.getDecoder().decode(base64));
+                          }
+                          values.clear();
+                          values.put(MediaStore.Downloads.IS_PENDING, 0);
+                          getContentResolver().update(uri, values, null, null);
+                          runOnUiThread(() -> Toast.makeText(MainActivity.this, "Arquivo salvo em Downloads/ColetaFlow", Toast.LENGTH_LONG).show());
+                      } catch (Exception error) {
+                          runOnUiThread(() -> Toast.makeText(MainActivity.this, "Falha ao salvar o arquivo: " + error.getMessage(), Toast.LENGTH_LONG).show());
+                      }
+                  }
+              }
+          }
+          JAVA
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug
