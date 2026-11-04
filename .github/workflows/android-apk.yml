@@ -88,7 +88,7 @@ jobs:
                               webView.addJavascriptInterface(new DownloadBridge(), "ColetaFlowDownloads");
                               webView.evaluateJavascript("(function(){if(window.__coletaflowNativeDownloadInstalled)return;window.__coletaflowNativeDownloadInstalled=true;document.addEventListener('click',function(event){var link=event.target&&event.target.closest?event.target.closest('a[download]'):null;if(!link||!link.href||(!link.href.startsWith('blob:')&&!link.href.startsWith('data:')))return;event.preventDefault();event.stopImmediatePropagation();var name=link.getAttribute('download')||'coletaflow.xlsx';fetch(link.href).then(function(response){return response.blob()}).then(function(blob){return new Promise(function(resolve,reject){var reader=new FileReader();reader.onloadend=function(){resolve(String(reader.result).split(',')[1]||'')};reader.onerror=reject;reader.readAsDataURL(blob)}) .then(function(base64){if(window.ColetaFlowDownloads)window.ColetaFlowDownloads.saveFile(base64,name,blob.type||'application/octet-stream')})}).catch(function(){alert('Não foi possível salvar o arquivo. Tente novamente.')})},true)})();", null);
                           }
-                      } catch (ignored) { }
+                      } catch (Exception ignored) { }
                       downloadHandler.postDelayed(this, 1000);
                   }
               };
