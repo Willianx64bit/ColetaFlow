@@ -164,7 +164,9 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
     const next=[...scanEventsRef.current,event];
     scanEventsRef.current=next;
     setScanEvents(next);
-    void persistEvents(next).then(()=>backupEvents([event])).catch(()=>setNotice('Não foi possível gravar a fila offline. Verifique o armazenamento deste dispositivo antes de continuar.'));
+    void persistEvents(next)
+      .then(() => backupEvents([event]))
+      .catch(() => setNotice('Bipagem salva localmente. A cópia para continuar em outro aparelho está pendente de conexão.'));
   };
   const finishParticipation = async () => {
     if (!sharedCollection || syncInFlightRef.current) return;
