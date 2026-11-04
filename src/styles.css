@@ -810,3 +810,16 @@ body[data-theme="dark"] .collection-delete-icon{background:#44262b;color:#ffaaaa
   -webkit-touch-callout: default;
   -webkit-tap-highlight-color: auto;
 }
+
+
+/* Native ML Kit camera: keep only the existing scanner overlay visible above the Android camera preview. */
+html:has(body.barcode-scanner-active),body.barcode-scanner-active{background:transparent!important}
+body.barcode-scanner-active #root{visibility:hidden!important}
+body.barcode-scanner-active::before,body.barcode-scanner-active::after,body.barcode-scanner-active:has(.camera-box)::before{display:none!important;content:none!important}
+body.barcode-scanner-active>.camera-box{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;margin:0!important;padding:calc(env(safe-area-inset-top) + 14px) 14px calc(env(safe-area-inset-bottom) + 14px)!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:hidden!important;z-index:2147483000!important}
+body.barcode-scanner-active>.camera-box video{display:none!important}
+body.barcode-scanner-active>.camera-box .camera-status{position:absolute;top:calc(env(safe-area-inset-top) + 14px);left:14px;right:130px;z-index:2;padding:10px 12px;border-radius:9px;background:#071827d9;color:#e7f5fb}
+body.barcode-scanner-active>.camera-box .camera-guide{position:absolute!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;z-index:1}
+body.barcode-scanner-active>.camera-box .camera-zoom-controls{right:14px!important;top:50%!important;z-index:3}
+body.barcode-scanner-active>.camera-box .camera-bottom-controls{position:absolute!important;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 22px);z-index:3}
+body.barcode-scanner-active>.camera-box .camera-close{position:absolute!important;top:calc(env(safe-area-inset-top) + 14px)!important;right:14px!important;z-index:4}
