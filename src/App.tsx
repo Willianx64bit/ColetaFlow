@@ -1214,8 +1214,8 @@ function AccountGate() {
     <div className="account-brand"><span className="account-mark">CF</span><div><strong>ColetaFlow</strong><small>Coleta colaborativa de inventário</small></div><button type="button" className="theme-toggle account-login-theme" onClick={()=>setTheme(value=>value==='light'?'dark':'light')} aria-label={theme==='light'?'Ativar tema escuro':'Ativar tema claro'} title={theme==='light'?'Ativar tema escuro':'Ativar tema claro'}><span>{theme==='light'?<Moon size={17}/>:<Sun size={17}/>}</span><small>{theme==='light'?'Escuro':'Claro'}</small></button></div>
     <div className="account-intro"><span>ACESSO SEGURO</span><h1>Entre na sua conta</h1><p>Acesse as coletas liberadas para você.</p></div>
     <form className="account-form" onSubmit={submit}>
-      <label>Usuário ou e-mail<input required type="text" value={login} onChange={e=>setLogin(e.target.value)} autoCapitalize="none" autoCorrect="off" autoComplete="username" placeholder="joao.pedro ou e-mail do dono"/></label>
-      <label>Senha<input required type="password" minLength={8} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password" placeholder="Mínimo de 8 caracteres"/></label>
+      <label>Usuário ou e-mail<input required type="text" value={login} onChange={e=>setLogin(e.target.value)} autoCapitalize="none" autoCorrect="off" autoComplete="username"/></label>
+      <label>Senha<input required type="password" minLength={8} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>
       {error&&<div className="account-error">{error}</div>}
       <button className="primary-button" type="submit" disabled={busy}>{busy?'Aguarde...':'Entrar'}</button>
     </form>
