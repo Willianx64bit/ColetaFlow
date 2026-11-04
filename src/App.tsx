@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Capacitor } from '@capacitor/core';
+const apiUrl = (path: string) => Capacitor.isNativePlatform() ? new URL(path, 'https://coletaflow-two.vercel.app').toString() : path;
 import { createPortal } from 'react-dom';
 import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import { BarcodeFormat, DecodeHintType } from '@zxing/library';
@@ -182,7 +183,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
     const pendingEvents = events.filter(event => pendingSet.has(event.eventId));
     for (let offset = 0; offset < pendingEvents.length; offset += 500) {
       const batch = pendingEvents.slice(offset, offset + 500);
-      const response = await fetch('/api/shared/backup', {
+      const response = await fetch(apiUrl('/api/shared/backup'), {
         method: 'POST',
         headers: { Authorization: `Bearer ${sharedCollection.token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ collectionId: sharedCollection.id, events: batch })
@@ -242,7 +243,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
       for (let offset = 0; offset < pending.length; offset += 500) {
         const batch = pending.slice(offset, offset + 500);
         setNotice(`Enviando bipagens ${Math.min(offset + batch.length, pending.length)} de ${pending.length}…`);
-        const syncResponse = await fetch('/api/shared/sync', {
+        const syncResponse = await fetch(apiUrl('/api/shared/sync'), {
           method: 'POST',
           headers: { Authorization: `Bearer ${sharedCollection.token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ collectionId: sharedCollection.id, events: batch })
@@ -256,7 +257,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
       }
       logFinish('Todos os lotes de bipagens foram confirmados.');
       setNotice('Bipagens recebidas. Confirmando sua participação…');
-      const response = await fetch('/api/shared/finish', {
+      const response = await fetch(apiUrl('/api/shared/finish'), {
         method: 'POST',
         headers: { Authorization: `Bearer ${sharedCollection.token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ collectionId: sharedCollection.id })
@@ -384,7 +385,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
     let active = true;
     const restoreRemoteDraft = async () => {
       try {
-        const response = await fetch(`/api/shared/resume?collectionId=${encodeURIComponent(sharedCollection.id)}`, {
+        const response = await fetch(apiUrl(`/api/shared/resume?collectionId=${encodeURIComponent(sharedCollection.id)}`), {
           headers: { Authorization: `Bearer ${sharedCollection.token}` }, cache: 'no-store'
         });
         if (!response.ok) throw new Error('Não foi possível recuperar a cópia da coleta.');
@@ -735,7 +736,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
       if(!sharedCollection.accountToken){setNotice('Sessão do dono inválida. Entre novamente.');return;}
       setMappingBusy(true);
       try{
-        const response=await fetch('/api/shared/mapping',{method:'PUT',headers:{Authorization:`Bearer ${sharedCollection.accountToken}`,'Content-Type':'application/json'},body:JSON.stringify({collectionId:sharedCollection.id,mapping:{sheetName,headerRow,codeColumns:columns.code,quantityColumn:columns.quantity,descriptionColumn:columns.description,hasProductList}})});
+        const response=await fetch(apiUrl('/api/shared/mapping'),{method:'PUT',headers:{Authorization:`Bearer ${sharedCollection.accountToken}`,'Content-Type':'application/json'},body:JSON.stringify({collectionId:sharedCollection.id,mapping:{sheetName,headerRow,codeColumns:columns.code,quantityColumn:columns.quantity,descriptionColumn:columns.description,hasProductList}})});
         const data=await response.json();if(!response.ok)throw new Error(data.error||'Não foi possível salvar o mapeamento');
         setNotice('Mapeamento confirmado. Agora os usuários podem entrar nesta coleta.');
         sharedCollection.onMappingSaved?.(data.mapping);
@@ -1229,29 +1230,29 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       for(let offset=0;offset<bytes.length;offset+=8192)binary+=String.fromCharCode(...bytes.subarray(offset,offset+8192));
       const templateBase64=btoa(binary);
       const payload={title,templateFileName:templateFile.name,templateMimeType:templateFile.type||'application/octet-stream',templateBase64,mapping:{sheetName:createSheet,headerRow:createHeaderRow,codeColumns:createAltCodeColumn>=0?[createCodeColumn,createAltCodeColumn]:[createCodeColumn],quantityColumn:createQuantityColumn,descriptionColumn:createDescriptionColumn,hasProductList:createHasProductList}};
-      const r=await fetch('/api/shared/create',{method:'POST',headers:auth,body:JSON.stringify(payload)});
+      const r=await fetch(apiUrl('/api/shared/create'),{method:'POST',headers:auth,body:JSON.stringify(payload)});
       const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao criar coleta');
       setTemplateFile(null);setCreateExpanded(false);setOwnerPage('home');setOwnerCollections(current=>[d.collection,...current.filter((item:any)=>item.id!==d.collection.id)]);void loadOwnerCollections();setNotice('Coleta criada. Ela está pendente no painel; abra para acompanhar os participantes.');
     }catch(e){setError(e instanceof Error?e.message:'Erro de conexão');}finally{setBusy(false);}
   };
 
   useEffect(()=>{if(isOwner&&active)setOwnerPage('collection');},[isOwner,active?.id]);
-  useEffect(()=>{if(!isOwner)return;let alive=true;const loadUsers=async()=>{try{const r=await fetch('/api/shared/users',{headers:auth,cache:'no-store'});const d=await r.json();if(r.ok&&alive)setUsers(d.users||[]);}catch{}};void loadUsers();return()=>{alive=false;};},[token,isOwner]);
+  useEffect(()=>{if(!isOwner)return;let alive=true;const loadUsers=async()=>{try{const r=await fetch(apiUrl('/api/shared/users'),{headers:auth,cache:'no-store'});const d=await r.json();if(r.ok&&alive)setUsers(d.users||[]);}catch{}};void loadUsers();return()=>{alive=false;};},[token,isOwner]);
   const loadOwnerCollections=async()=>{
     if(!isOwner)return;
-    try{const r=await fetch('/api/shared/collections',{headers:auth,cache:'no-store'});const d=await r.json();if(r.ok)setOwnerCollections(d.collections||[]);}
+    try{const r=await fetch(apiUrl('/api/shared/collections'),{headers:auth,cache:'no-store'});const d=await r.json();if(r.ok)setOwnerCollections(d.collections||[]);}
     catch{/* A lista será atualizada na próxima tentativa. */}
   };
   useEffect(()=>{if(isOwner)void loadOwnerCollections();},[token,isOwner]);
 
-  const addUser=async()=>{setUserBusy(true);setUserMessage('');try{const r=await fetch('/api/shared/users',{method:'POST',headers:auth,body:JSON.stringify(newUser)});const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível cadastrar');setUsers(v=>[d.user,...v]);setNewUser({name:'',username:'',password:''});setUserMessage('Usuário cadastrado.');}catch(e){setUserMessage(e instanceof Error?e.message:'Erro de conexão');}finally{setUserBusy(false);}};
-  const deleteUser=async()=>{if(!userDeleteTarget||userDeleteBusy)return;setUserDeleteBusy(true);setUserMessage('');try{const r=await fetch('/api/shared/users',{method:'DELETE',headers:auth,body:JSON.stringify({id:userDeleteTarget.id})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível excluir o usuário.');setUsers(v=>v.filter(x=>x.id!==userDeleteTarget.id));setUserMessage(`Usuário ${userDeleteTarget.display_name} excluído.`);setUserDeleteTarget(null);}catch(e){setUserMessage(e instanceof Error?e.message:'Erro de conexão');}finally{setUserDeleteBusy(false);}};
+  const addUser=async()=>{setUserBusy(true);setUserMessage('');try{const r=await fetch(apiUrl('/api/shared/users'),{method:'POST',headers:auth,body:JSON.stringify(newUser)});const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível cadastrar');setUsers(v=>[d.user,...v]);setNewUser({name:'',username:'',password:''});setUserMessage('Usuário cadastrado.');}catch(e){setUserMessage(e instanceof Error?e.message:'Erro de conexão');}finally{setUserBusy(false);}};
+  const deleteUser=async()=>{if(!userDeleteTarget||userDeleteBusy)return;setUserDeleteBusy(true);setUserMessage('');try{const r=await fetch(apiUrl('/api/shared/users'),{method:'DELETE',headers:auth,body:JSON.stringify({id:userDeleteTarget.id})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível excluir o usuário.');setUsers(v=>v.filter(x=>x.id!==userDeleteTarget.id));setUserMessage(`Usuário ${userDeleteTarget.display_name} excluído.`);setUserDeleteTarget(null);}catch(e){setUserMessage(e instanceof Error?e.message:'Erro de conexão');}finally{setUserDeleteBusy(false);}};
   useEffect(()=>{
     if(!active){setSharedTemplate(null);return;}
     let alive=true;
     const loadTemplate=async()=>{
       try{
-        const r=await fetch(`/api/shared/template?collectionId=${encodeURIComponent(active.id)}`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+        const r=await fetch(apiUrl(`/api/shared/template?collectionId=${encodeURIComponent(active.id)}`),{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
         const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível baixar o modelo da coleta');
         if(alive)setSharedTemplate(d);
       }catch(e){if(alive)setError(e instanceof Error?e.message:'Falha ao baixar o modelo');}
@@ -1262,7 +1263,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
   useEffect(()=>{
     if(!active)return;
     let alive=true;
-    const load=async()=>{try{const r=await fetch(`/api/shared/progress?collectionId=${encodeURIComponent(active.id)}`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao atualizar progresso');if(alive)setProgress(d);}
+    const load=async()=>{try{const r=await fetch(apiUrl(`/api/shared/progress?collectionId=${encodeURIComponent(active.id)}`),{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao atualizar progresso');if(alive)setProgress(d);}
       catch(e){if(alive)setError(e instanceof Error?e.message:'Falha de conexão');}};
     void load();const timer=window.setInterval(load,3000);
     return()=>{alive=false;window.clearInterval(timer);};
@@ -1273,7 +1274,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
     if(!/^[A-F0-9]{8}$/.test(accessCode)){setError('Digite o código de 8 caracteres recebido do dono.');return;}
     setJoinBusy(true);setError('');setNotice('');
     try{
-      const r=await fetch('/api/shared/join',{method:'POST',headers:auth,body:JSON.stringify({accessCode})});
+      const r=await fetch(apiUrl('/api/shared/join'),{method:'POST',headers:auth,body:JSON.stringify({accessCode})});
       const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível entrar na coleta.');
       localStorage.setItem('coletaflow.shared.active',JSON.stringify({id:d.collection.id,title:d.collection.title,accessCode:d.collection.access_code||accessCode,role:d.participant?.role||'user',userId}));
       setActive({id:d.collection.id,title:d.collection.title,accessCode:d.collection.access_code||accessCode,role:d.participant?.role||'user',userId});
@@ -1286,7 +1287,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
     if(!deleteTarget||deleteBusy)return;
     setDeleteBusy(true);setError('');
     try{
-      const r=await fetch('/api/shared/delete',{method:'POST',headers:auth,body:JSON.stringify({collectionId:deleteTarget.id})});
+      const r=await fetch(apiUrl('/api/shared/delete'),{method:'POST',headers:auth,body:JSON.stringify({collectionId:deleteTarget.id})});
       const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível apagar a coleta.');
       setOwnerCollections(current=>current.filter((item:any)=>item.id!==deleteTarget.id));
       if(active?.id===deleteTarget.id){localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setOwnerCollectorEntered(false);setOwnerPage('home');}
@@ -1300,7 +1301,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
     if(activeUsers>0){setError(`Ainda existem ${activeUsers} usuário(s) trabalhando.`);return;}
     setCloseBusy(true);setError('');
     try{
-      const r=await fetch('/api/shared/close',{method:'POST',headers:auth,body:JSON.stringify({collectionId:active.id})});
+      const r=await fetch(apiUrl('/api/shared/close'),{method:'POST',headers:auth,body:JSON.stringify({collectionId:active.id})});
       const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível encerrar');
       setProgress((current:any)=>current?{...current,collection:{...current.collection,...d.collection}}:current);
       localStorage.removeItem('coletaflow.shared.active');setActive(null);setOwnerCollectorEntered(false);setOwnerPage('home');void loadOwnerCollections();setNotice('Coleta concluída e fechada. Ela não aparece mais como pendente. Os relatórios ficam disponíveis no histórico.');
@@ -1311,7 +1312,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
     if(!active)return;
     setExportBusy(true);setError('');
     try{
-      const r=await fetch(`/api/shared/export-unmatched?collectionId=${encodeURIComponent(active.id)}`,{headers:auth,cache:'no-store'});
+      const r=await fetch(apiUrl(`/api/shared/export-unmatched?collectionId=${encodeURIComponent(active.id)}`),{headers:auth,cache:'no-store'});
       const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível exportar os códigos não encontrados');
       const binary=atob(d.base64),bytes=new Uint8Array(binary.length);
       for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
@@ -1328,7 +1329,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
     if(!active)return;
     setExportBusy(true);setError('');
     try{
-      const r=await fetch(`/api/shared/export?collectionId=${encodeURIComponent(active.id)}`,{headers:auth,cache:'no-store'});
+      const r=await fetch(apiUrl(`/api/shared/export?collectionId=${encodeURIComponent(active.id)}`),{headers:auth,cache:'no-store'});
       const d=await r.json();if(!r.ok)throw new Error(d.error||'Não foi possível exportar');
       const binary=atob(d.base64),bytes=new Uint8Array(binary.length);
       for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
@@ -1410,7 +1411,7 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
       <button className="primary-button" style={{marginTop:12}} disabled={userBusy||!newUser.name||!newUser.username||newUser.password.length<8} onClick={()=>void addUser()}>{userBusy?'Salvando…':'Cadastrar usuário'}</button>
       {userMessage&&<p className="mapping-note">{userMessage}</p>}
       <h3>Usuários cadastrados</h3>
-      <div className="product-list">{users.map(u=><div className="product-row" key={u.id}><div className="product-details"><strong>{u.display_name}</strong><span>{u.username||u.email} · {u.status==='active'?'ATIVO':'BLOQUEADO'}</span></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button className="secondary-button" onClick={async()=>{const status=u.status==='active'?'disabled':'active';const r=await fetch('/api/shared/users',{method:'PATCH',headers:auth,body:JSON.stringify({id:u.id,status})});if(r.ok)setUsers(v=>v.map(x=>x.id===u.id?{...x,status}:x));}}>{u.status==='active'?'Bloquear':'Liberar'}</button><button type="button" className="collection-delete-confirm" style={{padding:'9px 12px'}} onClick={()=>setUserDeleteTarget(u)}>Excluir</button></div></div>)}</div>
+      <div className="product-list">{users.map(u=><div className="product-row" key={u.id}><div className="product-details"><strong>{u.display_name}</strong><span>{u.username||u.email} · {u.status==='active'?'ATIVO':'BLOQUEADO'}</span></div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button className="secondary-button" onClick={async()=>{const status=u.status==='active'?'disabled':'active';const r=await fetch(apiUrl('/api/shared/users'),{method:'PATCH',headers:auth,body:JSON.stringify({id:u.id,status})});if(r.ok)setUsers(v=>v.map(x=>x.id===u.id?{...x,status}:x));}}>{u.status==='active'?'Bloquear':'Liberar'}</button><button type="button" className="collection-delete-confirm" style={{padding:'9px 12px'}} onClick={()=>setUserDeleteTarget(u)}>Excluir</button></div></div>)}</div>
     </div>}
     {isOwner&&!active&&ownerPage==='history'&&<div className="mapping-panel">
       <div className="mapping-title"><strong>Coletas anteriores</strong><span>{ownerCollections.length} REGISTRO(S)</span></div>
@@ -1446,7 +1447,7 @@ function AccountGate() {
   useEffect(()=>{
     if(!token)return;
     let alive=true;
-    fetch('/api/shared/me',{headers:{Authorization:`Bearer ${token}`}})
+    fetch(apiUrl('/api/shared/me'),{headers:{Authorization:`Bearer ${token}`}})
       .then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||'Sessão expirada');return d;})
       .then(d=>{if(alive)setUser({id:d.user.id,name:d.user.display_name,email:d.user.email,company:d.user.company_name,role:d.user.role,isOwner:!!d.user.is_owner});})
       .catch(()=>{try{localStorage.removeItem('coletaflow.auth.token');}catch{} if(alive){setToken('');setUser(null);}});
@@ -1457,7 +1458,7 @@ function AccountGate() {
     try{
       const endpoint='/api/shared/login';
       const payload={login,password};
-      const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const response=await fetch(apiUrl(endpoint),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       const data=await response.json();
       if(!response.ok)throw new Error(data.error||'Não foi possível continuar');
       localStorage.setItem('coletaflow.auth.token',data.token);
@@ -1466,7 +1467,7 @@ function AccountGate() {
     }catch(err){setError(err instanceof Error?err.message:'Erro de conexão');}
     finally{setBusy(false);}
   };
-  if(user)return <div className="account-shell"><header className="account-top"><strong className="account-top-brand"><span className="brand-mark" aria-hidden="true"><FileSpreadsheet size={34} strokeWidth={2.2}/><RefreshCw size={17} strokeWidth={2.8} className="brand-sync"/></span><span className="brand-wordmark"><span>Coleta</span><strong>Flow</strong></span></strong><button type="button" className="theme-toggle account-theme-toggle" onClick={()=>setTheme(value=>value==='light'?'dark':'light')} aria-label={theme==='light'?'Ativar tema escuro':'Ativar tema claro'} title={theme==='light'?'Ativar tema escuro':'Ativar tema claro'}><span>{theme==='light'?<Moon size={17}/>:<Sun size={17}/>}</span><small>{theme==='light'?'Escuro':'Claro'}</small></button><span className="account-user">{user.name}</span><button className="account-logout" onClick={async()=>{try{await fetch('/api/shared/logout',{method:'POST',headers:{Authorization:`Bearer ${token}`}});}catch{} try{localStorage.removeItem('coletaflow.auth.token');}catch{} setToken('');setUser(null);}}>Sair</button></header><SharedCollections token={token} isOwner={!!user.isOwner} userId={user.id}/></div>;
+  if(user)return <div className="account-shell"><header className="account-top"><strong className="account-top-brand"><span className="brand-mark" aria-hidden="true"><FileSpreadsheet size={34} strokeWidth={2.2}/><RefreshCw size={17} strokeWidth={2.8} className="brand-sync"/></span><span className="brand-wordmark"><span>Coleta</span><strong>Flow</strong></span></strong><button type="button" className="theme-toggle account-theme-toggle" onClick={()=>setTheme(value=>value==='light'?'dark':'light')} aria-label={theme==='light'?'Ativar tema escuro':'Ativar tema claro'} title={theme==='light'?'Ativar tema escuro':'Ativar tema claro'}><span>{theme==='light'?<Moon size={17}/>:<Sun size={17}/>}</span><small>{theme==='light'?'Escuro':'Claro'}</small></button><span className="account-user">{user.name}</span><button className="account-logout" onClick={async()=>{try{await fetch(apiUrl('/api/shared/logout'),{method:'POST',headers:{Authorization:`Bearer ${token}`}});}catch{} try{localStorage.removeItem('coletaflow.auth.token');}catch{} setToken('');setUser(null);}}>Sair</button></header><SharedCollections token={token} isOwner={!!user.isOwner} userId={user.id}/></div>;
   return <main className="account-page"><section className="account-card">
     <div className="account-brand"><span className="account-mark">CF</span><div><strong>ColetaFlow</strong><small>Coleta colaborativa de inventário</small></div><button type="button" className="theme-toggle account-login-theme" onClick={()=>setTheme(value=>value==='light'?'dark':'light')} aria-label={theme==='light'?'Ativar tema escuro':'Ativar tema claro'} title={theme==='light'?'Ativar tema escuro':'Ativar tema claro'}><span>{theme==='light'?<Moon size={17}/>:<Sun size={17}/>}</span><small>{theme==='light'?'Escuro':'Claro'}</small></button></div>
     <div className="account-intro"><span>ACESSO SEGURO</span><h1>Entre na sua conta</h1><p>Acesse as coletas liberadas para você.</p></div>
