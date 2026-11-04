@@ -2,6 +2,8 @@ import * as handlers from '../../lib/shared/index.js';
 import { configureRuntime } from '../../lib/shared/_db.js';
 
 const routes = {
+  backup: handlers.backup,
+  resume: handlers.resume,
   'bootstrap-owner': handlers.bootstrapOwner,
   close: handlers.closeCollection,
   delete: handlers.deleteCollection,
