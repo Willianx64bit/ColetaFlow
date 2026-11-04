@@ -73,6 +73,12 @@ const writeSavedEvents = async (events: ScanEvent[], sessionKey: string) => {
     transaction.onabort = () => { db.close(); reject(transaction.error); };
   });
 };
+const countsFromEvents = (events: ScanEvent[]) => {
+  const next: Record<string, number> = {};
+  for (const event of events) next[event.barcode] = (next[event.barcode] || 0) + Number(event.quantity || 0);
+  Object.keys(next).forEach(code => { if (!next[code]) delete next[code]; });
+  return next;
+};
 
 const normalize = (value: string) => value.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
 const cellText = (cell: XLSX.CellObject | undefined) => {
@@ -136,6 +142,17 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
   const removeAllLongPressHandled = useRef(false);
   const syncInFlightRef = useRef(false);
 
+  const backupEvents = async (events: ScanEvent[]) => {
+    if (!sharedCollection || !navigator.onLine || !events.length) return;
+    for (let offset = 0; offset < events.length; offset += 500) {
+      const response = await fetch('/api/shared/backup', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sharedCollection.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collectionId: sharedCollection.id, events: events.slice(offset, offset + 500) })
+      });
+      if (!response.ok) throw new Error('Cópia de segurança pendente');
+    }
+  };
   const recordEvent = (barcode: string, quantity: number, eventType: 'scan' | 'adjustment' = 'scan', description = '') => {
     if (!sharedCollection || !barcode || !Number.isFinite(quantity) || quantity === 0) return;
     let deviceId = 'device-unknown';
@@ -147,7 +164,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
     const next=[...scanEventsRef.current,event];
     scanEventsRef.current=next;
     setScanEvents(next);
-    void persistEvents(next).catch(()=>setNotice('Não foi possível gravar a fila offline. Verifique o armazenamento deste dispositivo antes de continuar.'));
+    void persistEvents(next).then(()=>backupEvents([event])).catch(()=>setNotice('Não foi possível gravar a fila offline. Verifique o armazenamento deste dispositivo antes de continuar.'));
   };
   const finishParticipation = async () => {
     if (!sharedCollection || syncInFlightRef.current) return;
@@ -311,6 +328,49 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
     void restore();
     return () => { active = false; };
   }, [sessionKey]);
+
+  useEffect(() => {
+    if (!sessionRestored || !sharedCollection || !navigator.onLine) return;
+    let active = true;
+    const restoreRemoteDraft = async () => {
+      try {
+        const response = await fetch(`/api/shared/resume?collectionId=${encodeURIComponent(sharedCollection.id)}`, {
+          headers: { Authorization: `Bearer ${sharedCollection.token}` }, cache: 'no-store'
+        });
+        if (!response.ok) throw new Error('Não foi possível recuperar a cópia da coleta.');
+        const data = await response.json();
+        if (!active || !Array.isArray(data.events)) return;
+        const local = scanEventsRef.current;
+        const merged = new Map<string, ScanEvent>();
+        [...data.events, ...local].forEach((event: any) => {
+          if (event?.eventId) merged.set(String(event.eventId), {
+            eventId: String(event.eventId), barcode: String(event.barcode), quantity: Number(event.quantity),
+            eventType: event.eventType === 'adjustment' ? 'adjustment' : 'scan',
+            scannedAt: String(event.scannedAt), deviceId: String(event.deviceId || ''),
+            ...(event.description ? { description: String(event.description) } : {})
+          });
+        });
+        const restored = [...merged.values()].sort((a,b) => a.scannedAt.localeCompare(b.scannedAt));
+        scanEventsRef.current = restored;
+        setScanEvents(restored);
+        setCounts(countsFromEvents(restored));
+        await persistEvents(restored);
+        await backupEvents(restored);
+        if (active && data.events.length) setNotice(`Coleta recuperada: ${restored.length} bipagem(ns) disponíveis neste usuário.`);
+      } catch (error) {
+        if (active) setNotice('Não foi possível recuperar a cópia online agora. As bipagens locais continuam preservadas.');
+      }
+    };
+    void restoreRemoteDraft();
+    return () => { active = false; };
+  }, [sessionRestored, sharedCollection?.id, sharedCollection?.token]);
+
+  useEffect(() => {
+    if (!sharedCollection) return;
+    const retryBackup = () => { void backupEvents(scanEventsRef.current).catch(() => {}); };
+    window.addEventListener('online', retryBackup);
+    return () => window.removeEventListener('online', retryBackup);
+  }, [sharedCollection?.id, sharedCollection?.token]);
 
   useEffect(() => {
     if (!sessionRestored) return;
