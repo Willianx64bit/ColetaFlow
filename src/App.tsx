@@ -481,7 +481,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
     ]);
     const reader = new BrowserMultiFormatReader(cameraHints, {
       delayBetweenScanSuccess: 250,
-      delayBetweenScanAttempts: 180
+      delayBetweenScanAttempts: 100
     });
     reader.decodeFromConstraints({
       audio: false,
