@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Capacitor } from '@capacitor/core';
-const apiUrl = (path: string) => Capacitor.isNativePlatform() ? new URL(path, 'https://coletaflow-two.vercel.app').toString() : path;
 import { createPortal } from 'react-dom';
 import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import { BarcodeFormat, DecodeHintType } from '@zxing/library';
@@ -9,6 +8,8 @@ import {
   ArrowDownToLine, Camera, Check, FileSpreadsheet, FolderUp,
   Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw, Zap, Pencil, Volume2, VolumeX, Sun, Moon, Trash2
 } from 'lucide-react';
+
+const apiUrl = (path: string) => Capacitor.isNativePlatform() ? new URL(path, 'https://coletaflow-two.vercel.app').toString() : path;
 
 type ColumnMap = { code: number[]; quantity: number; description: number };
 type ScanEvent = { eventId: string; barcode: string; quantity: number; eventType: 'scan' | 'adjustment'; scannedAt: string; deviceId: string; description?: string };
