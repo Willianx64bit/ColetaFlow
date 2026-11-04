@@ -1125,14 +1125,10 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
           <span className="owner-home-card-main"><strong>Usuários cadastrados</strong><small>Cadastrar novos usuários e bloquear ou liberar acessos.</small></span>
           <span className="owner-home-card-action">Abrir usuários <b>›</b></span>
         </button>
-        <button type="button" className="mapping-panel owner-home-card" onClick={()=>setOwnerPage('history')}>
-          <span className="owner-home-card-main"><strong>Coletas anteriores</strong><small>Consultar e abrir coletas já criadas.</small></span>
-          <span className="owner-home-card-action">Abrir histórico <b>›</b></span>
-        </button>
       </div>
       <div className="mapping-panel owner-collections-panel">
         <button type="button" className="owner-collections-toggle" aria-expanded={myCollectionsExpanded} onClick={()=>setMyCollectionsExpanded(v=>!v)}>
-          <span className="owner-home-card-main"><strong>Minhas coletas</strong><small>Acompanhe suas coletas aqui. Toque em uma para abrir os detalhes.</small></span>
+          <span className="owner-home-card-main"><strong>Histórico de coletas</strong><small>Acompanhe suas coletas aqui. Toque em uma para abrir os detalhes.</small></span>
           <span className="owner-collections-toggle-right">
             {ownerCollections.some((item:any)=>item.status==='open')&&<span className="owner-pending-alert">{ownerCollections.filter((item:any)=>item.status==='open').length} PENDENTE(S)</span>}
             <b>{myCollectionsExpanded?'−':'+'}</b>
