@@ -73,6 +73,24 @@ const writeSavedEvents = async (events: ScanEvent[], sessionKey: string) => {
     transaction.onabort = () => { db.close(); reject(transaction.error); };
   });
 };
+const readPendingEventIds = async (sessionKey: string): Promise<string[]> => {
+  const db = await openSessionDb();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(SESSION_STORE, 'readonly').objectStore(SESSION_STORE).get(`${sessionKey}:pending-event-ids`);
+    request.onsuccess = () => { db.close(); resolve(Array.isArray(request.result) ? request.result as string[] : []); };
+    request.onerror = () => { db.close(); reject(request.error); };
+  });
+};
+const writePendingEventIds = async (ids: string[], sessionKey: string) => {
+  const db = await openSessionDb();
+  return new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(SESSION_STORE, 'readwrite');
+    transaction.objectStore(SESSION_STORE).put([...new Set(ids)], `${sessionKey}:pending-event-ids`);
+    transaction.oncomplete = () => { db.close(); resolve(); };
+    transaction.onerror = () => { db.close(); reject(transaction.error); };
+    transaction.onabort = () => { db.close(); reject(transaction.error); };
+  });
+};
 const getDeviceId = () => {
   try {
     let id = localStorage.getItem('coletaflow.device-id');
@@ -156,13 +174,22 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
 
   const backupEvents = async (events: ScanEvent[]) => {
     if (!sharedCollection || !navigator.onLine || !events.length) return;
-    for (let offset = 0; offset < events.length; offset += 500) {
+    const pendingIds = await readPendingEventIds(sessionKey);
+    const pendingSet = new Set(pendingIds);
+    const pendingEvents = events.filter(event => pendingSet.has(event.eventId));
+    for (let offset = 0; offset < pendingEvents.length; offset += 500) {
+      const batch = pendingEvents.slice(offset, offset + 500);
       const response = await fetch('/api/shared/backup', {
         method: 'POST',
         headers: { Authorization: `Bearer ${sharedCollection.token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ collectionId: sharedCollection.id, events: events.slice(offset, offset + 500) })
+        body: JSON.stringify({ collectionId: sharedCollection.id, events: batch })
       });
       if (!response.ok) throw new Error('Cópia de segurança pendente');
+      const result = await response.json();
+      if (Number(result.received) !== batch.length || !Number.isFinite(Number(result.saved))) throw new Error('Confirmação de sincronização inválida');
+      const confirmed = new Set(batch.map(event => event.eventId));
+      const remaining = (await readPendingEventIds(sessionKey)).filter(id => !confirmed.has(id));
+      await writePendingEventIds(remaining, sessionKey);
     }
   };
   const recordEvent = (barcode: string, quantity: number, eventType: 'scan' | 'adjustment' = 'scan', description = '') => {
@@ -173,7 +200,11 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
     scanEventsRef.current=next;
     setScanEvents(next);
     void persistEvents(next)
-      .then(() => backupEvents([event]))
+      .then(async () => {
+        const pending = await readPendingEventIds(sessionKey);
+        await writePendingEventIds([...pending, event.eventId], sessionKey);
+        await backupEvents([event]);
+      })
       .catch(() => setNotice('Bipagem salva localmente. A cópia para continuar em outro aparelho está pendente de conexão.'));
   };
   const finishParticipation = async () => {
@@ -374,8 +405,13 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
         // cleared or adjusted from this device.
         setCounts(countsFromEvents(restored.filter(event => event.deviceId === getDeviceId())));
         await persistEvents(restored);
-        await backupEvents(restored);
-        if (active && data.events.length) setNotice(`Coleta recuperada: ${restored.length} bipagem(ns) disponíveis neste usuário.`);
+        const remoteIds = new Set((data.events as any[]).map(event => String(event.eventId)));
+        const localPending = restored.filter(event => event.deviceId === getDeviceId() && !remoteIds.has(event.eventId)).map(event => event.eventId);
+        if (localPending.length) {
+          const existingPending = await readPendingEventIds(sessionKey);
+          await writePendingEventIds([...existingPending, ...localPending], sessionKey);
+        }
+        if (active && data.events.length) setNotice(`Coleta recuperada: ${restored.length} evento(s) encontrados.`);
       } catch (error) {
         if (active) setNotice('Não foi possível recuperar a cópia online agora. As bipagens locais continuam preservadas.');
       }
@@ -385,11 +421,13 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
   }, [sessionRestored, sharedCollection?.id, sharedCollection?.token]);
 
   useEffect(() => {
-    if (!sharedCollection) return;
-    const retryBackup = () => { void backupEvents(scanEventsRef.current).catch(() => {}); };
+    if (!sharedCollection || !sessionRestored) return;
+    const retryBackup = () => { void backupEvents(scanEventsRef.current).catch(() => setNotice('Existem bipagens aguardando sincronização.')); };
+    const timer = window.setInterval(retryBackup, 3000);
     window.addEventListener('online', retryBackup);
-    return () => window.removeEventListener('online', retryBackup);
-  }, [sharedCollection?.id, sharedCollection?.token]);
+    retryBackup();
+    return () => { window.clearInterval(timer); window.removeEventListener('online', retryBackup); };
+  }, [sharedCollection?.id, sharedCollection?.token, sessionRestored]);
 
   useEffect(() => {
     if (!sessionRestored) return;
