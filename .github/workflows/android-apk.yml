@@ -79,29 +79,52 @@ jobs:
           import java.util.Base64;
 
           public class MainActivity extends BridgeActivity {
-              private final Handler downloadHandler = new Handler(Looper.getMainLooper());
-              private final Runnable installDownloadHandler = new Runnable() {
+              private final Handler handler = new Handler(Looper.getMainLooper());
+              private final Runnable installer = new Runnable() {
                   @Override public void run() {
                       try {
                           WebView webView = getBridge() == null ? null : getBridge().getWebView();
                           if (webView != null) {
                               webView.addJavascriptInterface(new DownloadBridge(), "ColetaFlowDownloads");
-                              webView.evaluateJavascript("(function(){if(window.__coletaflowNativeDownloadInstalled)return;window.__coletaflowNativeDownloadInstalled=true;document.addEventListener('click',function(event){var link=event.target&&event.target.closest?event.target.closest('a[download]'):null;if(!link||!link.href||(!link.href.startsWith('blob:')&&!link.href.startsWith('data:')))return;event.preventDefault();event.stopImmediatePropagation();var name=link.getAttribute('download')||'coletaflow.xlsx';fetch(link.href).then(function(response){return response.blob()}).then(function(blob){return new Promise(function(resolve,reject){var reader=new FileReader();reader.onloadend=function(){resolve(String(reader.result).split(',')[1]||'')};reader.onerror=reject;reader.readAsDataURL(blob)}) .then(function(base64){if(window.ColetaFlowDownloads)window.ColetaFlowDownloads.saveFile(base64,name,blob.type||'application/octet-stream')})}).catch(function(){alert('Não foi possível salvar o arquivo. Tente novamente.')})},true)})();", null);
+                              webView.evaluateJavascript(
+                                  "(function(){" +
+                                  "if(window.__coletaflowDownloadV2)return;" +
+                                  "function saveLink(link,event){" +
+                                  "if(!link||!link.href||link.dataset.cfSaving==='1')return false;" +
+                                  "var href=link.href;" +
+                                  "if(!href.startsWith('blob:')&&!href.startsWith('data:'))return false;" +
+                                  "if(event){event.preventDefault();event.stopImmediatePropagation();}" +
+                                  "link.dataset.cfSaving='1';" +
+                                  "var name=link.getAttribute('download')||'coletaflow.xlsx';" +
+                                  "fetch(href).then(function(r){if(!r.ok)throw new Error('Falha ao ler arquivo');return r.blob();})" +
+                                  ".then(function(blob){return new Promise(function(resolve,reject){" +
+                                  "var reader=new FileReader();reader.onloadend=function(){resolve(String(reader.result).split(',')[1]||'');};" +
+                                  "reader.onerror=reject;reader.readAsDataURL(blob);" +
+                                  "}).then(function(base64){if(!window.ColetaFlowDownloads)throw new Error('Ponte Android indisponível');" +
+                                  "window.ColetaFlowDownloads.saveFile(base64,name,blob.type||'application/octet-stream');});})" +
+                                  ".catch(function(err){link.dataset.cfSaving='0';alert('Falha no download: '+err.message);});" +
+                                  "return true;" +
+                                  "}" +
+                                  "document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a[download]'):null;if(a)saveLink(a,e);},true);" +
+                                  "var originalClick=HTMLAnchorElement.prototype.click;" +
+                                  "HTMLAnchorElement.prototype.click=function(){if(this.hasAttribute('download')&&saveLink(this,null))return;return originalClick.call(this);};" +
+                                  "window.__coletaflowDownloadV2=true;" +
+                                  "})();", null);
                           }
                       } catch (Exception ignored) { }
-                      downloadHandler.postDelayed(this, 1000);
+                      handler.postDelayed(this, 500);
                   }
               };
 
               @Override public void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
-                  downloadHandler.post(installDownloadHandler);
+                  handler.post(installer);
               }
 
               private class DownloadBridge {
                   @JavascriptInterface public void saveFile(String base64, String fileName, String mimeType) {
                       try {
-                          if (Build.VERSION.SDK_INT < 29) throw new IllegalStateException("Android não compatível com salvamento direto");
+                          if (Build.VERSION.SDK_INT < 29) throw new IllegalStateException("Android 10 ou superior é necessário");
                           String safeName = fileName == null ? "coletaflow.xlsx" : fileName.replaceAll("[\\\\/:*?\"<>|]", "_");
                           ContentValues values = new ContentValues();
                           values.put(MediaStore.Downloads.DISPLAY_NAME, safeName);
@@ -119,7 +142,7 @@ jobs:
                           getContentResolver().update(uri, values, null, null);
                           runOnUiThread(() -> Toast.makeText(MainActivity.this, "Arquivo salvo em Downloads/ColetaFlow", Toast.LENGTH_LONG).show());
                       } catch (Exception error) {
-                          runOnUiThread(() -> Toast.makeText(MainActivity.this, "Falha ao salvar o arquivo: " + error.getMessage(), Toast.LENGTH_LONG).show());
+                          runOnUiThread(() -> Toast.makeText(MainActivity.this, "Falha ao salvar: " + error.getMessage(), Toast.LENGTH_LONG).show());
                       }
                   }
               }
