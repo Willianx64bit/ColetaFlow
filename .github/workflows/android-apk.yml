@@ -2,7 +2,7 @@ name: Build ColetaFlow Android APK
 
 on:
   push:
-    branches: [feature/shared-collections]
+    branches: [feature/shared-collections, feature/mlkit-android-test]
     paths:
       - 'capacitor.config.ts'
       - 'resources/**'
