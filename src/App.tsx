@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { createPortal } from 'react-dom';
 import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import { BarcodeFormat, DecodeHintType } from '@zxing/library';
@@ -164,6 +165,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
   const audioContextRef = useRef<AudioContext | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<IScannerControls | null>(null);
+  const nativeCameraActiveRef = useRef(false);
   const lastCameraScan = useRef<{ code: string; at: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
@@ -467,9 +469,108 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
     if (!cameraOpen || !videoRef.current || pendingCode) return;
     let cancelled = false;
     let controls: IScannerControls | null = null;
+    let nativeListener: { remove: () => Promise<void> } | null = null;
+    let stopNativeScan: (() => Promise<void>) | null = null;
+    let nativeStarted = false;
     const video = videoRef.current;
-    setCameraStatus('Solicitando câmera traseira…');
 
+    const cleanupNativeCamera = async () => {
+      document.body.classList.remove('barcode-scanner-active');
+      nativeCameraActiveRef.current = false;
+      if (nativeListener) {
+        const listener = nativeListener;
+        nativeListener = null;
+        await listener.remove().catch(() => {});
+      }
+      if (nativeStarted && stopNativeScan) {
+        nativeStarted = false;
+        try {
+          const { BarcodeScanner } = await import('@capacitor-mlkit/barcode-scanning');
+          await BarcodeScanner.disableTorch().catch(() => {});
+        } catch { /* plugin pode estar encerrando */ }
+        await stopNativeScan().catch(() => {});
+      }
+    };
+
+    if (Capacitor.getPlatform() === 'android') {
+      setCameraStatus('Preparando leitor nativo Google ML Kit…');
+      void (async () => {
+        try {
+          const { BarcodeScanner, BarcodeFormat, Resolution } = await import('@capacitor-mlkit/barcode-scanning');
+          stopNativeScan = () => BarcodeScanner.stopScan();
+          const currentPermission = await BarcodeScanner.checkPermissions();
+          const permission = currentPermission.camera === 'granted'
+            ? currentPermission
+            : await BarcodeScanner.requestPermissions();
+          if (cancelled) return;
+          if (permission.camera !== 'granted') {
+            setCameraOpen(false);
+            setCameraStatus('Permissão da câmera não concedida');
+            setNotice('Autorize o acesso à câmera do ColetaFlow para utilizar o leitor.');
+            return;
+          }
+
+          document.body.classList.add('barcode-scanner-active');
+          nativeListener = await BarcodeScanner.addListener('barcodesScanned', event => {
+            if (cancelled) return;
+            const detected = event.barcodes.find(barcode => Boolean(barcode.rawValue?.trim()));
+            const code = detected?.rawValue?.trim();
+            if (!code) return;
+            setCameraStatus('Código identificado');
+            if (cameraForSearch) {
+              setSearch(code);
+              setNotice(`Busca pela câmera: código ${code}.`);
+              setCameraOpen(false);
+              setCameraForSearch(false);
+            } else {
+              const requiresManualInput = receiveCode(code, true);
+              if (!quickCollectEnabled || requiresManualInput) setCameraOpen(false);
+            }
+          });
+
+          if (cancelled) {
+            await cleanupNativeCamera();
+            return;
+          }
+
+          await BarcodeScanner.startScan({
+            formats: [
+              BarcodeFormat.Ean13,
+              BarcodeFormat.Ean8,
+              BarcodeFormat.UpcA,
+              BarcodeFormat.UpcE,
+              BarcodeFormat.Itf
+            ],
+            resolution: Resolution['1280x720']
+          });
+          nativeStarted = true;
+          nativeCameraActiveRef.current = true;
+          if (cancelled) {
+            await cleanupNativeCamera();
+            return;
+          }
+          await BarcodeScanner.setZoomRatio({ zoomRatio: cameraZoom }).catch(() => {
+            setCameraStatus('Câmera ativa · zoom inicial não disponível');
+          });
+          setCameraUsed(true);
+          setCameraStatus('Câmera ativa · aponte para o código de barras');
+        } catch {
+          await cleanupNativeCamera();
+          if (!cancelled) {
+            setCameraOpen(false);
+            setCameraStatus('Não foi possível abrir o leitor nativo');
+            setNotice('Não foi possível iniciar o Google ML Kit. Confira a permissão da câmera e tente novamente.');
+          }
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+        void cleanupNativeCamera();
+      };
+    }
+
+    setCameraStatus('Solicitando câmera traseira…');
     const cameraHints = new Map<DecodeHintType, any>([
       [DecodeHintType.POSSIBLE_FORMATS, [
         BarcodeFormat.EAN_13,
@@ -543,10 +644,18 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
       stream?.getTracks().forEach(track => track.stop());
       video.srcObject = null;
     };
-  }, [cameraOpen, pendingCode, quickCollectEnabled, quickCollectQuantity, cameraForSearch]);
+  }, [cameraOpen, pendingCode, quickCollectEnabled, quickCollectQuantity, cameraForSearch, cameraZoom]);
 
   useEffect(() => {
-    if (!cameraOpen || !videoRef.current) return;
+    if (!cameraOpen) return;
+    if (Capacitor.getPlatform() === 'android') {
+      if (!nativeCameraActiveRef.current) return;
+      void import('@capacitor-mlkit/barcode-scanning').then(({ BarcodeScanner }) =>
+        BarcodeScanner.setZoomRatio({ zoomRatio: cameraZoom })
+      ).catch(() => setCameraStatus('Zoom não disponível nesta câmera'));
+      return;
+    }
+    if (!videoRef.current) return;
     const stream = videoRef.current.srcObject as MediaStream | null;
     const track = stream?.getVideoTracks()[0];
     if (!track) return;
@@ -799,6 +908,23 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
   };
 
   const toggleCameraFlash = async () => {
+    const next = !flashEnabled;
+    if (Capacitor.getPlatform() === 'android') {
+      if (!nativeCameraActiveRef.current) {
+        setNotice('A câmera ainda está iniciando. Tente novamente em instantes.');
+        return;
+      }
+      try {
+        const { BarcodeScanner } = await import('@capacitor-mlkit/barcode-scanning');
+        if (next) await BarcodeScanner.enableTorch();
+        else await BarcodeScanner.disableTorch();
+        setFlashEnabled(next);
+        setCameraStatus(next ? 'Flash ligado · aponte para o código de barras' : 'Flash desligado · aponte para o código de barras');
+      } catch {
+        setNotice('Não foi possível alterar o flash. Verifique se a câmera oferece suporte.');
+      }
+      return;
+    }
     const video = videoRef.current;
     const stream = video?.srcObject as MediaStream | null;
     const track = stream?.getVideoTracks()[0];
@@ -811,7 +937,6 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
       setNotice('O flash não está disponível nesta câmera ou navegador.');
       return;
     }
-    const next = !flashEnabled;
     try {
       await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] });
       setFlashEnabled(next);
