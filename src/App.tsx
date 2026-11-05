@@ -1087,7 +1087,7 @@ type SharedCollectionState = { id:string; title:string; accessCode:string; role:
 type SharedMapping = { sheetName:string; headerRow:number; codeColumns:number[]; quantityColumn:number; descriptionColumn:number; hasProductList?:boolean };
 type SharedTemplate = { fileName:string; mimeType:string; sha256:string; base64:string; mapping?:SharedMapping|null };
 function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;userId:string}) {
-  const [title,setTitle]=useState('Inventário compartilhado');
+  const [title,setTitle]=useState('');
   const [templateFile,setTemplateFile]=useState<File|null>(null);
   const [templateInputKey,setTemplateInputKey]=useState(0);
   const [createWorkbook,setCreateWorkbook]=useState<XLSX.WorkBook|null>(null);
@@ -1263,13 +1263,13 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
     </div>}
     {isOwner&&!active&&ownerPage==='home'&&<>
       <div className="owner-create-entry">
-        <button type="button" className="mapping-panel owner-home-card" aria-expanded={createExpanded} onClick={()=>setCreateExpanded(v=>!v)}>
+        <button type="button" className="mapping-panel owner-home-card" aria-expanded={createExpanded} onClick={()=>{if(!createExpanded)setTitle('');setCreateExpanded(v=>!v);}}>
           <span className="owner-home-card-main"><strong>Criar nova coleta</strong><small>Prepare uma nova conferência e compartilhe com os participantes.</small></span>
           <span className="owner-home-card-action">{createExpanded?'Fechar':'Criar coleta'} <b>{createExpanded?'−':'+'}</b></span>
         </button>
         {createExpanded&&<div className="mapping-panel owner-create-expanded"><div className="owner-create-form">
           <label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label>
-          <label>Planilha original da empresa<input key={templateInputKey} type="file" accept=".xlsx,.xls,.csv" onChange={e=>void loadCreateFile(e.target.files?.[0]||null)}/></label>
+          <label className="owner-file-label">Planilha original da empresa<span className="owner-file-picker"><FolderUp size={20}/><strong>Escolher arquivo</strong><input key={templateInputKey} type="file" accept=".xlsx,.xls,.csv" onChange={e=>void loadCreateFile(e.target.files?.[0]||null)}/></span></label>
           {createWorkbook&&<div className="mapping-panel" style={{marginTop:14}}>
             <div className="mapping-title"><div><ShieldCheck size={18}/><strong>Configurar colunas da planilha</strong></div><span>ANTES DE CRIAR</span></div>
             <div className="mapping-grid">
