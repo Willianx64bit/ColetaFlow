@@ -1,4 +1,5 @@
 name: Build ColetaFlow Android APK
+# Rebuild requested after official-site UI refinements; keep native ML Kit and download bridge.
 
 on:
   push:
