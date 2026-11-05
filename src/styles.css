@@ -846,3 +846,52 @@ body[data-theme="dark"] .collection-delete-icon{background:#44262b;color:#ffaaaa
 .app-shell:has(.wizard-progress) .mapping-panel{margin-top:12px}
 .app-shell:has(.wizard-progress) .mapping-note{margin-top:9px}
 .shared-collection-heading-actions{gap:8px}
+
+/* Ajustes do cabeçalho e indicador de quantidade no tema escuro */
+body[data-theme="dark"] .quantity-collected{
+  background:#173c35;
+  color:#a8ead0;
+  border:1px solid #286b57;
+}
+body[data-theme="dark"] .quantity-collected strong{
+  color:#8ce7bd;
+}
+.account-top .account-user{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  max-width:34%;
+  min-height:34px;
+  padding:0 12px;
+  margin-left:auto;
+  border:1px solid #d8e3ed;
+  border-radius:10px;
+  background:#edf3f8;
+  color:#263b52;
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:.1px;
+}
+.account-top .account-logout{
+  border:1px solid #b91c2b;
+  background:#c92e38;
+  color:#fff;
+  border-radius:9px;
+  font-weight:800;
+  padding:9px 13px;
+}
+.account-top .account-logout:hover{background:#ad202a;border-color:#ad202a}
+body[data-theme="dark"] .account-top .account-user{
+  background:#1b3043;
+  border-color:#3a566d;
+  color:#e5f0fb;
+}
+body[data-theme="dark"] .account-top .account-logout{
+  background:#bd2935;
+  border-color:#e0525c;
+  color:#fff;
+}
+@media(max-width:600px){
+  .account-top .account-user{max-width:29%;min-height:32px;padding:0 8px;font-size:11px}
+  .account-top .account-logout{padding:8px 10px;font-size:11px}
+}
