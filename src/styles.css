@@ -810,3 +810,8 @@ body[data-theme="dark"] .collection-delete-icon{background:#44262b;color:#ffaaaa
   -webkit-touch-callout: default;
   -webkit-tap-highlight-color: auto;
 }
+
+
+/* Controles compactos de quantidade: toque ou segure para repetir. */
+.quantity-adjust-button{flex:0 0 46px;width:46px;height:58px;display:grid;place-items:center;border:1.5px solid #36536b;border-radius:12px;background:#20384d;color:#dcecf5;font-size:20px;font-weight:800;touch-action: none;user-select:none;-webkit-user-select:none;cursor:pointer}
+.quantity-adjust-button:active{background:#087f9d;border-color:#12a4c4;transform:scale(.97)}
