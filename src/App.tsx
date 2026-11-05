@@ -5,7 +5,7 @@ import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import * as XLSX from 'xlsx';
 import {
-  ArrowDownToLine, Camera, Check, FileSpreadsheet, FolderUp,
+  ArrowDownToLine, Camera, Check, Minus, Plus, FileSpreadsheet, FolderUp,
   Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw, Zap, Pencil, Volume2, VolumeX, Sun, Moon, Trash2
 } from 'lucide-react';
 
@@ -175,6 +175,9 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
   const shortcutLongPressHandled = useRef(false);
   const removeAllHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const removeAllLongPressHandled = useRef(false);
+  const quantityAdjustDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const quantityAdjustIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const quantityAdjustHeldRef = useRef(false);
   const syncInFlightRef = useRef(false);
 
   const backupEvents = async (events: ScanEvent[]) => {
@@ -211,6 +214,36 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
         await backupEvents([event]);
       })
       .catch(() => setNotice('Bipagem salva localmente. A cópia para continuar em outro aparelho está pendente de conexão.'));
+  };
+  const adjustPendingQuantity = (direction: 1 | -1) => {
+    setQuantityValue(current => {
+      const amount = Number(current) || 0;
+      return String(Math.max(1, amount + direction));
+    });
+  };
+  const stopQuantityAdjust = () => {
+    if (quantityAdjustDelayRef.current) clearTimeout(quantityAdjustDelayRef.current);
+    if (quantityAdjustIntervalRef.current) clearInterval(quantityAdjustIntervalRef.current);
+    quantityAdjustDelayRef.current = null;
+    quantityAdjustIntervalRef.current = null;
+  };
+  const startQuantityAdjust = (direction: 1 | -1) => {
+    stopQuantityAdjust();
+    quantityAdjustHeldRef.current = false;
+    quantityAdjustDelayRef.current = setTimeout(() => {
+      quantityAdjustHeldRef.current = true;
+      adjustPendingQuantity(direction);
+      quantityAdjustIntervalRef.current = setInterval(() => adjustPendingQuantity(direction), 140);
+      quantityAdjustDelayRef.current = null;
+    }, 350);
+  };
+  const finishQuantityAdjust = (direction: 1 | -1) => {
+    stopQuantityAdjust();
+    if (quantityAdjustHeldRef.current) {
+      quantityAdjustHeldRef.current = false;
+      return;
+    }
+    adjustPendingQuantity(direction);
   };
   const finishParticipation = async () => {
     if (!sharedCollection || syncInFlightRef.current) return;
@@ -1090,7 +1123,9 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
                 </div>
                 {hasProductList && findProductRow(pendingCode) < 0 && <label className="quantity-modal-label" style={{display:'block',marginBottom:12}}>Descrição do produto <input type="text" value={pendingDescription} onChange={event=>setPendingDescription(event.target.value)} placeholder="Digite o nome/descrição do produto" maxLength={180} required autoComplete="off" /></label>}
               <div className="quantity-entry-row">
+                  <button type="button" className="quantity-adjust-button" aria-label="Diminuir quantidade" title="Diminuir quantidade; segure para repetir" onPointerDown={() => startQuantityAdjust(-1)} onPointerUp={() => finishQuantityAdjust(-1)} onPointerLeave={stopQuantityAdjust} onPointerCancel={stopQuantityAdjust} onContextMenu={event => event.preventDefault()} onClick={event => { if (quantityAdjustHeldRef.current) { event.preventDefault(); quantityAdjustHeldRef.current = false; return; } }}><Minus size={20}/></button>
                   <label className="quantity-modal-label">{removeMode ? 'Quantidade a retirar' : 'Quantidade encontrada'}<input ref={quantityRef} type="number" min="1" step="1" value={quantityValue} onChange={event => setQuantityValue(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmCount(); } }} /></label>
+                  <button type="button" className="quantity-adjust-button" aria-label="Aumentar quantidade" title="Aumentar quantidade; segure para repetir" onPointerDown={() => startQuantityAdjust(1)} onPointerUp={() => finishQuantityAdjust(1)} onPointerLeave={stopQuantityAdjust} onPointerCancel={stopQuantityAdjust} onContextMenu={event => event.preventDefault()} onClick={event => { if (quantityAdjustHeldRef.current) { event.preventDefault(); quantityAdjustHeldRef.current = false; return; } }}><Plus size={20}/></button>
                   <button type="button" className={removeMode ? 'remove-mode-button active' : 'remove-mode-button'} aria-pressed={removeMode} title="Toque para retirar uma quantidade; segure para zerar tudo que foi coletado deste produto" onPointerDown={() => { removeAllLongPressHandled.current = false; if (removeAllHoldTimer.current) clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = setTimeout(() => { removeAllLongPressHandled.current = true; const collected = counts[pendingCode] ?? 0; if (collected > 0) { recordEvent(pendingCode, -collected, 'adjustment'); setCounts(previous => { const next = { ...previous }; delete next[pendingCode]; return next; }); setNotice(`Coleta zerada: ${collected} unidade(s) removida(s) do código ${pendingCode}.`); } else { setNotice('Este produto ainda não possui quantidade coletada.'); } setRemoveMode(false); setQuantityValue(''); removeAllHoldTimer.current = null; }, 700); }} onPointerUp={() => { if (removeAllHoldTimer.current) { clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = null; } }} onPointerLeave={() => { if (removeAllHoldTimer.current) { clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = null; } }} onPointerCancel={() => { if (removeAllHoldTimer.current) { clearTimeout(removeAllHoldTimer.current); removeAllHoldTimer.current = null; } }} onClick={() => { if (removeAllLongPressHandled.current) { removeAllLongPressHandled.current = false; return; } setRemoveMode(value => !value); setQuantityValue(''); requestAnimationFrame(() => quantityRef.current?.focus()); }}>{removeMode ? 'Retirar: ligado' : 'Retirar'}</button>
                 </div>
                 <div className="quantity-modal-actions">
