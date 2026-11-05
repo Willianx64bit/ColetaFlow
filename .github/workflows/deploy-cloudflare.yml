@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/shared-collections
+      - integration/site-official-android-mlkit
   workflow_dispatch:
 
 permissions:
@@ -108,4 +109,9 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: wrangler pages deploy dist --project-name coletaflow --branch feature/shared-collections --commit-dirty=true
+        run: |
+          if [ "$GITHUB_REF_NAME" = "integration/site-official-android-mlkit" ]; then
+            wrangler pages deploy dist --project-name coletaflow --branch integration-site-official-android-mlkit --commit-dirty=true
+          else
+            wrangler pages deploy dist --project-name coletaflow --branch feature/shared-collections --commit-dirty=true
+          fi
