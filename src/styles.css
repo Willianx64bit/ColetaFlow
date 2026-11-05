@@ -831,3 +831,12 @@ body[data-theme="dark"] .collection-delete-icon{background:#44262b;color:#ffaaaa
 .quantity-entry-row .quantity-adjust-button{flex:0 0 44px;width:44px;height:49px}
 .quantity-entry-row .remove-mode-button{flex:0 0 auto;min-height:49px;padding:0 12px;white-space:nowrap}
 @media(max-width:380px){.quantity-entry-row{gap:5px}.quantity-entry-row .quantity-adjust-button{flex-basis:40px;width:40px}.quantity-entry-row .remove-mode-button{padding:0 9px;font-size:10px}}
+
+/* Cabeçalho compacto da coleta compartilhada */
+.shared-collection-heading{align-items:center;gap:10px}
+.shared-collection-heading>div:first-child{min-width:0;flex:1}
+.shared-collection-heading>div:first-child strong{font-size:18px;font-weight:800;line-height:1.25;color:#243b55}
+.shared-collection-heading-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.shared-collection-heading-actions>span{white-space:nowrap}
+.shared-disconnect-button{border:0;border-radius:9px;padding:9px 12px;background:#214158;color:#a9d8e9;font-size:11px;font-weight:800;white-space:nowrap}
+@media(max-width:480px){.shared-collection-heading>div:first-child strong{font-size:17px}.shared-disconnect-button{padding:8px 9px;font-size:10px}}
