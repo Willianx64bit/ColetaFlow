@@ -975,8 +975,8 @@ body[data-theme="dark"] .account-form .remember-login-row label{color:#d5e2ef}
 }
 .download-app-button:hover{background:#d9f1f7}
 body[data-theme="dark"] .download-app-button{
-  background:#dff3f8;
-  border-color:#b7e4ee;
-  color:#086b87;
+  background:#183447;
+  border-color:#31576b;
+  color:#c5edf6;
 }
-body[data-theme="dark"] .download-app-button:hover{background:#ccebf3}
+body[data-theme="dark"] .download-app-button:hover{background:#20465a}
