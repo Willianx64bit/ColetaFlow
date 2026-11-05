@@ -1311,11 +1311,11 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
         </div>}
       </div>
     </>}
-    {isOwner&&!active&&ownerPage==='users'&&<div className="mapping-panel">
+    {isOwner&&!active&&ownerPage==='users'&&<div className="mapping-panel owner-user-registration">
       <div className="mapping-title"><strong>Cadastrar usuário</strong><span>CONTROLE DO DONO</span></div>
-      <div className="mapping-grid">
+      <div className="mapping-grid owner-user-fields">
         <label>Nome<input value={newUser.name} onChange={e=>setNewUser(v=>({...v,name:e.target.value}))}/></label>
-        <label>Usuário<input value={newUser.username} onChange={e=>setNewUser(v=>({...v,username:e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g,'')}))} autoCapitalize="none" autoCorrect="off" placeholder="ex.: joao.pedro"/></label>
+        <label>Usuário<input value={newUser.username} onChange={e=>setNewUser(v=>({...v,username:e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g,'')}))} autoCapitalize="none" autoCorrect="off"/></label>
         <label>Senha inicial<input type="password" minLength={8} value={newUser.password} onChange={e=>setNewUser(v=>({...v,password:e.target.value}))}/></label>
       </div>
       <button className="primary-button" style={{marginTop:12}} disabled={userBusy||!newUser.name||!newUser.username||newUser.password.length<8} onClick={()=>void addUser()}>{userBusy?'Salvando…':'Cadastrar usuário'}</button>
