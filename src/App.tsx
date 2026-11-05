@@ -1387,7 +1387,7 @@ function AccountGate() {
     <form className="account-form" onSubmit={submit}>
       <label>Usuário ou e-mail<input required type="text" value={login} onChange={e=>setLogin(e.target.value)} autoCapitalize="none" autoCorrect="off" autoComplete="username"/></label>
       <label>Senha<input required type="password" minLength={8} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>
-      <label style={{display:'flex',alignItems:'center',gap:9,fontSize:14,fontWeight:500,cursor:'pointer',marginTop:2}}><input type="checkbox" checked={rememberLogin} onChange={e=>{const checked=e.target.checked;setRememberLogin(checked);try{if(checked&&login.trim())localStorage.setItem('coletaflow.remembered-login',login.trim());else localStorage.removeItem('coletaflow.remembered-login');}catch{}}} style={{width:17,height:17,accentColor:'#2563eb',margin:0}}/>Lembrar meu usuário neste aparelho</label>
+      <div className="remember-login-row"><input id="remember-login" type="checkbox" checked={rememberLogin} onChange={e=>{const checked=e.target.checked;setRememberLogin(checked);try{if(checked&&login.trim())localStorage.setItem('coletaflow.remembered-login',login.trim());else localStorage.removeItem('coletaflow.remembered-login');}catch{}}}/><label htmlFor="remember-login">Lembrar meu usuário neste aparelho</label></div>
       {error&&<div className="account-error">{error}</div>}
       <button className="primary-button" type="submit" disabled={busy}>{busy?'Aguarde...':'Entrar'}</button>
     </form>
