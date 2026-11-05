@@ -587,6 +587,14 @@ body[data-theme="dark"] .brand-wordmark span{color:#e5edf7}
 .owner-status-pending{background:#fff3df;color:#a66b1e}
 .owner-status-done{background:#e4f6ed;color:#25815f}
 .owner-collection-open{flex:0 0 auto;color:#087fa5;font-size:11px;font-weight:800}
+.owner-collection-code{display:flex;align-items:center;gap:10px;flex:0 0 100%;margin:2px 0 0;padding:8px 10px;border:1px solid #d9e4ef;border-radius:9px;background:#f4f8fc}
+.owner-collection-code span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.owner-collection-code small{font-size:9px;color:#8292a5}
+.owner-collection-code strong{font-size:14px;letter-spacing:1.5px;color:#203b58}
+.owner-collection-code button{margin-left:auto;padding:7px 12px;border:1px solid #b8d5e5;border-radius:8px;background:#e8f5fb;color:#087fa5;font-size:11px;font-weight:800;white-space:nowrap}
+body[data-theme="dark"] .owner-collection-code{background:#12263a;border-color:#30465d}
+body[data-theme="dark"] .owner-collection-code strong{color:#e5eef8}
+body[data-theme="dark"] .owner-collection-code button{background:#17384b;border-color:#315c72;color:#6dd5f1}
 .owner-enter-collection{width:100%;min-height:48px;margin-top:16px;font-size:14px}
 body[data-theme="dark"] .owner-collection-row{border-color:#2a3b50}
 body[data-theme="dark"] .owner-collection-copy strong{color:#e5eef8}
