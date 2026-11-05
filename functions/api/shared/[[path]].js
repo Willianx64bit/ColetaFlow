@@ -1,4 +1,6 @@
 import {
+  backup,
+  resume,
   bootstrapOwner,
   closeCollection,
   collections,
@@ -20,6 +22,8 @@ import {
 } from '../../../lib/shared/index.js';
 
 const routes = {
+  backup,
+  resume,
   'bootstrap-owner': bootstrapOwner,
   close: closeCollection,
   collections,
