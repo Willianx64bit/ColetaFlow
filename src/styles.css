@@ -825,3 +825,11 @@ body.barcode-scanner-active>.camera-box .camera-guide{position:absolute!importan
 body.barcode-scanner-active>.camera-box .camera-zoom-controls{right:14px!important;top:50%!important;z-index:3}
 body.barcode-scanner-active>.camera-box .camera-bottom-controls{position:absolute!important;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 22px);z-index:3}
 body.barcode-scanner-active>.camera-box .camera-close{position:absolute!important;top:calc(env(safe-area-inset-top) + 14px)!important;right:14px!important;z-index:4}
+
+
+/* Opção de lembrar usuário: área própria para ficar visível no login mobile. */
+.account-form .remember-login-row{display:flex;align-items:center;gap:9px;min-height:24px;margin-top:-2px}
+.account-form .remember-login-row input[type="checkbox"]{appearance:auto;-webkit-appearance:checkbox;width:18px;height:18px;min-width:18px;margin:0;accent-color:#087fa5;cursor:pointer}
+.account-form .remember-login-row label{display:block;margin:0;color:#405269;font-size:12px;font-weight:600;line-height:1.35;cursor:pointer}
+body[data-theme="dark"] .account-form .remember-login-row label{color:#d2deea}
+body{overscroll-behavior-y:contain}
