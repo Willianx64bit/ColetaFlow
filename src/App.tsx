@@ -1346,7 +1346,8 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
 
 function AccountGate() {
 
-  const [login,setLogin]=useState('');
+  const [login,setLogin]=useState(()=>{try{return localStorage.getItem('coletaflow.remembered-login')||'';}catch{return '';}});
+  const [rememberLogin,setRememberLogin]=useState(()=>{try{return !!localStorage.getItem('coletaflow.remembered-login');}catch{return false;}});
   const [password,setPassword]=useState('');
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
@@ -1373,6 +1374,7 @@ function AccountGate() {
       const data=await response.json();
       if(!response.ok)throw new Error(data.error||'Não foi possível continuar');
       localStorage.setItem('coletaflow.auth.token',data.token);
+      try{if(rememberLogin)localStorage.setItem('coletaflow.remembered-login',login.trim());else localStorage.removeItem('coletaflow.remembered-login');}catch{}
       setUser({id:data.user.id,name:data.user.name,email:data.user.email,company:data.user.company,role:data.user.role,isOwner:!!data.user.is_owner});
       setToken(data.token);
     }catch(err){setError(err instanceof Error?err.message:'Erro de conexão');}
@@ -1385,6 +1387,7 @@ function AccountGate() {
     <form className="account-form" onSubmit={submit}>
       <label>Usuário ou e-mail<input required type="text" value={login} onChange={e=>setLogin(e.target.value)} autoCapitalize="none" autoCorrect="off" autoComplete="username"/></label>
       <label>Senha<input required type="password" minLength={8} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>
+      <label style={{display:'flex',alignItems:'center',gap:9,fontSize:14,fontWeight:500,cursor:'pointer',marginTop:2}}><input type="checkbox" checked={rememberLogin} onChange={e=>{const checked=e.target.checked;setRememberLogin(checked);try{if(checked&&login.trim())localStorage.setItem('coletaflow.remembered-login',login.trim());else localStorage.removeItem('coletaflow.remembered-login');}catch{}}} style={{width:17,height:17,accentColor:'#2563eb',margin:0}}/>Lembrar meu usuário neste aparelho</label>
       {error&&<div className="account-error">{error}</div>}
       <button className="primary-button" type="submit" disabled={busy}>{busy?'Aguarde...':'Entrar'}</button>
     </form>
