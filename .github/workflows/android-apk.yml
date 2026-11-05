@@ -71,6 +71,7 @@ jobs:
           package com.coletaflow.app;
 
           import android.content.ContentValues;
+          import android.database.Cursor;
           import android.net.Uri;
           import android.os.Build;
           import android.os.Bundle;
@@ -107,9 +108,10 @@ jobs:
                               } else if (bridgeReloadTriggered) {
                                   webView.evaluateJavascript(
                                   "(function(){" +
-                                  "if(!window.ColetaFlowDownloads)return;" +
+                                  "if(!window.ColetaFlowDownloads||typeof window.ColetaFlowDownloads.saveFile!=='function')return;" +
                                   "if(window.__coletaflowDownloadV2)return;" +
                                   "function saveLink(link,event){" +
+                                  "if(!window.ColetaFlowDownloads||typeof window.ColetaFlowDownloads.saveFile!=='function')return false;" +
                                   "if(!link||!link.href||link.dataset.cfSaving==='1')return false;" +
                                   "var href=link.href;" +
                                   "if(!href.startsWith('blob:')&&!href.startsWith('data:'))return false;" +
@@ -142,11 +144,33 @@ jobs:
                   handler.post(installer);
               }
 
+              private String uniqueDownloadName(String requestedName) {
+                  String extension = "";
+                  String baseName = requestedName;
+                  int dot = requestedName.lastIndexOf('.');
+                  if (dot > 0) { baseName = requestedName.substring(0, dot); extension = requestedName.substring(dot); }
+                  String candidate = requestedName;
+                  int suffix = 1;
+                  while (downloadNameExists(candidate)) candidate = baseName + " (" + suffix++ + ")" + extension;
+                  return candidate;
+              }
+
+              private boolean downloadNameExists(String name) {
+                  String relativePath = Environment.DIRECTORY_DOWNLOADS + "/ColetaFlow/";
+                  try (Cursor cursor = getContentResolver().query(MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                      new String[] { MediaStore.Downloads.DISPLAY_NAME },
+                      MediaStore.Downloads.DISPLAY_NAME + "=? AND " + MediaStore.Downloads.RELATIVE_PATH + "=?",
+                      new String[] { name, relativePath }, null)) {
+                      return cursor != null && cursor.moveToFirst();
+                  }
+              }
+
               private class DownloadBridge {
                   @JavascriptInterface public void saveFile(String base64, String fileName, String mimeType) {
                       try {
                           if (Build.VERSION.SDK_INT < 29) throw new IllegalStateException("Android 10 ou superior é necessário");
                           String safeName = fileName == null ? "coletaflow.xlsx" : fileName.replaceAll("[\\\\/:*?\"<>|]", "_");
+                          safeName = uniqueDownloadName(safeName);
                           ContentValues values = new ContentValues();
                           values.put(MediaStore.Downloads.DISPLAY_NAME, safeName);
                           values.put(MediaStore.Downloads.MIME_TYPE, mimeType == null || mimeType.isEmpty() ? "application/octet-stream" : mimeType);
