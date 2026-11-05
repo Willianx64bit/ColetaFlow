@@ -1391,7 +1391,7 @@ function AccountGate() {
       {error&&<div className="account-error">{error}</div>}
       <button className="primary-button" type="submit" disabled={busy}>{busy?'Aguarde...':'Entrar'}</button>
     </form>
-    <a className="primary-button download-app-button" href="https://www.mediafire.com/file/ecxd64leka1gzor/ColetaFlow_v2.0.1.apk/file?dkey=bjzr4ebc4rg&r=1256" target="_blank" rel="noopener noreferrer" download>
+    <a className="primary-button download-app-button" href="https://download1323.mediafire.com/640hn7x5g8cgKk5Wrpd5yVP3YPwjRcxFqIBZVIrZ5Qaq3qqV1XlDs7YlLThn7FnaSwhRPVhzBr7qkIByWflzDxsCSPDb0qpqh_jMKelMHS3i5mARiQnRy9RFcrlCsksd6suFeN53QxeGjxVvnAG52FHxJekzc1TxtUhQ0fc8h8wktX9_/ecxd64leka1gzor/ColetaFlow_v2.0.1.apk" target="_blank" rel="noopener noreferrer" download>
       <FileDown size={19} aria-hidden="true" /> Baixar aplicativo ColetaFlow (APK)
     </a>
   </section></main>;
