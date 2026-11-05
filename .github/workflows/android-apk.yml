@@ -85,14 +85,22 @@ jobs:
 
           public class MainActivity extends BridgeActivity {
               private final Handler handler = new Handler(Looper.getMainLooper());
+              private boolean bridgeReloadTriggered = false;
               private final Runnable installer = new Runnable() {
                   @Override public void run() {
                       try {
                           WebView webView = getBridge() == null ? null : getBridge().getWebView();
                           if (webView != null) {
                               webView.addJavascriptInterface(new DownloadBridge(), "ColetaFlowDownloads");
-                              webView.evaluateJavascript(
+                              // Android WebView exposes newly-added JavascriptInterface objects
+                              // after the next page load. Reload once after registration.
+                              if (!bridgeReloadTriggered && webView.getUrl() != null) {
+                                  bridgeReloadTriggered = true;
+                                  webView.reload();
+                              } else if (bridgeReloadTriggered) {
+                                  webView.evaluateJavascript(
                                   "(function(){" +
+                                  "if(!window.ColetaFlowDownloads)return;" +
                                   "if(window.__coletaflowDownloadV2)return;" +
                                   "function saveLink(link,event){" +
                                   "if(!link||!link.href||link.dataset.cfSaving==='1')return false;" +
@@ -115,6 +123,7 @@ jobs:
                                   "HTMLAnchorElement.prototype.click=function(){if(this.hasAttribute('download')&&saveLink(this,null))return;return originalClick.call(this);};" +
                                   "window.__coletaflowDownloadV2=true;" +
                                   "})();", null);
+                              }
                           }
                       } catch (Exception ignored) { }
                       handler.postDelayed(this, 500);
