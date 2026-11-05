@@ -1510,9 +1510,9 @@ function AccountGate() {
   return <main className="account-page"><section className="account-card">
     <div className="account-brand"><span className="account-mark">CF</span><div><strong>ColetaFlow</strong><small>Coleta colaborativa de inventário</small></div><button type="button" className="theme-toggle account-login-theme" onClick={()=>setTheme(value=>value==='light'?'dark':'light')} aria-label={theme==='light'?'Ativar tema escuro':'Ativar tema claro'} title={theme==='light'?'Ativar tema escuro':'Ativar tema claro'}><span>{theme==='light'?<Moon size={17}/>:<Sun size={17}/>}</span><small>{theme==='light'?'Escuro':'Claro'}</small></button></div>
     <div className="account-intro"><span>ACESSO SEGURO</span><h1>Entre na sua conta</h1><p>Acesse as coletas liberadas para você.</p></div>
-    <form className="account-form" onSubmit={submit}>
-      <label>Usuário ou e-mail<input required type="text" value={login} onChange={e=>setLogin(e.target.value)} autoCapitalize="none" autoCorrect="off" autoComplete="username"/></label>
-      <label>Senha<input required type="password" minLength={8} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>
+    <form className="account-form" onSubmit={submit} autoComplete="on">
+      <label>Usuário ou e-mail<input id="coletaflow-login" name="username" required type="text" value={login} onChange={e=>setLogin(e.target.value)} autoCapitalize="none" autoCorrect="off" autoComplete="username"/></label>
+      <label>Senha<input id="coletaflow-password" name="password" required type="password" minLength={8} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>
       <div className="remember-login-row"><input id="remember-login" type="checkbox" checked={rememberLogin} onChange={e=>{const checked=e.target.checked;setRememberLogin(checked);try{if(checked&&login.trim())localStorage.setItem('coletaflow.remembered-login',login.trim());else localStorage.removeItem('coletaflow.remembered-login');}catch{}}}/><label htmlFor="remember-login">Lembrar meu usuário neste aparelho</label></div>
       {error&&<div className="account-error">{error}</div>}
       <button className="primary-button" type="submit" disabled={busy}>{busy?'Aguarde...':'Entrar'}</button>
