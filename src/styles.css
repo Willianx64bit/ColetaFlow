@@ -214,8 +214,6 @@
 .quantity-collected strong{font-size:14px;color:#126448}
 .quantity-entry-row{display:flex;align-items:flex-end;gap:9px}
 .quantity-entry-row .quantity-modal-label{flex:1;min-width:0}
-.quantity-adjust-button{flex:0 0 46px;width:46px;height:58px;display:grid;place-items:center;border:1.5px solid #36536b;border-radius:12px;background:#20384d;color:#dcecf5;font-size:20px;font-weight:800;touch-action: none;user-select:none;-webkit-user-select:none;cursor:pointer}
-.quantity-adjust-button:active{background:#087f9d;border-color:#12a4c4;transform:scale(.97)}
 .remove-mode-button{flex:0 0 auto;min-height:49px;padding:0 15px;border:1px solid #efb5b5;border-radius:11px;background:#fff3f3;color:#c12d35;font-size:12px;font-weight:800;cursor:pointer;transition:background .15s,border-color .15s}
 .remove-mode-button.active{background:#c92e38;border-color:#c92e38;color:#fff;box-shadow:0 0 0 3px #c92e3820}
 .quantity-modal-actions .remove-confirm-button{background:#c92e38;border-color:#c92e38}
@@ -589,6 +587,14 @@ body[data-theme="dark"] .brand-wordmark span{color:#e5edf7}
 .owner-status-pending{background:#fff3df;color:#a66b1e}
 .owner-status-done{background:#e4f6ed;color:#25815f}
 .owner-collection-open{flex:0 0 auto;color:#087fa5;font-size:11px;font-weight:800}
+.owner-collection-code{display:flex;align-items:center;gap:10px;flex:0 0 100%;margin:2px 0 0;padding:8px 10px;border:1px solid #d9e4ef;border-radius:9px;background:#f4f8fc}
+.owner-collection-code span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.owner-collection-code small{font-size:9px;color:#8292a5}
+.owner-collection-code strong{font-size:14px;letter-spacing:1.5px;color:#203b58}
+.owner-collection-code button{margin-left:auto;padding:7px 12px;border:1px solid #b8d5e5;border-radius:8px;background:#e8f5fb;color:#087fa5;font-size:11px;font-weight:800;white-space:nowrap}
+body[data-theme="dark"] .owner-collection-code{background:#12263a;border-color:#30465d}
+body[data-theme="dark"] .owner-collection-code strong{color:#e5eef8}
+body[data-theme="dark"] .owner-collection-code button{background:#17384b;border-color:#315c72;color:#6dd5f1}
 .owner-enter-collection{width:100%;min-height:48px;margin-top:16px;font-size:14px}
 body[data-theme="dark"] .owner-collection-row{border-color:#2a3b50}
 body[data-theme="dark"] .owner-collection-copy strong{color:#e5eef8}
@@ -814,6 +820,138 @@ body[data-theme="dark"] .collection-delete-icon{background:#44262b;color:#ffaaaa
 }
 
 
+/* Controles compactos de quantidade: toque ou segure para repetir. */
+.quantity-adjust-button{flex:0 0 46px;width:46px;height:58px;display:grid;place-items:center;border:1.5px solid #36536b;border-radius:12px;background:#20384d;color:#dcecf5;font-size:20px;font-weight:800;touch-action: none;user-select:none;-webkit-user-select:none;cursor:pointer}
+.quantity-adjust-button:active{background:#087f9d;border-color:#12a4c4;transform:scale(.97)}
+
+
+/* Quantidade: campo primeiro e ações alinhadas à direita na mesma linha. */
+.quantity-entry-row{display:flex;align-items:flex-end;gap:8px;flex-wrap:nowrap}
+.quantity-entry-row .quantity-modal-label{flex:1 1 0;min-width:0}
+.quantity-entry-row .quantity-adjust-button{flex:0 0 44px;width:44px;height:49px}
+.quantity-entry-row .remove-mode-button{flex:0 0 auto;min-height:49px;padding:0 12px;white-space:nowrap}
+@media(max-width:380px){.quantity-entry-row{gap:5px}.quantity-entry-row .quantity-adjust-button{flex-basis:40px;width:40px}.quantity-entry-row .remove-mode-button{padding:0 9px;font-size:10px}}
+
+/* Cabeçalho compacto da coleta compartilhada */
+.shared-collection-heading{align-items:center;gap:10px}
+.shared-collection-heading>div:first-child{min-width:0;flex:1}
+.shared-collection-heading>div:first-child strong{font-size:18px;font-weight:800;line-height:1.25;color:#243b55}
+.shared-collection-heading-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.shared-collection-heading-actions>span{white-space:nowrap}
+.shared-disconnect-button{border:0;border-radius:9px;padding:9px 12px;background:#214158;color:#a9d8e9;font-size:11px;font-weight:800;white-space:nowrap}
+@media(max-width:480px){.shared-collection-heading>div:first-child strong{font-size:17px}.shared-disconnect-button{padding:8px 9px;font-size:10px}}
+
+/* Ajuste fino dos espaços entre etapas e painel da coleta compartilhada */
+.app-shell:has(.wizard-progress) .wizard-progress{margin-top:-5px;margin-bottom:19px}
+.app-shell:has(.wizard-progress) .mapping-panel{margin-top:12px}
+.app-shell:has(.wizard-progress) .mapping-note{margin-top:9px}
+.shared-collection-heading-actions{gap:8px}
+
+/* Ajustes do cabeçalho e indicador de quantidade no tema escuro */
+body[data-theme="dark"] .quantity-collected{
+  background:#173c35;
+  color:#a8ead0;
+  border:1px solid #286b57;
+}
+body[data-theme="dark"] .quantity-collected strong{
+  color:#8ce7bd;
+}
+.account-top .account-user{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  max-width:34%;
+  min-height:34px;
+  padding:0 12px;
+  margin-left:auto;
+  border:1px solid #d8e3ed;
+  border-radius:10px;
+  background:#edf3f8;
+  color:#263b52;
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:.1px;
+}
+.account-top .account-logout{
+  border:1px solid #b91c2b;
+  background:#c92e38;
+  color:#fff;
+  border-radius:9px;
+  font-weight:800;
+  padding:9px 13px;
+}
+.account-top .account-logout:hover{background:#ad202a;border-color:#ad202a}
+body[data-theme="dark"] .account-top .account-user{
+  background:#1b3043;
+  border-color:#3a566d;
+  color:#e5f0fb;
+}
+body[data-theme="dark"] .account-top .account-logout{
+  background:#bd2935;
+  border-color:#e0525c;
+  color:#fff;
+}
+@media(max-width:600px){
+  .account-top .account-user{max-width:29%;min-height:32px;padding:0 8px;font-size:11px}
+  .account-top .account-logout{padding:8px 10px;font-size:11px}
+}
+
+/* Formulário de cadastro de usuários: campos verticais, largos e arredondados */
+.owner-user-fields{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:14px;
+  margin-top:18px;
+  width:100%;
+}
+.owner-user-fields label{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  width:100%;
+  font-size:13px;
+  font-weight:700;
+  color:#aebed0;
+}
+.owner-user-fields input{
+  display:block;
+  width:100%;
+  min-width:0;
+  height:48px;
+  padding:0 14px;
+  border:1px solid #48627a;
+  border-radius:11px;
+  background:#0c1b2b;
+  color:#e7f1fb;
+  font-size:15px;
+  outline:none;
+  box-shadow:inset 0 1px 2px #0002;
+}
+.owner-user-fields input:focus{
+  border-color:#1595b8;
+  box-shadow:0 0 0 3px #1595b826;
+}
+
+/* Seletor de planilha com destaque verde suave */
+.owner-file-label{display:flex;flex-direction:column;gap:8px}
+.owner-file-picker{
+  position:relative;display:flex;align-items:center;justify-content:center;gap:10px;
+  min-height:54px;padding:12px 16px;border:1px solid #a8e3bd;border-radius:12px;
+  background:#e8f7ed;color:#176b3a;cursor:pointer;transition:background .15s,border-color .15s;
+}
+.owner-file-picker:hover{background:#ddf2e4;border-color:#78cc98}
+.owner-file-picker svg{flex:0 0 auto}
+.owner-file-picker strong{font-size:15px;font-weight:800}
+.owner-file-picker input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+body[data-theme="dark"] .owner-file-picker{background:#173c2d;border-color:#367b55;color:#a9e8bd}
+body[data-theme="dark"] .owner-file-picker:hover{background:#1b4936;border-color:#55a875}
+
+/* Checkbox de lembrar usuário: linha explícita e visível no formulário de acesso. */
+.account-form .remember-login-row{display:flex;align-items:center;gap:10px;margin:1px 0 2px;min-height:24px}
+.account-form .remember-login-row input[type="checkbox"]{appearance:auto;-webkit-appearance:checkbox;display:block;flex:0 0 18px;width:18px!important;height:18px;margin:0;padding:0;accent-color:#2563eb;cursor:pointer}
+.account-form .remember-login-row label{display:block!important;margin:0;padding:0;font-size:13px;font-weight:600;line-height:1.4;color:#405269;cursor:pointer}
+body[data-theme="dark"] .account-form .remember-login-row label{color:#d5e2ef}
+
 /* Native ML Kit camera: keep only the existing scanner overlay visible above the Android camera preview. */
 html:has(body.barcode-scanner-active),body.barcode-scanner-active{background:transparent!important}
 body.barcode-scanner-active #root{visibility:hidden!important}
@@ -826,10 +964,9 @@ body.barcode-scanner-active>.camera-box .camera-zoom-controls{right:14px!importa
 body.barcode-scanner-active>.camera-box .camera-bottom-controls{position:absolute!important;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 22px);z-index:3}
 body.barcode-scanner-active>.camera-box .camera-close{position:absolute!important;top:calc(env(safe-area-inset-top) + 14px)!important;right:14px!important;z-index:4}
 
-
-/* Opção de lembrar usuário: área própria para ficar visível no login mobile. */
-.account-form .remember-login-row{display:flex;align-items:center;gap:9px;min-height:24px;margin-top:-2px}
-.account-form .remember-login-row input[type="checkbox"]{appearance:auto;-webkit-appearance:checkbox;width:18px;height:18px;min-width:18px;margin:0;accent-color:#087fa5;cursor:pointer}
-.account-form .remember-login-row label{display:block;margin:0;color:#405269;font-size:12px;font-weight:600;line-height:1.35;cursor:pointer}
-body[data-theme="dark"] .account-form .remember-login-row label{color:#d2deea}
 body{overscroll-behavior-y:contain}
+
+.cf-pull-refresh-indicator{position:fixed;top:calc(env(safe-area-inset-top) + 8px);left:50%;z-index:2147482000;min-width:154px;padding:9px 15px;border:1px solid #b8d9e7;border-radius:999px;background:#f4fbff;color:#14536b;box-shadow:0 5px 18px #001b2b26;font-size:12px;font-weight:800;text-align:center;white-space:nowrap;opacity:0;transform:translate(-50%,-150%);pointer-events:none;transition:transform .18s ease,opacity .18s ease}
+body[data-theme="dark"] .cf-pull-refresh-indicator{background:#142d40;border-color:#315a70;color:#bdeafa}
+.cf-pull-refresh-indicator.is-refreshing{border-color:#22b981;color:#087b59}
+body[data-theme="dark"] .cf-pull-refresh-indicator.is-refreshing{border-color:#22b981;color:#8be9c3}
