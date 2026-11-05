@@ -1390,13 +1390,13 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
     </div>}
     {isOwner&&!active&&ownerPage==='home'&&<>
       <div className="owner-create-entry">
-        <button type="button" className="mapping-panel owner-home-card" aria-expanded={createExpanded} onClick={()=>setCreateExpanded(v=>!v)}>
+        <button type="button" className="mapping-panel owner-home-card" aria-expanded={createExpanded} onClick={()=>{if(!createExpanded)setTitle('');setCreateExpanded(v=>!v);}}>
           <span className="owner-home-card-main"><strong>Criar nova coleta</strong><small>Prepare uma nova conferência e compartilhe com os participantes.</small></span>
           <span className="owner-home-card-action">{createExpanded?'Fechar':'Criar coleta'} <b>{createExpanded?'−':'+'}</b></span>
         </button>
         {createExpanded&&<div className="mapping-panel owner-create-expanded"><div className="owner-create-form">
           <label>Nome da coleta<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label>
-          <label>Planilha original da empresa<input key={templateInputKey} type="file" accept=".xlsx,.xls,.csv" onChange={e=>void loadCreateFile(e.target.files?.[0]||null)}/></label>
+          <label className="owner-file-label">Planilha original da empresa<span className="owner-file-picker"><FolderUp size={20}/><strong>Escolher arquivo</strong><input key={templateInputKey} type="file" accept=".xlsx,.xls,.csv" onChange={e=>void loadCreateFile(e.target.files?.[0]||null)}/></span></label>
           {createWorkbook&&<div className="mapping-panel" style={{marginTop:14}}>
             <div className="mapping-title"><div><ShieldCheck size={18}/><strong>Configurar colunas da planilha</strong></div><span>ANTES DE CRIAR</span></div>
             <div className="mapping-grid">
@@ -1432,14 +1432,15 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
           {ownerCollections.length===0?<p className="owner-empty-collections">Nenhuma coleta criada ainda.</p>:ownerCollections.map((collection:any)=><div className="owner-collection-row" key={collection.id}>
             <span className="owner-collection-copy"><strong>{collection.title}</strong><small>{collection.participant_count||0} participante(s) · {collection.finished_count||0} finalizado(s) · {collection.event_count||0} bipagem(ns) · {Number(collection.total_units||0)} unidade(s)</small><small>Criada: {collection.created_at?new Date(collection.created_at).toLocaleString('pt-BR'):'—'}{collection.completed_at ? ' · Concluída: ' + new Date(collection.completed_at).toLocaleString('pt-BR') : ''}</small></span>
             <span className={collection.status==='open'?'owner-status-pending':'owner-status-done'}>{collection.status==='open'?'PENDENTE':collection.status==='completed'?'CONCLUÍDA':String(collection.status||'').toUpperCase()}</span>
+            {collection.access_code&&<div className="owner-collection-code"><span><small>Código da coleta</small><strong>{collection.access_code}</strong></span><button type="button" onClick={()=>{void navigator.clipboard?.writeText(String(collection.access_code));setNotice('Código da coleta copiado.');}}>Copiar</button></div>}
             <div className="owner-collection-actions"><button type="button" className="owner-collection-open" onClick={()=>activate({collection,participant:{role:'owner'}})}>Abrir</button><button type="button" className="owner-collection-delete" onClick={()=>setDeleteTarget(collection)}><Trash2 size={14}/> Apagar coleta</button></div>
           </div>)}
         </div>}
       </div>
     </>}
-    {isOwner&&!active&&ownerPage==='users'&&<div className="mapping-panel">
+    {isOwner&&!active&&ownerPage==='users'&&<div className="mapping-panel owner-user-registration">
       <div className="mapping-title"><strong>Cadastrar usuário</strong><span>CONTROLE DO DONO</span></div>
-      <div className="mapping-grid">
+      <div className="mapping-grid owner-user-fields">
         <label>Nome<input value={newUser.name} onChange={e=>setNewUser(v=>({...v,name:e.target.value}))}/></label>
         <label>Usuário<input value={newUser.username} onChange={e=>setNewUser(v=>({...v,username:e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g,'')}))} autoCapitalize="none" autoCorrect="off" placeholder="ex.: joao.pedro"/></label>
         <label>Senha inicial<input type="password" minLength={8} value={newUser.password} onChange={e=>setNewUser(v=>({...v,password:e.target.value}))}/></label>
@@ -1456,12 +1457,12 @@ function SharedCollections({token,isOwner,userId}:{token:string;isOwner:boolean;
     {active&&(!isOwner||ownerCollectorEntered)&&<CollectorApp sharedCollection={{id:active.id,token,userId,accountToken:token,isOwner,mappingLocked:(progress?.participants||[]).some((p:any)=>p.role==='user'),template:sharedTemplate||undefined,onMappingSaved:(mapping)=>setSharedTemplate(current=>current?{...current,mapping}:current)}} onFinished={()=>{if(isOwner){setOwnerCollectorEntered(false);setNotice('Sua participação foi finalizada. Volte ao acompanhamento para encerrar a coleta quando todos concluírem.');}else{localStorage.removeItem('coletaflow.shared.active');setActive(null);setProgress(null);setNotice('Participação finalizada. O dono já pode acompanhar sua conclusão.');}}} onBack={()=>setOwnerCollectorEntered(false)}/>}
     {active&&(!isOwner||ownerPage==='collection')&&(!isOwner||!ownerCollectorEntered)&&<div className="mapping-panel">
       {isOwner&&<button type="button" className="owner-back-button" onClick={leave}>← Voltar ao painel</button>}
-      <div className="mapping-title"><div><strong>{progress?.collection?.title||active.title}</strong></div><span>{progress?.collection?.status==='open'?'PENDENTE':progress?.collection?.status==='completed'?'CONCLUÍDA':(progress?.collection?.status||'CONECTANDO').toUpperCase()}</span></div>
+      <div className="mapping-title shared-collection-heading"><div><strong>{progress?.collection?.title||active.title}</strong></div><div className="shared-collection-heading-actions">{!isOwner&&<button type="button" className="shared-disconnect-button" onClick={leave}>Desconectar da coleta</button>}</div></div>
       {active.accessCode&&<div className="stat-card" style={{margin:'14px 0'}}><span>Código para convidar participantes</span><strong style={{letterSpacing:3}}>{active.accessCode}</strong><small>Compartilhe este código com quem vai participar.</small><button className="secondary-button" style={{marginTop:10}} onClick={()=>{void navigator.clipboard?.writeText(active.accessCode);setNotice('Código copiado.');}}>Copiar código</button></div>}
       {isOwner&&<div className="stats-grid"><div className="stat-card"><span>Usuários na coleta</span><strong>{progress?.participants?.filter((p:any)=>p.role==='user').length??'—'}</strong><small>Entraram usando o código</small></div><div className="stat-card"><span>Finalizados</span><strong>{progress?.participants?`${progress.participants.filter((p:any)=>p.role==='user'&&p.status==='finished').length}/${progress.participants.filter((p:any)=>p.role==='user').length}`:'—'}</strong><small>Contagens enviadas ao concluir</small></div></div>}
       {isOwner&&<div className="mapping-panel" style={{marginTop:16}}><div className="mapping-title"><strong>Planilha consolidada</strong><span>{sharedTemplate?.mapping?'MAPEAMENTO CONFIRMADO':'AGUARDANDO MAPEAMENTO'}</span></div><p className="mapping-note">{sharedTemplate?.mapping?'O modelo original e as colunas confirmadas estão prontos para gerar o arquivo final.':'Abra a etapa Modelo no coletor, confira as colunas e aperte Continuar para liberar a entrada dos usuários.'}</p>{progress?.collection?.status==='open'&&<><button className="secondary-button" style={{marginBottom:10}} disabled={closeBusy||!progress||(progress?.participants||[]).filter((p:any)=>p.role==='user').length===0||(progress?.participants||[]).some((p:any)=>p.role==='user'&&p.status!=='finished')} onClick={()=>void closeCollection()}>{closeBusy?'Encerrando…':'Encerrar coleta e liberar relatórios'}</button><small style={{display:'block',marginBottom:10}}>{(progress?.participants||[]).filter((p:any)=>p.role==='user').length===0?'Aguardando usuários entrarem pelo código.':(progress?.participants||[]).some((p:any)=>p.role==='user'&&p.status!=='finished')?'Aguardando todos os usuários enviarem suas contagens.':'Todos finalizaram. Encerre a coleta para liberar os dois relatórios.'}</small></>}{progress?.collection?.status==='completed'&&<p className="mapping-note"><strong>Coleta finalizada.</strong> Todos os usuários enviaram suas contagens. Os relatórios estão liberados.</p>}<button className="primary-button" disabled={exportBusy||!sharedTemplate?.mapping||progress?.collection?.status!=='completed'} onClick={()=>void exportConsolidated()}>{exportBusy?'Gerando planilha…':'Baixar planilha coletada'}</button><button className="secondary-button" style={{marginTop:10}} disabled={exportBusy||!sharedTemplate?.mapping||progress?.collection?.status!=='completed'} onClick={()=>void exportUnmatched()}>{exportBusy?'Gerando relatório…':'Baixar códigos não encontrados'}</button><small style={{display:'block',marginTop:7}}>Relatório separado com código, descrição (quando disponível no modelo) e quantidade coletada.</small></div>}
       {isOwner&&<><h3 style={{marginTop:22}}>Equipe</h3><div className="product-list">{(progress?.participants||[]).map((p:any)=><div className="product-row" key={p.id}><div className="product-details" style={{width:'100%',gap:6}}><strong>{p.display_name}</strong><span>{p.role==='owner'?'DONO':'USUÁRIO'} · {p.status==='active'?'TRABALHANDO':p.status==='finished'?'FINALIZOU':'BLOQUEADO'}</span><div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:'5px 12px',marginTop:4}}><small><strong>Códigos coletados:</strong> {p.distinct_codes||0}</small><small><strong>Unidades totais:</strong> {Number(p.total_units||0)}</small><small><strong>Início:</strong> {p.joined_at?new Date(p.joined_at).toLocaleString('pt-BR'):'—'}</small><small><strong>Finalização:</strong> {p.status==='finished'&&p.last_seen_at?new Date(p.last_seen_at).toLocaleString('pt-BR'):'—'}</small></div></div></div>)}{!progress&&<p>Carregando dados da coleta…</p>}</div><p className="mapping-note">A equipe mostra os totais enviados por cada participante e os horários de entrada e finalização.</p></>}
-      {isOwner?<button className="primary-button owner-enter-collection" onClick={()=>setOwnerCollectorEntered(value=>!value)}>{ownerCollectorEntered?'Voltar ao acompanhamento':'Entrar na coleta'}</button>:<button className="secondary-button" onClick={leave}>Desconectar desta coleta</button>}
+      {isOwner&&<button className="primary-button owner-enter-collection" onClick={()=>setOwnerCollectorEntered(value=>!value)}>{ownerCollectorEntered?'Voltar ao acompanhamento':'Entrar na coleta'}</button>}
     </div>}
     {userDeleteTarget&&<div className="collection-delete-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!userDeleteBusy)setUserDeleteTarget(null);}}><section className="collection-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="user-delete-title"><div className="collection-delete-icon"><Trash2 size={22}/></div><h2 id="user-delete-title">Excluir este usuário?</h2><p>Você está prestes a excluir <strong>{userDeleteTarget.display_name}</strong> ({userDeleteTarget.username||userDeleteTarget.email}).</p><p>O acesso será removido e o usuário não poderá mais entrar. O histórico de participações e bipagens será preservado. Essa ação não pode ser desfeita.</p><div className="collection-delete-actions"><button type="button" className="secondary-button" disabled={userDeleteBusy} onClick={()=>setUserDeleteTarget(null)}>Cancelar</button><button type="button" className="collection-delete-confirm" disabled={userDeleteBusy} onClick={()=>void deleteUser()}>{userDeleteBusy?'Excluindo…':'Sim, excluir usuário'}</button></div></section></div>}
     {deleteTarget&&<div className="collection-delete-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!deleteBusy)setDeleteTarget(null);}}><section className="collection-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="collection-delete-title"><div className="collection-delete-icon"><Trash2 size={22}/></div><h2 id="collection-delete-title">Apagar esta coleta?</h2><p>Você está prestes a apagar <strong>{deleteTarget.title}</strong>.</p><p>Isso remove a coleta, os participantes e todas as bipagens salvas no servidor. Essa ação não pode ser desfeita.</p><div className="collection-delete-actions"><button type="button" className="secondary-button" disabled={deleteBusy} onClick={()=>setDeleteTarget(null)}>Cancelar</button><button type="button" className="collection-delete-confirm" disabled={deleteBusy} onClick={()=>void deleteCollection()}>{deleteBusy?'Apagando…':'Sim, apagar coleta'}</button></div></section></div>}
@@ -1520,29 +1521,71 @@ function AccountGate() {
 }
 export default function App() {
   useEffect(()=>{
-    let startX=0;
-    let startY=0;
-    let eligible=false;
+    let startX=0,startY=0,eligible=false,pulling=false;
+    const threshold=90;
+    const indicator=document.createElement('div');
+    indicator.className='cf-pull-refresh-indicator';
+    indicator.setAttribute('aria-live','polite');
+    indicator.setAttribute('role','status');
+    indicator.textContent='Puxe para atualizar';
+    document.body.appendChild(indicator);
+    const atTop=()=>Math.max(window.scrollY,document.documentElement.scrollTop,document.body.scrollTop)<=2;
+    const scannerActive=()=>document.body.classList.contains('barcode-scanner-active');
+    const hideIndicator=()=>{
+      pulling=false;
+      indicator.classList.remove('is-refreshing');
+      indicator.style.opacity='0';
+      indicator.style.transform='translate(-50%, -150%)';
+    };
     const onStart=(event:TouchEvent)=>{
       const touch=event.touches[0];
       const target=event.target as HTMLElement|null;
-      eligible=!!touch&&touch.clientY<=72&&window.scrollY<=2&&!document.body.classList.contains('barcode-scanner-active')&&!target?.closest('input,textarea,select,button,a,[contenteditable="true"],[role="dialog"]');
-      if(eligible){startX=touch.clientX;startY=touch.clientY;}
+      eligible=!!touch&&touch.clientY<=120&&atTop()&&!scannerActive()&&!target?.closest('input,textarea,select,button,a,[contenteditable="true"],[role="dialog"],.quantity-modal');
+      if(eligible){startX=touch.clientX;startY=touch.clientY;pulling=false;}
+    };
+    const onMove=(event:TouchEvent)=>{
+      if(!eligible)return;
+      const touch=event.touches[0];
+      if(!touch)return;
+      const dy=touch.clientY-startY,dx=Math.abs(touch.clientX-startX);
+      if(dy<0||dx>70||!atTop()||scannerActive()){eligible=false;hideIndicator();return;}
+      if(dy>=18){
+        pulling=true;
+        indicator.style.transition='none';
+        indicator.style.opacity=String(Math.min(1,dy/55));
+        indicator.style.transform='translate(-50%, '+Math.min(48,dy*.55)+'px)';
+        indicator.textContent=dy>=threshold?'Solte para atualizar':'Puxe para atualizar';
+      }
     };
     const onEnd=(event:TouchEvent)=>{
-      if(!eligible)return;
+      if(!eligible){hideIndicator();return;}
       eligible=false;
       const touch=event.changedTouches[0];
-      if(!touch)return;
-      const dy=touch.clientY-startY;
-      const dx=Math.abs(touch.clientX-startX);
-      if(dy>=115&&dx<=65&&window.scrollY<=2&&!document.body.classList.contains('barcode-scanner-active'))window.location.reload();
+      if(!touch){hideIndicator();return;}
+      const dy=touch.clientY-startY,dx=Math.abs(touch.clientX-startX);
+      if(pulling&&dy>=threshold&&dx<=70&&atTop()&&!scannerActive()){
+        indicator.classList.add('is-refreshing');
+        indicator.style.transition='';
+        indicator.style.opacity='1';
+        indicator.style.transform='translate(-50%, 8px)';
+        indicator.textContent='Atualizando…';
+        window.location.reload();
+        return;
+      }
+      hideIndicator();
     };
-    const onCancel=()=>{eligible=false;};
+    const onCancel=()=>{eligible=false;hideIndicator();};
     document.addEventListener('touchstart',onStart,{passive:true});
+    document.addEventListener('touchmove',onMove,{passive:true});
     document.addEventListener('touchend',onEnd,{passive:true});
     document.addEventListener('touchcancel',onCancel,{passive:true});
-    return()=>{document.removeEventListener('touchstart',onStart);document.removeEventListener('touchend',onEnd);document.removeEventListener('touchcancel',onCancel);};
+    return()=>{
+      document.removeEventListener('touchstart',onStart);
+      document.removeEventListener('touchmove',onMove);
+      document.removeEventListener('touchend',onEnd);
+      document.removeEventListener('touchcancel',onCancel);
+      indicator.remove();
+    };
   },[]);
   return <AccountGate />;
 }
