@@ -9,7 +9,7 @@ import {
   Keyboard, Package, RotateCcw, Search, ShieldCheck, X, RefreshCw, Zap, Pencil, Volume2, VolumeX, Sun, Moon, Trash2, LogOut
 } from 'lucide-react';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://feature-shared-collections.coletaflow.pages.dev';
+const apiBaseUrl = (import.meta as ImportMeta & { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL || 'https://feature-shared-collections.coletaflow.pages.dev';
 const apiUrl = (path: string) => Capacitor.isNativePlatform() ? new URL(path, apiBaseUrl).toString() : path;
 const apiFetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const target = typeof input === 'string' && input.startsWith('/api/') ? apiUrl(input) : input;
