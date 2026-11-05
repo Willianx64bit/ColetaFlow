@@ -5,7 +5,7 @@ import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import * as XLSX from 'xlsx';
 import {
-  ArrowDownToLine, Camera, Check, Minus, Plus, FileSpreadsheet, FolderUp,
+  ArrowDownToLine, Camera, Check, Minus, Plus, FileSpreadsheet, FileDown, FolderUp,
   Keyboard, Package, RotateCcw, Search, ShieldCheck, Smartphone, X, RefreshCw, Zap, Pencil, Volume2, VolumeX, Sun, Moon, Trash2
 } from 'lucide-react';
 
@@ -1517,7 +1517,9 @@ function AccountGate() {
       {error&&<div className="account-error">{error}</div>}
       <button className="primary-button" type="submit" disabled={busy}>{busy?'Aguarde...':'Entrar'}</button>
     </form>
-  </section></main>;
+    <a className="primary-button download-app-button" href="https://download1501.mediafire.com/l2l2i770r2qgWvfAfRMWhqIyGnJtG6Irknrq_FbIZQcp89chPcgIcG9DQQtuzPXt1m0uvZiYT8jCp2B0GKmNVV2gQets9ZXC5TjcIHAZFJi-Dj49uI-DvPmSwhi52ArBvBL2N1ymIziHOAcY415nABP1X8p38QJavyegN_xlNaCSqVgg/7s5zy9hmy5ox0nb/ColetaFlow_1.0.apk" target="_blank" rel="noopener noreferrer" download>
+      <FileDown size={19} aria-hidden="true" /> Baixar aplicativo ColetaFlow (APK)
+    </a>
 }
 export default function App() {
   useEffect(()=>{
