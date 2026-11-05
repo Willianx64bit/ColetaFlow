@@ -5,7 +5,7 @@ import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import * as XLSX from 'xlsx';
 import {
   ArrowDownToLine, Camera, Check, Minus, Plus, FileSpreadsheet, FolderUp,
-  Keyboard, Package, RotateCcw, Search, ShieldCheck, X, RefreshCw, Zap, Pencil, Volume2, VolumeX, Sun, Moon, Trash2
+  Keyboard, Package, RotateCcw, Search, ShieldCheck, X, RefreshCw, Zap, Pencil, Volume2, VolumeX, Sun, Moon, Trash2, LogOut
 } from 'lucide-react';
 
 type ColumnMap = { code: number[]; quantity: number; description: number };
