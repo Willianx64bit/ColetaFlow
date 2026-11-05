@@ -1,8 +1,9 @@
 name: Build ColetaFlow Android APK
+# Rebuild requested after official-site UI refinements; keep native ML Kit and download bridge.
 
 on:
   push:
-    branches: [feature/shared-collections]
+    branches: [feature/shared-collections, integration/site-official-android-mlkit]
     paths:
       - 'capacitor.config.ts'
       - 'resources/**'
@@ -10,11 +11,15 @@ on:
       - 'package-lock.json'
       - '.github/workflows/android-apk.yml'
       - 'src/main.tsx'
+      - 'src/App.tsx'
+      - 'src/styles.css'
   workflow_dispatch:
 
 jobs:
   android:
     runs-on: ubuntu-latest
+    env:
+      CF_ANDROID_LOCAL: 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,6 +35,8 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Build web app
+        env:
+          VITE_API_BASE_URL: ${{ github.ref_name == 'integration/site-official-android-mlkit' && 'https://integration-site-official-android-mlkit.coletaflow.pages.dev' || 'https://feature-shared-collections.coletaflow.pages.dev' }}
         run: npm run build
       - name: Generate Android image resources
         run: |
@@ -70,6 +77,7 @@ jobs:
           import android.os.Environment;
           import android.os.Handler;
           import android.os.Looper;
+          import android.view.View;
           import android.provider.MediaStore;
           import android.webkit.JavascriptInterface;
           import android.webkit.WebView;
@@ -80,14 +88,26 @@ jobs:
 
           public class MainActivity extends BridgeActivity {
               private final Handler handler = new Handler(Looper.getMainLooper());
+              private boolean bridgeReloadTriggered = false;
               private final Runnable installer = new Runnable() {
                   @Override public void run() {
                       try {
                           WebView webView = getBridge() == null ? null : getBridge().getWebView();
                           if (webView != null) {
+                              // Keep the native WebView eligible for Android Autofill/password managers.
+                              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                  webView.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
+                              }
                               webView.addJavascriptInterface(new DownloadBridge(), "ColetaFlowDownloads");
-                              webView.evaluateJavascript(
+                              // Android WebView exposes newly-added JavascriptInterface objects
+                              // after the next page load. Reload once after registration.
+                              if (!bridgeReloadTriggered && webView.getUrl() != null) {
+                                  bridgeReloadTriggered = true;
+                                  webView.reload();
+                              } else if (bridgeReloadTriggered) {
+                                  webView.evaluateJavascript(
                                   "(function(){" +
+                                  "if(!window.ColetaFlowDownloads)return;" +
                                   "if(window.__coletaflowDownloadV2)return;" +
                                   "function saveLink(link,event){" +
                                   "if(!link||!link.href||link.dataset.cfSaving==='1')return false;" +
@@ -110,6 +130,7 @@ jobs:
                                   "HTMLAnchorElement.prototype.click=function(){if(this.hasAttribute('download')&&saveLink(this,null))return;return originalClick.call(this);};" +
                                   "window.__coletaflowDownloadV2=true;" +
                                   "})();", null);
+                              }
                           }
                       } catch (Exception ignored) { }
                       handler.postDelayed(this, 500);
