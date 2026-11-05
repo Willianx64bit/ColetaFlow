@@ -75,6 +75,7 @@ jobs:
           import android.os.Environment;
           import android.os.Handler;
           import android.os.Looper;
+          import android.view.View;
           import android.provider.MediaStore;
           import android.webkit.JavascriptInterface;
           import android.webkit.WebView;
@@ -91,6 +92,10 @@ jobs:
                       try {
                           WebView webView = getBridge() == null ? null : getBridge().getWebView();
                           if (webView != null) {
+                              // Keep the native WebView eligible for Android Autofill/password managers.
+                              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                  webView.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
+                              }
                               webView.addJavascriptInterface(new DownloadBridge(), "ColetaFlowDownloads");
                               // Android WebView exposes newly-added JavascriptInterface objects
                               // after the next page load. Reload once after registration.
