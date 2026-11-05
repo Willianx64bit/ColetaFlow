@@ -815,3 +815,11 @@ body[data-theme="dark"] .collection-delete-icon{background:#44262b;color:#ffaaaa
 /* Controles compactos de quantidade: toque ou segure para repetir. */
 .quantity-adjust-button{flex:0 0 46px;width:46px;height:58px;display:grid;place-items:center;border:1.5px solid #36536b;border-radius:12px;background:#20384d;color:#dcecf5;font-size:20px;font-weight:800;touch-action: none;user-select:none;-webkit-user-select:none;cursor:pointer}
 .quantity-adjust-button:active{background:#087f9d;border-color:#12a4c4;transform:scale(.97)}
+
+
+/* Quantidade: campo primeiro e ações alinhadas à direita na mesma linha. */
+.quantity-entry-row{display:flex;align-items:flex-end;gap:8px;flex-wrap:nowrap}
+.quantity-entry-row .quantity-modal-label{flex:1 1 0;min-width:0}
+.quantity-entry-row .quantity-adjust-button{flex:0 0 44px;width:44px;height:49px}
+.quantity-entry-row .remove-mode-button{flex:0 0 auto;min-height:49px;padding:0 12px;white-space:nowrap}
+@media(max-width:380px){.quantity-entry-row{gap:5px}.quantity-entry-row .quantity-adjust-button{flex-basis:40px;width:40px}.quantity-entry-row .remove-mode-button{padding:0 9px;font-size:10px}}
