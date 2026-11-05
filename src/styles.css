@@ -214,6 +214,8 @@
 .quantity-collected strong{font-size:14px;color:#126448}
 .quantity-entry-row{display:flex;align-items:flex-end;gap:9px}
 .quantity-entry-row .quantity-modal-label{flex:1;min-width:0}
+.quantity-adjust-button{flex:0 0 46px;width:46px;height:58px;display:grid;place-items:center;border:1.5px solid #36536b;border-radius:12px;background:#20384d;color:#dcecf5;font-size:20px;font-weight:800;touch-action: none;user-select:none;-webkit-user-select:none;cursor:pointer}
+.quantity-adjust-button:active{background:#087f9d;border-color:#12a4c4;transform:scale(.97)}
 .remove-mode-button{flex:0 0 auto;min-height:49px;padding:0 15px;border:1px solid #efb5b5;border-radius:11px;background:#fff3f3;color:#c12d35;font-size:12px;font-weight:800;cursor:pointer;transition:background .15s,border-color .15s}
 .remove-mode-button.active{background:#c92e38;border-color:#c92e38;color:#fff;box-shadow:0 0 0 3px #c92e3820}
 .quantity-modal-actions .remove-confirm-button{background:#c92e38;border-color:#c92e38}
