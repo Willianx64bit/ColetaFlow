@@ -951,3 +951,32 @@ body[data-theme="dark"] .owner-file-picker:hover{background:#1b4936;border-color
 .account-form .remember-login-row input[type="checkbox"]{appearance:auto;-webkit-appearance:checkbox;display:block;flex:0 0 18px;width:18px!important;height:18px;margin:0;padding:0;accent-color:#2563eb;cursor:pointer}
 .account-form .remember-login-row label{display:block!important;margin:0;padding:0;font-size:13px;font-weight:600;line-height:1.4;color:#405269;cursor:pointer}
 body[data-theme="dark"] .account-form .remember-login-row label{color:#d5e2ef}
+
+
+/* Botão de download do APK: centralizado, suave e separado do botão Entrar. */
+.download-app-button{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  width:fit-content;
+  max-width:100%;
+  margin:18px auto 0;
+  padding:12px 18px;
+  border:1px solid #b9e4ef;
+  border-radius:12px;
+  background:#e8f7fb;
+  color:#087b9b;
+  box-shadow:none;
+  text-decoration:none;
+  text-align:center;
+  line-height:1.35;
+  white-space:normal;
+}
+.download-app-button:hover{background:#d9f1f7}
+body[data-theme="dark"] .download-app-button{
+  background:#dff3f8;
+  border-color:#b7e4ee;
+  color:#086b87;
+}
+body[data-theme="dark"] .download-app-button:hover{background:#ccebf3}
