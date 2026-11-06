@@ -867,6 +867,9 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
     const unmatched: [string, number][] = [];
     for (const entry of Object.entries(counts) as [string, number][]) {
       const [code, qty] = entry;
+      // A planilha final só deve conter produtos com quantidade positiva.
+      // Isso também impede que chaves zeradas/residuais sejam exportadas.
+      if (!Number.isFinite(qty) || qty <= 0) continue;
       let exists = false;
       for (let r = headerRow + 1; r <= range.e.r; r++) {
         const rowCodes = columns.code.map(column => cellText(sheet[XLSX.utils.encode_cell({ r, c: range.s.c + column })]).trim());
