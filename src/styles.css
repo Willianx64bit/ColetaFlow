@@ -980,3 +980,31 @@ body[data-theme="dark"] .download-app-button{
   color:#c5edf6;
 }
 body[data-theme="dark"] .download-app-button:hover{background:#20465a}
+
+
+/* Correção responsiva do histórico de coletas no desktop.
+   Mantém o mesmo empilhamento visual do APK e impede que o conteúdo
+   seja comprimido em uma coluna estreita quando há código e ações. */
+.owner-collection-row{
+  flex-wrap:wrap;
+  align-items:flex-start;
+  row-gap:12px;
+}
+.owner-collection-copy{
+  flex:1 1 calc(100% - 112px);
+}
+.owner-collection-copy strong{font-size:15px;line-height:1.35}
+.owner-collection-copy small{font-size:11px;line-height:1.45}
+.owner-collection-code{
+  flex:1 1 100%;
+  width:100%;
+  min-width:0;
+}
+.owner-collection-actions{
+  margin-left:auto;
+}
+@media(min-width:521px){
+  .owner-collection-row{padding:16px}
+  .owner-collection-code{padding:10px 12px}
+  .owner-collection-actions{gap:16px}
+}
