@@ -33,7 +33,7 @@ jobs:
         run: npm install --no-save @capacitor-mlkit/barcode-scanning@7.2.0 sharp
       - name: Restore native ML Kit scanner in APK build only
         run: |
-          git fetch --no-tags --depth=1 origin integration/site-official-android-mlkit
+          git fetch --no-tags --depth=1 origin refs/heads/integration/site-official-android-mlkit:refs/remotes/origin/integration/site-official-android-mlkit
           python3 - <<'PY'
           from pathlib import Path
           import subprocess
@@ -44,8 +44,8 @@ jobs:
               ['git', 'show', 'origin/integration/site-official-android-mlkit:src/App.tsx'],
               text=True
           )
-          start = "  useEffect(() => {\\n    if (!cameraOpen || !videoRef.current || pendingCode) return;"
-          end = "\\n  const loadWorkbook = async (file: File) => {"
+          start = "  useEffect(() => {\n    if (!cameraOpen || !videoRef.current || pendingCode) return;"
+          end = "\n  const loadWorkbook = async (file: File) => {"
           if start not in current or start not in reference:
               raise SystemExit('Bloco do leitor não encontrado; build cancelado.')
           current_start = current.index(start)
@@ -53,21 +53,8 @@ jobs:
           reference_start = reference.index(start)
           reference_end = reference.index(end, reference_start)
           native_scanner = reference[reference_start:reference_end]
-          old_formats = """              BarcodeFormat.Ean13,
-                          BarcodeFormat.Ean8,
-                          BarcodeFormat.UpcA,
-                          BarcodeFormat.UpcE,
-                          BarcodeFormat.Itf"""
-          new_formats = """              BarcodeFormat.Aztec,
-                          BarcodeFormat.Codabar,
-                          BarcodeFormat.Code128,
-                          BarcodeFormat.Code39,
-                          BarcodeFormat.Code93,
-                          BarcodeFormat.Ean13,
-                          BarcodeFormat.Ean8,
-                          BarcodeFormat.Itf,
-                          BarcodeFormat.UpcA,
-                          BarcodeFormat.UpcE"""
+          old_formats = "BarcodeFormat.Ean13,\\n              BarcodeFormat.Ean8,\\n              BarcodeFormat.UpcA,\\n              BarcodeFormat.UpcE,\\n              BarcodeFormat.Itf"
+          new_formats = "BarcodeFormat.Aztec,\\n              BarcodeFormat.Codabar,\\n              BarcodeFormat.Code128,\\n              BarcodeFormat.Code39,\\n              BarcodeFormat.Code93,\\n              BarcodeFormat.Ean13,\\n              BarcodeFormat.Ean8,\\n              BarcodeFormat.Itf,\\n              BarcodeFormat.UpcA,\\n              BarcodeFormat.UpcE"
           if old_formats not in native_scanner:
               raise SystemExit('Lista nativa original do ML Kit não encontrada; build cancelado.')
           native_scanner = native_scanner.replace(old_formats, new_formats, 1)
@@ -75,17 +62,17 @@ jobs:
           react_import = "import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';"
           if react_import not in current:
               raise SystemExit('Import do React não encontrado; build cancelado.')
-          current = current.replace(react_import, react_import + "\\nimport { Capacitor } from '@capacitor/core';", 1)
+          current = current.replace(react_import, react_import + "\nimport { Capacitor } from '@capacitor/core';", 1)
           scanner_ref = "  const scannerRef = useRef<IScannerControls | null>(null);"
           if scanner_ref not in current:
               raise SystemExit('Referência da câmera não encontrada; build cancelado.')
-          current = current.replace(scanner_ref, scanner_ref + "\\n  const nativeCameraActiveRef = useRef(false);", 1)
+          current = current.replace(scanner_ref, scanner_ref + "\n  const nativeCameraActiveRef = useRef(false);", 1)
           current_path.write_text(current)
 
           css_path = Path('src/styles.css')
           css = css_path.read_text()
           native_css = """
-          \\n/* Native Google ML Kit camera preview: APK build only */
+          \n/* Native Google ML Kit camera preview: APK build only */
           html:has(body.barcode-scanner-active),body.barcode-scanner-active{background:transparent!important}
           body.barcode-scanner-active #root{visibility:hidden!important}
           body.barcode-scanner-active::before,body.barcode-scanner-active::after,body.barcode-scanner-active:has(.camera-box)::before{display:none!important;content:none!important}
