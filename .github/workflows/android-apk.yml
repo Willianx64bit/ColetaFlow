@@ -37,7 +37,7 @@ jobs:
           p = Path('package.json')
           data = json.loads(p.read_text())
           data.setdefault('dependencies', {})['@capacitor-mlkit/barcode-scanning'] = '7.1.0'
-          p.write_text(json.dumps(data, indent=2) + '\\n')
+          p.write_text(json.dumps(data, indent=2) + '\n')
           PY
           npm install --no-save sharp
       - name: Restore native ML Kit scanner in APK build only
