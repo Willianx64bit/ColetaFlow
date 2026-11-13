@@ -140,6 +140,7 @@ jobs:
               };
 
               @Override public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(OcrPlugin.class);
                   super.onCreate(savedInstanceState);
                   handler.post(installer);
               }
@@ -189,6 +190,75 @@ jobs:
                       } catch (Exception error) {
                           runOnUiThread(() -> Toast.makeText(MainActivity.this, "Falha ao salvar: " + error.getMessage(), Toast.LENGTH_LONG).show());
                       }
+                  }
+              }
+          }
+          JAVA
+      - name: Add native Google ML Kit OCR bridge
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/build.gradle')
+          s=p.read_text()
+          dep="    implementation 'com.google.mlkit:text-recognition:16.0.1'"
+          if dep not in s:
+              marker='dependencies {'
+              i=s.find(marker)
+              if i < 0: raise SystemExit('Gradle dependencies block not found')
+              j=s.find('}', i)
+              s=s[:j]+dep+'\\n'+s[j:]
+          p.write_text(s)
+          PY
+          cat > android/app/src/main/java/com/coletaflow/app/OcrPlugin.java <<'JAVA'
+          package com.coletaflow.app;
+
+          import android.graphics.Bitmap;
+          import android.graphics.BitmapFactory;
+          import android.util.Base64;
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+          import com.google.mlkit.vision.common.InputImage;
+          import com.google.mlkit.vision.text.TextRecognition;
+          import com.google.mlkit.vision.text.TextRecognizer;
+          import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
+
+          @CapacitorPlugin(name = "Ocr")
+          public class OcrPlugin extends Plugin {
+              @PluginMethod
+              public void recognize(PluginCall call) {
+                  String encoded = call.getString("imageBase64");
+                  if (encoded == null || encoded.trim().isEmpty()) {
+                      call.reject("Imagem OCR ausente.");
+                      return;
+                  }
+                  try {
+                      String payload = encoded.contains(",") ? encoded.substring(encoded.indexOf(",") + 1) : encoded;
+                      byte[] bytes = Base64.decode(payload, Base64.DEFAULT);
+                      Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                      if (bitmap == null) {
+                          call.reject("Não foi possível abrir o quadro da câmera.");
+                          return;
+                      }
+                      InputImage image = InputImage.fromBitmap(bitmap, 0);
+                      TextRecognizer recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+                      recognizer.process(image)
+                          .addOnSuccessListener(result -> {
+                              JSObject response = new JSObject();
+                              response.put("text", result.getText());
+                              call.resolve(response);
+                              bitmap.recycle();
+                              recognizer.close();
+                          })
+                          .addOnFailureListener(error -> {
+                              bitmap.recycle();
+                              recognizer.close();
+                              call.reject("Falha no reconhecimento de texto.", error);
+                          });
+                  } catch (Exception error) {
+                      call.reject("Não foi possível processar a imagem OCR.", error);
                   }
               }
           }
