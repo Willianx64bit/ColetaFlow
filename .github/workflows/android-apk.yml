@@ -29,6 +29,36 @@ jobs:
           java-version: '21'
       - name: Install dependencies
         run: npm install
+      - name: Enable additional barcode formats in APK only
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/App.tsx')
+          source = p.read_text()
+          old = """        BarcodeFormat.EAN_13,
+                  BarcodeFormat.EAN_8,
+                  BarcodeFormat.UPC_A,
+                  BarcodeFormat.UPC_E,
+                  BarcodeFormat.ITF"""
+          new = """        BarcodeFormat.AZTEC,
+                  BarcodeFormat.CODABAR,
+                  BarcodeFormat.CODE_39,
+                  BarcodeFormat.CODE_93,
+                  BarcodeFormat.CODE_128,
+                  BarcodeFormat.EAN_13,
+                  BarcodeFormat.EAN_8,
+                  BarcodeFormat.MAXICODE,
+                  BarcodeFormat.ITF,
+                  BarcodeFormat.RSS_14,
+                  BarcodeFormat.RSS_EXPANDED,
+                  BarcodeFormat.UPC_A,
+                  BarcodeFormat.UPC_E,
+                  BarcodeFormat.UPC_EAN_EXTENSION"""
+          if old not in source:
+              raise SystemExit('Não encontrei a lista original de formatos do scanner; build cancelado sem alterar o APK.')
+          p.write_text(source.replace(old, new, 1))
+          print('APK configurado com todos os formatos ZXing solicitados, exceto QR_CODE, DATA_MATRIX e PDF_417.')
+          PY
       - name: Build web app
         run: npm run build
       - name: Generate Android image resources
