@@ -29,8 +29,17 @@ jobs:
           java-version: '21'
       - name: Install dependencies
         run: npm install
-      - name: Install native Google ML Kit for APK build
-        run: npm install --no-save @capacitor-mlkit/barcode-scanning@7.1.0 sharp
+      - name: Add native Google ML Kit dependency for APK build only
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p = Path('package.json')
+          data = json.loads(p.read_text())
+          data.setdefault('dependencies', {})['@capacitor-mlkit/barcode-scanning'] = '7.1.0'
+          p.write_text(json.dumps(data, indent=2) + '\\n')
+          PY
+          npm install --no-save sharp
       - name: Restore native ML Kit scanner in APK build only
         run: |
           git fetch --no-tags --depth=1 origin refs/heads/integration/site-official-android-mlkit:refs/remotes/origin/integration/site-official-android-mlkit
