@@ -93,7 +93,6 @@ jobs:
         run: npm run build
       - name: Generate Android image resources
         run: |
-          npm install --no-save sharp
           node --input-type=module -e "import sharp from 'sharp'; await sharp('resources/icon.svg').resize(1024,1024).png().toFile('resources/icon.png'); await sharp('resources/splash.svg').resize(1024,1024).png().toFile('resources/splash.png');"
       - name: Add Android platform
         run: npx cap add android
