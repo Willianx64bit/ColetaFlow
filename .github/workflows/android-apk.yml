@@ -53,8 +53,8 @@ jobs:
           reference_start = reference.index(start)
           reference_end = reference.index(end, reference_start)
           native_scanner = reference[reference_start:reference_end]
-          old_formats = "BarcodeFormat.Ean13,\\n              BarcodeFormat.Ean8,\\n              BarcodeFormat.UpcA,\\n              BarcodeFormat.UpcE,\\n              BarcodeFormat.Itf"
-          new_formats = "BarcodeFormat.Aztec,\\n              BarcodeFormat.Codabar,\\n              BarcodeFormat.Code128,\\n              BarcodeFormat.Code39,\\n              BarcodeFormat.Code93,\\n              BarcodeFormat.Ean13,\\n              BarcodeFormat.Ean8,\\n              BarcodeFormat.Itf,\\n              BarcodeFormat.UpcA,\\n              BarcodeFormat.UpcE"
+          old_formats = "BarcodeFormat.Ean13,\n              BarcodeFormat.Ean8,\n              BarcodeFormat.UpcA,\n              BarcodeFormat.UpcE,\n              BarcodeFormat.Itf"
+          new_formats = "BarcodeFormat.Aztec,\n              BarcodeFormat.Codabar,\n              BarcodeFormat.Code128,\n              BarcodeFormat.Code39,\n              BarcodeFormat.Code93,\n              BarcodeFormat.Ean13,\n              BarcodeFormat.Ean8,\n              BarcodeFormat.Itf,\n              BarcodeFormat.UpcA,\n              BarcodeFormat.UpcE"
           if old_formats not in native_scanner:
               raise SystemExit('Lista nativa original do ML Kit não encontrada; build cancelado.')
           native_scanner = native_scanner.replace(old_formats, new_formats, 1)
