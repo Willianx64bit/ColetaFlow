@@ -6,7 +6,7 @@ import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import * as XLSX from 'xlsx';
 import {
   ArrowDownToLine, Camera, Check, Minus, Plus, FileSpreadsheet, FileDown, FolderUp,
-  Keyboard, Package, RotateCcw, Search, ShieldCheck, X, RefreshCw, Zap, Pencil, Volume2, VolumeX, Sun, Moon, Trash2, LogOut
+  Keyboard, Package, RotateCcw, Search, ShieldCheck, X, RefreshCw, Zap, Pencil, Volume2, VolumeX, Sun, Moon, Trash2, LogOut, ScanText
 } from 'lucide-react';
 
 const apiBaseUrl = (import.meta as ImportMeta & { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL || 'https://feature-shared-collections.coletaflow.pages.dev';
@@ -1144,7 +1144,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
         <div className={`scanner-panel scan-pulse-${scanPulse % 2}`}>
 
           <form className="scan-form" onSubmit={event => { event.preventDefault(); receiveCode(scanValue); }}>
-            <div className="scan-input-wrap"><Keyboard size={20} /><input ref={inputRef} value={scanValue} onChange={event => setScanValue(event.target.value)} placeholder={!workbook ? 'Importe o modelo primeiro' : pendingCode ? 'Informe a quantidade do código lido' : 'Bipe ou digite o código...'} disabled={!workbook || !!pendingCode} autoComplete="off" autoFocus /><button type="button" className="scan-camera-inline" onClick={startCamera} disabled={!workbook || cameraOpen || !!pendingCode} aria-label="Abrir câmera" title="Ler código com a câmera"><Camera size={21} /></button></div>
+            <div className="scan-input-wrap"><Keyboard size={20} /><input ref={inputRef} value={scanValue} onChange={event => setScanValue(event.target.value)} placeholder={!workbook ? 'Importe o modelo primeiro' : pendingCode ? 'Informe a quantidade do código lido' : 'Bipe ou digite o código...'} disabled={!workbook || !!pendingCode} autoComplete="off" autoFocus /><button type="button" className="scan-camera-inline" onClick={startCamera} disabled={!workbook || cameraOpen || !!pendingCode} aria-label="Abrir câmera" title="Ler código com a câmera"><Camera size={21} /></button><button type="button" className="scan-camera-inline scan-ocr-inline" disabled={!workbook || cameraOpen || !!pendingCode} aria-label="Ler números impressos com OCR" title="Ler números impressos"><ScanText size={21} /></button></div>
           </form>
           <div className="scanner-heading scanner-controls" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
             <button type="button" className={autoReopenCamera ? 'secondary-button auto-reopen active' : 'secondary-button auto-reopen'} onClick={() => setAutoReopenCamera(value => !value)} aria-pressed={autoReopenCamera} disabled={!workbook || !!pendingCode} title="Ao confirmar a quantidade, inicia a câmera para a próxima leitura."><RefreshCw size={16} /> {autoReopenCamera ? 'Reabertura automática: ligada' : 'Reabertura automática: desligada'}</button>
