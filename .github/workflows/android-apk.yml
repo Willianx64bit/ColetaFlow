@@ -3,7 +3,7 @@ name: Build ColetaFlow Android APK
 
 on:
   push:
-    branches: [feature/shared-collections, integration/site-official-android-mlkit]
+    branches: [feature/shared-collections, integration/site-official-android-mlkit, feature/android-live-ocr]
     paths:
       - 'capacitor.config.ts'
       - 'resources/**'
@@ -206,7 +206,7 @@ jobs:
               i=s.find(marker)
               if i < 0: raise SystemExit('Gradle dependencies block not found')
               j=s.find('}', i)
-              s=s[:j]+dep+'\\n'+s[j:]
+              s=s[:j]+dep+'\n'+s[j:]
           p.write_text(s)
           PY
           cat > android/app/src/main/java/com/coletaflow/app/OcrPlugin.java <<'JAVA'
