@@ -29,35 +29,77 @@ jobs:
           java-version: '21'
       - name: Install dependencies
         run: npm install
-      - name: Enable additional barcode formats in APK only
+      - name: Install native Google ML Kit for APK build
+        run: npm install --no-save @capacitor-mlkit/barcode-scanning@7.2.0 sharp
+      - name: Restore native ML Kit scanner in APK build only
         run: |
+          git fetch --no-tags --depth=1 origin integration/site-official-android-mlkit
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('src/App.tsx')
-          source = p.read_text()
-          old = """        BarcodeFormat.EAN_13,
-                  BarcodeFormat.EAN_8,
-                  BarcodeFormat.UPC_A,
-                  BarcodeFormat.UPC_E,
-                  BarcodeFormat.ITF"""
-          new = """        BarcodeFormat.AZTEC,
-                  BarcodeFormat.CODABAR,
-                  BarcodeFormat.CODE_39,
-                  BarcodeFormat.CODE_93,
-                  BarcodeFormat.CODE_128,
-                  BarcodeFormat.EAN_13,
-                  BarcodeFormat.EAN_8,
-                  BarcodeFormat.MAXICODE,
-                  BarcodeFormat.ITF,
-                  BarcodeFormat.RSS_14,
-                  BarcodeFormat.RSS_EXPANDED,
-                  BarcodeFormat.UPC_A,
-                  BarcodeFormat.UPC_E,
-                  BarcodeFormat.UPC_EAN_EXTENSION"""
-          if old not in source:
-              raise SystemExit('Não encontrei a lista original de formatos do scanner; build cancelado sem alterar o APK.')
-          p.write_text(source.replace(old, new, 1))
-          print('APK configurado com todos os formatos ZXing solicitados, exceto QR_CODE, DATA_MATRIX e PDF_417.')
+          import subprocess
+
+          current_path = Path('src/App.tsx')
+          current = current_path.read_text()
+          reference = subprocess.check_output(
+              ['git', 'show', 'origin/integration/site-official-android-mlkit:src/App.tsx'],
+              text=True
+          )
+          start = "  useEffect(() => {\\n    if (!cameraOpen || !videoRef.current || pendingCode) return;"
+          end = "\\n  const loadWorkbook = async (file: File) => {"
+          if start not in current or start not in reference:
+              raise SystemExit('Bloco do leitor não encontrado; build cancelado.')
+          current_start = current.index(start)
+          current_end = current.index(end, current_start)
+          reference_start = reference.index(start)
+          reference_end = reference.index(end, reference_start)
+          native_scanner = reference[reference_start:reference_end]
+          old_formats = """              BarcodeFormat.Ean13,
+                          BarcodeFormat.Ean8,
+                          BarcodeFormat.UpcA,
+                          BarcodeFormat.UpcE,
+                          BarcodeFormat.Itf"""
+          new_formats = """              BarcodeFormat.Aztec,
+                          BarcodeFormat.Codabar,
+                          BarcodeFormat.Code128,
+                          BarcodeFormat.Code39,
+                          BarcodeFormat.Code93,
+                          BarcodeFormat.Ean13,
+                          BarcodeFormat.Ean8,
+                          BarcodeFormat.Itf,
+                          BarcodeFormat.UpcA,
+                          BarcodeFormat.UpcE"""
+          if old_formats not in native_scanner:
+              raise SystemExit('Lista nativa original do ML Kit não encontrada; build cancelado.')
+          native_scanner = native_scanner.replace(old_formats, new_formats, 1)
+          current = current[:current_start] + native_scanner + current[current_end:]
+          react_import = "import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';"
+          if react_import not in current:
+              raise SystemExit('Import do React não encontrado; build cancelado.')
+          current = current.replace(react_import, react_import + "\\nimport { Capacitor } from '@capacitor/core';", 1)
+          scanner_ref = "  const scannerRef = useRef<IScannerControls | null>(null);"
+          if scanner_ref not in current:
+              raise SystemExit('Referência da câmera não encontrada; build cancelado.')
+          current = current.replace(scanner_ref, scanner_ref + "\\n  const nativeCameraActiveRef = useRef(false);", 1)
+          current_path.write_text(current)
+
+          css_path = Path('src/styles.css')
+          css = css_path.read_text()
+          native_css = """
+          \\n/* Native Google ML Kit camera preview: APK build only */
+          html:has(body.barcode-scanner-active),body.barcode-scanner-active{background:transparent!important}
+          body.barcode-scanner-active #root{visibility:hidden!important}
+          body.barcode-scanner-active::before,body.barcode-scanner-active::after,body.barcode-scanner-active:has(.camera-box)::before{display:none!important;content:none!important}
+          body.barcode-scanner-active>.camera-box{position:fixed!important;inset:0!important;left:0!important;top:0!important;transform:none!important;width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;margin:0!important;padding:calc(env(safe-area-inset-top) + 14px) 14px calc(env(safe-area-inset-bottom) + 14px)!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:hidden!important;z-index:2147483000!important}
+          body.barcode-scanner-active>.camera-box video{display:none!important}
+          body.barcode-scanner-active>.camera-box .camera-status{position:absolute;top:calc(env(safe-area-inset-top) + 14px);left:14px;right:130px;z-index:2;padding:10px 12px;border-radius:9px;background:#071827d9;color:#e7f5fb}
+          body.barcode-scanner-active>.camera-box .camera-guide{position:absolute!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;z-index:1}
+          body.barcode-scanner-active>.camera-box .camera-zoom-controls{right:14px!important;top:50%!important;z-index:3}
+          body.barcode-scanner-active>.camera-box .camera-bottom-controls{position:absolute!important;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 22px);z-index:3}
+          body.barcode-scanner-active>.camera-box .camera-close{position:absolute!important;top:calc(env(safe-area-inset-top) + 14px)!important;right:14px!important;z-index:4}
+          """
+          if 'body.barcode-scanner-active #root' not in css:
+              css_path.write_text(css + native_css)
+          print('APK usa Google ML Kit nativo com AZTEC, CODABAR, CODE_128, CODE_39, CODE_93, EAN_13, EAN_8, ITF, UPC_A e UPC_E. QR_CODE, DATA_MATRIX e PDF_417 permanecem excluídos.')
           PY
       - name: Build web app
         run: npm run build
