@@ -999,3 +999,21 @@ body.barcode-scanner-active>.camera-box .camera-close{position:absolute!importan
 /* Android OCR confirmation: keep the recognized digits clear and easy to verify. */
 .ocr-confirm-modal .ocr-candidate-value{display:block;font-size:clamp(1.8rem,8vw,2.6rem);font-weight:800;letter-spacing:.12em;line-height:1.2;margin-top:8px;color:var(--text-primary,#172033);overflow-wrap:anywhere}
 .ocr-camera-box video{object-fit:cover}
+
+
+/* OCR: centralizar a confirmação no viewport mesmo em telas Android baixas. */
+@media(max-width:600px){
+  .quantity-modal-backdrop:has(.ocr-confirm-modal){
+    align-items:center!important;
+    justify-content:center!important;
+    overflow-y:auto;
+    padding:12px 10px max(12px,env(safe-area-inset-bottom));
+  }
+}
+@media(max-height:650px){
+  .quantity-modal-backdrop:has(.ocr-confirm-modal){
+    align-items:center!important;
+    padding-top:10px!important;
+    padding-bottom:10px!important;
+  }
+}
