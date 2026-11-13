@@ -58,7 +58,7 @@ jobs:
           if old_formats not in native_scanner:
               raise SystemExit('Lista nativa original do ML Kit não encontrada; build cancelado.')
           native_scanner = native_scanner.replace(old_formats, new_formats, 1)
-          native_scanner = native_scanner.replace('await BarcodeScanner.disableTorch().catch(() => {});', '// O flash é desligado automaticamente ao encerrar a sessão nativa.')
+          native_scanner = native_scanner.replace('await BarcodeScanner.disableTorch().catch(() => {});', 'await Promise.resolve((BarcodeScanner as any).disableTorch?.()).catch(() => {});')
           current = current[:current_start] + native_scanner + current[current_end:]
           react_import = "import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';"
           if react_import not in current:
