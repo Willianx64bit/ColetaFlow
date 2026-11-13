@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Install native Google ML Kit for APK build
-        run: npm install --no-save @capacitor-mlkit/barcode-scanning@7.2.0 sharp
+        run: npm install --no-save @capacitor-mlkit/barcode-scanning@7.1.0 sharp
       - name: Restore native ML Kit scanner in APK build only
         run: |
           git fetch --no-tags --depth=1 origin refs/heads/integration/site-official-android-mlkit:refs/remotes/origin/integration/site-official-android-mlkit
@@ -58,6 +58,7 @@ jobs:
           if old_formats not in native_scanner:
               raise SystemExit('Lista nativa original do ML Kit não encontrada; build cancelado.')
           native_scanner = native_scanner.replace(old_formats, new_formats, 1)
+          native_scanner = native_scanner.replace('await BarcodeScanner.disableTorch().catch(() => {});', '// O flash é desligado automaticamente ao encerrar a sessão nativa.')
           current = current[:current_start] + native_scanner + current[current_end:]
           react_import = "import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';"
           if react_import not in current:
