@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { Ocr } from './ocr';
 import { createPortal } from 'react-dom';
 import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import { BarcodeFormat, DecodeHintType } from '@zxing/library';
@@ -157,6 +158,9 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
   const [editingReviewQuantity, setEditingReviewQuantity] = useState('');
   const [notice, setNotice] = useState('Importe o modelo vazio da empresa para começar.');
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [ocrCameraOpen, setOcrCameraOpen] = useState(false);
+  const [ocrCandidate, setOcrCandidate] = useState('');
+  const [ocrStatus, setOcrStatus] = useState('Preparando leitura de números…');
   const [cameraForSearch, setCameraForSearch] = useState(false);
   const [cameraUsed, setCameraUsed] = useState(false);
   const [autoReopenCamera, setAutoReopenCamera] = useState(false);
@@ -171,6 +175,8 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
   const [scanPulse, setScanPulse] = useState(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const ocrVideoRef = useRef<HTMLVideoElement>(null);
+  const ocrStreamRef = useRef<MediaStream | null>(null);
   const scannerRef = useRef<IScannerControls | null>(null);
   const nativeCameraActiveRef = useRef(false);
   const lastCameraScan = useRef<{ code: string; at: number } | null>(null);
@@ -993,6 +999,93 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
     setCameraStatus('Câmera pausada');
   };
 
+  const stopOcrCamera = () => {
+    setOcrCameraOpen(false);
+    ocrStreamRef.current?.getTracks().forEach(track => track.stop());
+    ocrStreamRef.current = null;
+    if (ocrVideoRef.current) ocrVideoRef.current.srcObject = null;
+    setOcrStatus('Leitura pausada');
+  };
+
+  const startOcrCamera = () => {
+    if (Capacitor.getPlatform() !== 'android') return;
+    stopCamera();
+    setOcrCandidate('');
+    setOcrStatus('Abrindo câmera OCR…');
+    setOcrCameraOpen(true);
+  };
+
+  const confirmOcrCode = () => {
+    const code = ocrCandidate;
+    if (!code) return;
+    stopOcrCamera();
+    setOcrCandidate('');
+    receiveCode(code, false);
+  };
+
+  useEffect(() => {
+    if (!ocrCameraOpen) return;
+    let cancelled = false;
+    let busy = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let previousCandidate = '';
+    let repeated = 0;
+    let stream: MediaStream | null = null;
+    const video = ocrVideoRef.current;
+    const canvas = document.createElement('canvas');
+    const runFrame = async () => {
+      if (cancelled || busy || !video || video.readyState < 2 || video.videoWidth === 0) return;
+      busy = true;
+      try {
+        const scale = Math.min(1, 960 / video.videoWidth);
+        canvas.width = Math.round(video.videoWidth * scale);
+        canvas.height = Math.round(video.videoHeight * scale);
+        const context = canvas.getContext('2d', { alpha: false });
+        if (!context) return;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageBase64 = canvas.toDataURL('image/jpeg', 0.72);
+        const result = await Ocr.recognize({ imageBase64 });
+        if (cancelled) return;
+        const lines = result.text.split(/\r?\n/).map(line => line.replace(/[^0-9]/g, '')).filter(line => /^\d{6,14}$/.test(line));
+        const candidate = lines.sort((a, b) => b.length - a.length)[0] || '';
+        if (candidate && candidate === previousCandidate) repeated += 1;
+        else { previousCandidate = candidate; repeated = candidate ? 1 : 0; }
+        if (candidate && repeated >= 2) {
+          setOcrCandidate(candidate);
+          setOcrStatus('Número identificado · confirme antes de bipar');
+          playScanFeedback();
+          stopOcrCamera();
+          return;
+        }
+        setOcrStatus(candidate ? 'Número detectado · estabilizando leitura…' : 'Aponte para os números impressos');
+      } catch {
+        if (!cancelled) setOcrStatus('Reconhecendo… mantenha o número visível e focado');
+      } finally {
+        busy = false;
+        if (!cancelled) timer = setTimeout(runFrame, 650);
+      }
+    };
+    void (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 24 } } });
+        if (cancelled) { stream.getTracks().forEach(track => track.stop()); return; }
+        ocrStreamRef.current = stream;
+        if (video) { video.srcObject = stream; await video.play(); }
+        setOcrStatus('Aponte para os números impressos');
+        timer = setTimeout(runFrame, 350);
+      } catch {
+        if (!cancelled) { setOcrStatus('Não foi possível abrir a câmera. Verifique a permissão.'); setNotice('Não foi possível iniciar a câmera OCR. Autorize o acesso à câmera e tente novamente.'); }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      stream?.getTracks().forEach(track => track.stop());
+      if (ocrStreamRef.current === stream) ocrStreamRef.current = null;
+      if (video) video.srcObject = null;
+    };
+  }, [ocrCameraOpen]);
+
   const getExportGroups = () => {
     if (!workbook || !sheet || !range) return { matched: [] as [string, number][], unmatched: [] as [string, number][] };
     const matched: [string, number][] = [];
@@ -1110,6 +1203,25 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
             </div>,
             document.body
           )}
+          {ocrCameraOpen && createPortal(
+            <div className="camera-box ocr-camera-box">
+              <div className="camera-status"><span className="camera-live-dot" />{ocrStatus}</div>
+              <video ref={ocrVideoRef} muted playsInline autoPlay />
+              <div className="camera-guide" aria-hidden="true" />
+              <button className="camera-close" onClick={stopOcrCamera}><X size={18} /> Fechar OCR</button>
+            </div>, document.body
+          )}
+          {ocrCandidate && createPortal(
+            <div className="quantity-modal-backdrop" role="presentation">
+              <section className="quantity-modal ocr-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="ocr-confirm-title">
+                <div className="quantity-modal-heading"><div className="quantity-product-info"><span className="quantity-modal-eyebrow">NÚMERO RECONHECIDO</span><h3 id="ocr-confirm-title">Confirme o código</h3><span className="quantity-product-code">OCR identificou:</span><strong className="ocr-candidate-value">{ocrCandidate}</strong></div></div>
+                <div className="quantity-modal-actions">
+                  <button className="secondary-button" onClick={() => { setOcrCandidate(''); startOcrCamera(); }}>Tentar novamente</button>
+                  <button className="primary-button" onClick={confirmOcrCode}><Check size={17} /> Confirmar</button>
+                </div>
+              </section>
+            </div>, document.body
+          )}
           {pendingCode && <div className="quantity-modal-backdrop" role="presentation">
             <section className="quantity-modal" role="dialog" aria-modal="true" aria-labelledby="quantity-modal-title">
               <div className="quantity-modal-heading">
@@ -1144,7 +1256,7 @@ function CollectorApp({ sharedCollection, onFinished, onBack }: { sharedCollecti
         <div className={`scanner-panel scan-pulse-${scanPulse % 2}`}>
 
           <form className="scan-form" onSubmit={event => { event.preventDefault(); receiveCode(scanValue); }}>
-            <div className="scan-input-wrap"><Keyboard size={20} /><input ref={inputRef} value={scanValue} onChange={event => setScanValue(event.target.value)} placeholder={!workbook ? 'Importe o modelo primeiro' : pendingCode ? 'Informe a quantidade do código lido' : 'Bipe ou digite o código...'} disabled={!workbook || !!pendingCode} autoComplete="off" autoFocus /><button type="button" className="scan-camera-inline" onClick={startCamera} disabled={!workbook || cameraOpen || !!pendingCode} aria-label="Abrir câmera" title="Ler código com a câmera"><Camera size={21} /></button><button type="button" className="scan-camera-inline scan-ocr-inline" disabled={!workbook || cameraOpen || !!pendingCode} aria-label="Ler números impressos com OCR" title="Ler números impressos"><ScanText size={21} /></button></div>
+            <div className="scan-input-wrap"><Keyboard size={20} /><input ref={inputRef} value={scanValue} onChange={event => setScanValue(event.target.value)} placeholder={!workbook ? 'Importe o modelo primeiro' : pendingCode ? 'Informe a quantidade do código lido' : 'Bipe ou digite o código...'} disabled={!workbook || !!pendingCode} autoComplete="off" autoFocus /><button type="button" className="scan-camera-inline" onClick={startCamera} disabled={!workbook || cameraOpen || !!pendingCode} aria-label="Abrir câmera" title="Ler código com a câmera"><Camera size={21} /></button>{Capacitor.getPlatform() === 'android' && <button type="button" className="scan-camera-inline scan-ocr-inline" onClick={startOcrCamera} disabled={!workbook || cameraOpen || ocrCameraOpen || !!pendingCode} aria-label="Ler números impressos com OCR" title="Ler números impressos"><ScanText size={21} /></button>}</div>
           </form>
           <div className="scanner-heading scanner-controls" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
             <button type="button" className={autoReopenCamera ? 'secondary-button auto-reopen active' : 'secondary-button auto-reopen'} onClick={() => setAutoReopenCamera(value => !value)} aria-pressed={autoReopenCamera} disabled={!workbook || !!pendingCode} title="Ao confirmar a quantidade, inicia a câmera para a próxima leitura."><RefreshCw size={16} /> {autoReopenCamera ? 'Reabertura automática: ligada' : 'Reabertura automática: desligada'}</button>
